@@ -15,6 +15,9 @@
 
 #define PLUGIN_VERSION "1.5.0"
 
+#define DEBUG 		1
+#define DEBUG_SQL 	1
+
 enum CampaignCode
 {
 	l4d2c1			  = 0,
@@ -61,6 +64,9 @@ stock char sTypeVotes[TypeVotes_Size][] = {
 };
 
 ConVar
+	g_cvarRegLog,
+	g_cvarEnable,
+
 	g_cvarBuiltinVote,
 	g_cvarAnnouncer,
 	g_cvarProgress,
@@ -71,7 +77,6 @@ ConVar
 	g_cvarAllTalk,
 
 	g_cvarAdminInmunity,
-	g_cvarVipInmunity,
 	g_cvarSTVInmunity,
 	g_cvarSelfInmunity,
 	g_cvarBotInmunity,
@@ -88,14 +93,14 @@ bool
 	g_bLateLoad;
 
 char
-	g_sReason[MAX_REASON_LENGTH + 1];
+	g_sReason[MAX_REASON_LENGTH + 1],
+	g_sLogPath[PLATFORM_MAX_PATH];
 
 float
 	g_fLastVote;
 
 int
 	g_iFlagsAdmin,
-	g_iFlagsVip,
 	g_iVoteRejectClient = -1;
 
 GlobalForward
@@ -124,10 +129,9 @@ public Plugin myinfo =
 			F O R W A R D   P U B L I C S
 *****************************************************************/
 
-public APLRes
-	AskPluginLoad2(Handle hMyself, bool bLate, char[] sError, int iErr_max)
+public APLRes AskPluginLoad2(Handle hMyself, bool bLate, char[] sError, int iErr_max)
 {
-	// <builtinvotes>
+
 	MarkNativeAsOptional("IsBuiltinVoteInProgress");
 	MarkNativeAsOptional("CheckBuiltinVoteDelay");
 
@@ -158,12 +162,13 @@ public void OnLibraryAdded(const char[] sName)
 
 public void OnPluginStart()
 {
+	BuildPath(Path_SM, g_sLogPath, sizeof(g_sLogPath), DIR_CALLVOTE);
+
 	LoadTranslation("callvote_manager.phrases");
 	CreateConVar("sm_cvm_version", PLUGIN_VERSION, "Plugin version", FCVAR_REPLICATED | FCVAR_NOTIFY | FCVAR_SPONLY | FCVAR_DONTRECORD);
 
-	g_cvarDebug			= CreateConVar("sm_cvm_debug", "0", "Debug messagess", FCVAR_NOTIFY, true, 0.0, true, 1.0);
 	g_cvarEnable		= CreateConVar("sm_cvm_enable", "1", "Enable plugin", FCVAR_NOTIFY, true, 0.0, true, 1.0);
-	g_cvarLog			= CreateConVar("sm_cvm_log", "0", "logging flags <dificulty:1, restartgame:2, kick:4, changemission:8, lobby:16, chapter:32, alltalk:64, ALL:127>", FCVAR_NOTIFY, true, 0.0, true, 127.0);
+	g_cvarRegLog		= CreateConVar("sm_cvm_log", "0", "logging flags <dificulty:1, restartgame:2, kick:4, changemission:8, lobby:16, chapter:32, alltalk:64, ALL:127>", FCVAR_NOTIFY, true, 0.0, true, 127.0);
 	g_cvarBuiltinVote	= CreateConVar("sm_cvm_builtinvote", "1", "<builtinvotes> support", FCVAR_NOTIFY, true, 0.0, true, 1.0);
 	g_cvarAnnouncer		= CreateConVar("sm_cvm_announcer", "1", "Announce voting calls", FCVAR_NOTIFY, true, 0.0, true, 1.0);
 	g_cvarProgress		= CreateConVar("sm_cvm_progress", "1", "Show voting progress", FCVAR_NOTIFY, true, 0.0, true, 1.0);
@@ -173,36 +178,31 @@ public void OnPluginStart()
 	g_cvarChapter		= CreateConVar("sm_cvm_chapter", "1", "Enable vote ChangeChapter", FCVAR_NOTIFY, true, 0.0, true, 1.0);
 	g_cvarAllTalk		= CreateConVar("sm_cvm_alltalk", "1", "Enable vote ChangeAllTalk", FCVAR_NOTIFY, true, 0.0, true, 1.0);
 
-	// ConVar that refer to the kick vote call
 	g_cvarAdminInmunity = CreateConVar("sm_cvm_admininmunity", "", "Admins are immune to kick votes. Specify admin flags or blank.", FCVAR_NOTIFY);
-	g_cvarVipInmunity	= CreateConVar("sm_cvm_vipinmunity", "", "Vips are immune to kick votes, Specify admin flags or blank.", FCVAR_NOTIFY);
 	g_cvarSTVInmunity	= CreateConVar("sm_cvm_stvinmunity", "1", "SourceTV is immune to votekick", FCVAR_NOTIFY, true, 0.0, true, 1.0);
 	g_cvarSelfInmunity	= CreateConVar("sm_cvm_selfinmunity", "1", "Immunity to self-kick", FCVAR_NOTIFY, true, 0.0, true, 1.0);
 	g_cvarBotInmunity	= CreateConVar("sm_cvm_botinmunity", "1", "Immunity to bots", FCVAR_NOTIFY, true, 0.0, true, 1.0);
 
-	InitializeConVars();
+	sv_vote_issue_change_difficulty_allowed = FindConVar("sv_vote_issue_change_difficulty_allowed");
+	sv_vote_issue_restart_game_allowed		= FindConVar("sv_vote_issue_restart_game_allowed");
+	sv_vote_issue_change_mission_allowed	= FindConVar("sv_vote_issue_change_mission_allowed");
+	sv_vote_issue_kick_allowed				= FindConVar("sv_vote_issue_kick_allowed");
+	sv_vote_creation_timer					= FindConVar("sv_vote_creation_timer");
+	z_difficulty							= FindConVar("z_difficulty");
 
-	char
-		sTempAdmin[32],
-		sTempVip[32];
+	char sTempAdmin[32];
 
 	g_cvarAdminInmunity.AddChangeHook(ConVarChanged_AdminInmunity);
 	g_cvarAdminInmunity.GetString(sTempAdmin, sizeof(sTempAdmin));
 	g_iFlagsAdmin = ReadFlagString(sTempAdmin);
 
-	g_cvarVipInmunity.AddChangeHook(ConVarChanged_VipInmunity);
-	g_cvarVipInmunity.GetString(sTempVip, sizeof(sTempVip));
-	g_iFlagsVip = ReadFlagString(sTempVip);
-
 	OnPluginStart_SQL();
 
-	// Listen when a user issues a voting call
 	AddCommandListener(Listener_CallVote, "callvote");
 	HookEvent("vote_cast_yes", Event_VoteCastYes);
 	HookEvent("vote_cast_no", Event_VoteCastNo);
 
 	AutoExecConfig(false, "callvote_manager");
-	BuildPath(Path_SM, g_sLogPath, sizeof(g_sLogPath), DIR_CALLVOTE);
 
 	if (!g_bLateLoad)
 		return;
@@ -210,28 +210,11 @@ public void OnPluginStart()
 	g_bBuiltinVotes = LibraryExists("BuiltinVotes");
 }
 
-void InitializeConVars()
-{
-	sv_vote_issue_change_difficulty_allowed = FindConVar("sv_vote_issue_change_difficulty_allowed");
-	sv_vote_issue_restart_game_allowed		= FindConVar("sv_vote_issue_restart_game_allowed");
-	sv_vote_issue_change_mission_allowed	= FindConVar("sv_vote_issue_change_mission_allowed");
-	sv_vote_issue_kick_allowed				= FindConVar("sv_vote_issue_kick_allowed");
-	sv_vote_creation_timer					= FindConVar("sv_vote_creation_timer");
-	z_difficulty							= FindConVar("z_difficulty");
-}
-
 public void ConVarChanged_AdminInmunity(Handle hConVar, const char[] sOldValue, const char[] sNewValue)
 {
 	char sTempAdmin[32];
 	g_cvarAdminInmunity.GetString(sTempAdmin, sizeof(sTempAdmin));
 	g_iFlagsAdmin = ReadFlagString(sTempAdmin);
-}
-
-public void ConVarChanged_VipInmunity(Handle hConVar, const char[] sOldValue, const char[] sNewValue)
-{
-	char sTempVip[32];
-	g_cvarVipInmunity.GetString(sTempVip, sizeof(sTempVip));
-	g_iFlagsVip = ReadFlagString(sTempVip);
 }
 
 public void OnPluginEnd()
@@ -264,21 +247,24 @@ Action Listener_CallVote(int iClient, const char[] sCommand, int iArgs)
 	if (!g_cvarEnable.BoolValue)
 		return Plugin_Continue;
 
-	// Check if the client is console
-	if (iClient == CONSOLE)
+	// Verificar si el comando no tiene argumentos
+	if (GetCmdArgs() == 0)
+	{
+		return Plugin_Continue;
+	}
+
+	if (iClient == SERVER_INDEX)
 	{
 		CReplyToCommand(iClient, "%t Votes can only be issued from a valid client.", "Tag");
 		return Plugin_Handled;
 	}
 
-	// Check if the client is spectating
 	if (L4D_GetClientTeam(iClient) == L4DTeam_Spectator)
 	{
 		CPrintToChat(iClient, "%t %t", "Tag", "SpecVote");
 		return Plugin_Handled;
 	}
 
-	// Check if we can even do a vote
 	if (g_bBuiltinVotes && g_cvarBuiltinVote.BoolValue && !IsNewBuiltinVoteAllowed)
 	{
 		CPrintToChat(iClient, "%t %t", "Tag", "TryAgain", CheckBuiltinVoteDelay());
@@ -286,7 +272,6 @@ Action Listener_CallVote(int iClient, const char[] sCommand, int iArgs)
 	}
 
 	float fDifLastVote = GetEngineTime() - g_fLastVote;
-	// Minimum time that is required by the voting system itself before another vote can be called
 	if (fDifLastVote <= 5.5)
 	{
 		CPrintToChat(iClient, "%t %t", "Tag", "TryAgain", RoundFloat(5.5 - fDifLastVote));
@@ -298,11 +283,9 @@ Action Listener_CallVote(int iClient, const char[] sCommand, int iArgs)
 		return Plugin_Handled;
 	}
 
-	// Storage
 	char sVoteType[32];
 	char sVoteArgument[32];
 
-	// Get Vote Type
 	GetCmdArg(1, sVoteType, sizeof(sVoteType));
 	GetCmdArg(2, sVoteArgument, sizeof(sVoteArgument));
 
@@ -331,7 +314,6 @@ Action Listener_CallVote(int iClient, const char[] sCommand, int iArgs)
 
 		ForwardCallVote(iClient, ChangeDifficulty);
 
-		// Check if the vote was rejected
 		if (g_iVoteRejectClient != -1 && g_iVoteRejectClient == iClient)
 		{
 			CPrintToChat(iClient, "%t %s", "Tag", g_sReason);
@@ -343,11 +325,8 @@ Action Listener_CallVote(int iClient, const char[] sCommand, int iArgs)
 		char sDifficulty[32];
 		Format(sDifficulty, sizeof(sDifficulty), "%t", sVoteArgument);
 
-		if (g_cvarLog.IntValue & VOTE_CHANGEDIFFICULTY)
-			logEx(false, "[Listener_CallVote] Caller %N | Vote %s - %s", iClient, sTypeVotes[ChangeDifficulty], sDifficulty);
-
-		if (g_cvarSQL.IntValue & VOTE_CHANGEDIFFICULTY)
-			logSQL(ChangeDifficulty, iClient);
+		RegVote(ChangeDifficulty, iClient);
+		RegSQLVote(ChangeDifficulty, iClient);
 
 		announcer("%t", "ChangeDifficulty", iClient, sDifficulty);
 	}
@@ -367,7 +346,6 @@ Action Listener_CallVote(int iClient, const char[] sCommand, int iArgs)
 
 		ForwardCallVote(iClient, RestartGame);
 
-		// Check if the vote was rejected
 		if (g_iVoteRejectClient != -1 && g_iVoteRejectClient == iClient)
 		{
 			CPrintToChat(iClient, "%t %s", "Tag", g_sReason);
@@ -375,11 +353,8 @@ Action Listener_CallVote(int iClient, const char[] sCommand, int iArgs)
 			return Plugin_Handled;
 		}
 
-		if (g_cvarLog.IntValue & VOTE_RESTARTGAME)
-			logEx(false, "[Listener_CallVote] Caller %N | Vote %s", iClient, sTypeVotes[RestartGame]);
-
-		if (g_cvarSQL.IntValue & VOTE_RESTARTGAME)
-			logSQL(RestartGame, iClient);
+		RegVote(RestartGame, iClient);
+		RegSQLVote(RestartGame, iClient);
 
 		announcer("%t", "RestartGame", iClient);
 	}
@@ -417,25 +392,28 @@ Action Listener_CallVote(int iClient, const char[] sCommand, int iArgs)
 			return Plugin_Handled;
 		}
 
-		if (!IsFlagC(iClient) && (IsAdmin(iTarget) || IsVip(iTarget)))
+		L4DTeam clientTeam = L4D_GetClientTeam(iClient);
+		L4DTeam targetTeam = L4D_GetClientTeam(iTarget);
+		
+		if (clientTeam != targetTeam)
+		{
+			CPrintToChat(iClient, "%t %t", "Tag", "KickDifferentTeam");
+			return Plugin_Handled;
+		}
+
+		if (!IsFlagC(iClient) && IsAdmin(iTarget))
 		{
 			CPrintToChat(iClient, "%t %t", "Tag", "Inmunity");
 			CPrintToChat(iTarget, "%t %t", "Tag", "InmunityTarget", iClient);
 			return Plugin_Handled;
 		}
 
-		/* Start function call */
 		Call_StartForward(g_ForwardCallVote);
-
-		/* Push parameters one at a time */
 		Call_PushCell(iClient);
 		Call_PushCell(Kick);
 		Call_PushCell(iTarget);
-
-		/* Finish the call */
 		Call_Finish();
 
-		// Check if the vote was rejected
 		if (g_iVoteRejectClient != -1 && g_iVoteRejectClient == iClient)
 		{
 			CPrintToChat(iClient, "%t %s", "Tag", g_sReason);
@@ -443,11 +421,8 @@ Action Listener_CallVote(int iClient, const char[] sCommand, int iArgs)
 			return Plugin_Handled;
 		}
 
-		if (g_cvarLog.IntValue & VOTE_KICK)
-			logEx(false, "[Listener_CallVote] Caller %N | Vote %s - %N", iClient, sTypeVotes[Kick], iTarget);
-
-		if (g_cvarSQL.IntValue & VOTE_KICK)
-			logSQL(Kick, iClient, iTarget);
+		RegVote(Kick, iClient, iTarget);
+		RegSQLVote(Kick, iClient, iTarget);
 
 		announcer("%t", "Kick", iClient, iTarget);
 	}
@@ -467,7 +442,6 @@ Action Listener_CallVote(int iClient, const char[] sCommand, int iArgs)
 
 		ForwardCallVote(iClient, ChangeMission);
 
-		// Check if the vote was rejected
 		if (g_iVoteRejectClient != -1 && g_iVoteRejectClient == iClient)
 		{
 			CPrintToChat(iClient, "%t %s", "Tag", g_sReason);
@@ -475,7 +449,6 @@ Action Listener_CallVote(int iClient, const char[] sCommand, int iArgs)
 			return Plugin_Handled;
 		}
 
-		// We verify if the map is official for translation
 		int	 iCode = Campaign_Code(sVoteArgument);
 		char sCampaign[32];
 		if (iCode == -1)
@@ -483,11 +456,10 @@ Action Listener_CallVote(int iClient, const char[] sCommand, int iArgs)
 		else
 			Format(sCampaign, sizeof(sCampaign), "%t", sCampaignCode[iCode]);
 
-		if (g_cvarLog.IntValue & VOTE_CHANGEMISSION)
-			logEx(false, "[Listener_CallVote] Caller %N | Vote %s - %s", iClient, sTypeVotes[ChangeMission], sVoteArgument);
 
-		if (g_cvarSQL.IntValue & VOTE_CHANGEMISSION)
-			logSQL(ChangeMission, iClient);
+
+		RegVote(ChangeMission, iClient);
+		RegSQLVote(ChangeMission, iClient);
 
 		announcer("%t", "ChangeMission", iClient, sCampaign);
 	}
@@ -515,11 +487,8 @@ Action Listener_CallVote(int iClient, const char[] sCommand, int iArgs)
 			return Plugin_Handled;
 		}
 
-		if (g_cvarLog.IntValue & VOTE_RETURNTOLOBBY)
-			logEx(false, "[Listener_CallVote] Caller %N | Vote %s", iClient, sTypeVotes[ReturnToLobby]);
-
-		if (g_cvarSQL.IntValue & VOTE_RETURNTOLOBBY)
-			logSQL(ReturnToLobby, iClient);
+		RegVote(ReturnToLobby, iClient);
+		RegSQLVote(ReturnToLobby, iClient);
 		
 		announcer("%t", "ReturnToLobby", iClient);
 	}
@@ -547,11 +516,8 @@ Action Listener_CallVote(int iClient, const char[] sCommand, int iArgs)
 			return Plugin_Handled;
 		}
 
-		if (g_cvarLog.IntValue & VOTE_CHANGECHAPTER)
-			logEx(false, "[Listener_CallVote] Caller %N | Vote %s - %s", iClient, sTypeVotes[ChangeChapter], sVoteArgument);
-
-		if (g_cvarSQL.IntValue & VOTE_CHANGECHAPTER)
-			logSQL(ChangeChapter, iClient);
+		RegVote(ChangeChapter, iClient);
+		RegSQLVote(ChangeChapter, iClient);
 
 		announcer("%t", "ChangeChapter", iClient, sVoteArgument);
 	}
@@ -576,11 +542,8 @@ Action Listener_CallVote(int iClient, const char[] sCommand, int iArgs)
 			return Plugin_Handled;
 		}
 
-		if (g_cvarLog.IntValue & VOTE_CHANGEALLTALK)
-			logEx(false, "[Listener_CallVote] Caller %N | Vote %s", iClient, sTypeVotes[ChangeAllTalk]);
-
-		if (g_cvarSQL.IntValue & VOTE_CHANGEALLTALK)
-			logSQL(ChangeAllTalk, iClient);
+		RegVote(ChangeAllTalk, iClient);
+		RegSQLVote(ChangeAllTalk, iClient);
 
 		announcer("%t", "ChangeAllTalk", iClient);
 	}
@@ -677,21 +640,86 @@ void Event_VoteCastNo(Event event, const char[] sEventName, bool bDontBroadcast)
 			P L U G I N   F U N C T I O N S
 *****************************************************************/
 
-/*
- * @brief: Print announcer message to log file
- * @param: sMessage - Message to print
- * @param: any - Arguments
- */
+void RegVote(TypeVotes type, int iClient, int iTarget = SERVER_INDEX)
+{
+	if (!g_cvarRegLog.BoolValue)
+		return;
+	
+	int iVoteFlag = 0;
+	switch (type)
+	{
+		case ChangeDifficulty: iVoteFlag = VOTE_CHANGEDIFFICULTY;
+		case RestartGame: iVoteFlag = VOTE_RESTARTGAME;
+		case Kick: iVoteFlag = VOTE_KICK;
+		case ChangeMission: iVoteFlag = VOTE_CHANGEMISSION;
+		case ReturnToLobby: iVoteFlag = VOTE_RETURNTOLOBBY;
+		case ChangeChapter: iVoteFlag = VOTE_CHANGECHAPTER;
+		case ChangeAllTalk: iVoteFlag = VOTE_CHANGEALLTALK;
+		default: return;
+	}
+	
+	if (!(g_cvarRegLog.IntValue & iVoteFlag))
+		return;
+	
+	char sAuthID_Client[MAX_AUTHID_LENGTH];
+	if (!GetClientAuthId(iClient, AuthId_Steam2, sAuthID_Client, sizeof(sAuthID_Client)))
+	{
+		LogError("[RegVote] Failed to get AuthID for client %N", iClient);
+		return;
+	}
+	
+	char sClientName[MAX_NAME_LENGTH];
+	GetClientName(iClient, sClientName, sizeof(sClientName));
+	
+	char sTime[32];
+	FormatTime(sTime, sizeof(sTime), "%Y-%m-%d %H:%M:%S", GetTime());
+	
+	char sLogMessage[512];
+	if (type == Kick && IsHuman(iTarget))
+	{
+		char sAuthID_Target[MAX_AUTHID_LENGTH];
+		if (!GetClientAuthId(iTarget, AuthId_Steam2, sAuthID_Target, sizeof(sAuthID_Target)))
+		{
+			LogDebug("[RegVote] Failed to get AuthID for target %d", iTarget);
+			return;
+		}
+		
+		char sTargetName[MAX_NAME_LENGTH];
+		GetClientName(iTarget, sTargetName, sizeof(sTargetName));
+		
+		Format(sLogMessage, sizeof(sLogMessage), 
+			"[%s] %s (%s) called vote %s against %s (%s)", 
+			sTime, sClientName, sAuthID_Client, sTypeVotes[type], sTargetName, sAuthID_Target);
+	}
+	else
+	{
+		Format(sLogMessage, sizeof(sLogMessage), 
+			"[%s] %s (%s) called vote %s", 
+			sTime, sClientName, sAuthID_Client, sTypeVotes[type]);
+	}
+	
+	LogToFileEx(g_sLogPath, "[RegVote] %s", sLogMessage);
+}
+
+
+bool IsHuman(int iClient)
+{
+	if (iClient < 1 || iClient > MaxClients)
+		return false;
+
+	if (!IsClientConnected(iClient) || IsFakeClient(iClient))
+		return false;
+
+	return true;
+}
+
 void announcer(const char[] sMessage, any...)
 {
 	if (!g_cvarAnnouncer.BoolValue)
 		return;
 
 	static char sFormat[512];
-
-	// Format message
 	VFormat(sFormat, sizeof(sFormat), sMessage, 2);
-
 	CPrintToChatAll("%t %s", "Tag", sFormat);
 }
 
@@ -700,29 +728,14 @@ void announcer(const char[] sMessage, any...)
  * @param client			Client index
  * @return					True if it has an admin flag or is root, False if it has no flags.
  */
-bool IsAdmin(const int client)
+bool IsAdmin(const int iClient)
 {
 	if (g_iFlagsAdmin == 0)
 		return false;
 
-	int iClientFlags = GetUserFlagBits(client);
-	logEx(true, "[IsAdmin] Checking %N flags: %d | Admin: %d", client, iClientFlags, g_iFlagsAdmin);
-	return view_as<bool>((iClientFlags & g_iFlagsAdmin) || (iClientFlags & ADMFLAG_ROOT));
-}
-
-/**
- * @brief Return if a user has vip flag
- * @param client			Client index
- * @return					True if it has an vip flag, False if it has no flags.
- */
-bool IsVip(const int client)
-{
-	if (g_iFlagsVip == 0)
-		return false;
-
-	int iClientFlags = GetUserFlagBits(client);
-	logEx(true, "[IsVip] Checking %N flags: %d | Vip: %d", client, iClientFlags, g_iFlagsVip);
-	return view_as<bool>(iClientFlags & g_iFlagsVip);
+	int iClientFlags = GetUserFlagBits(iClient);
+	LogDebug("[IsAdmin] Checking %N flags: %d | Admin: %d", iClient, iClientFlags, g_iFlagsAdmin);
+	return (iClientFlags & g_iFlagsAdmin) ? true : false;
 }
 
 /**
@@ -730,9 +743,9 @@ bool IsVip(const int client)
  * @param client			Client index
  * @return					True if it has an kick flag or root, False if it has no flags.
  */
-bool IsFlagC(const int client)
+bool IsFlagC(const int iClient)
 {
-	int iClientFlags = GetUserFlagBits(client);
+	int iClientFlags = GetUserFlagBits(iClient);
 	return view_as<bool>(iClientFlags & FlagToBit(Admin_Kick) || (iClientFlags & ADMFLAG_ROOT));
 }
 
@@ -748,15 +761,10 @@ void CleanVoteReject()
 
 void ForwardCallVote(int iClient, TypeVotes vote)
 {
-	/* Start function call */
 	Call_StartForward(g_ForwardCallVote);
-
-	/* Push parameters one at a time */
 	Call_PushCell(iClient);
 	Call_PushCell(vote);
 	Call_PushCell(0);
-
-	/* Finish the call */
 	Call_Finish();
 }
 
@@ -795,35 +803,42 @@ char[] TeamTranslation(L4DTeam Team)
 	return sBuffer;
 }
 
-/*
- * @brief: Print debug message to log file
- * @param: sMessage - Message to print
- * @param: any - Arguments
- */
-stock void logEx(bool onlydebug, const char[] sMessage, any...)
-{
-	static int check = -1;
-	static char
-		sFilename[64],
-		sFormat[1024];
-	
-	VFormat(sFormat, sizeof(sFormat), sMessage, 3);
-	File file = OpenFile(g_sLogPath, "a+");
+#if DEBUG
 
-	GetPluginFilename(null, sFilename, sizeof(sFilename));
-	if ((check = FindCharInString(sFilename, '/', true)) != -1 || (check = FindCharInString(sFilename, '\\', true)) != -1)
-		Format(sFilename, sizeof(sFilename), "%s", sFilename[check + 1]);
+	/**
+	 * Logs a debug message to a specified log file.
+	 *
+	 * @param sMessage   The format string for the debug message.
+	 * @param ...        Additional arguments to format into the message.
+	 */
+	void LogDebug(const char[] sMessage, any...)
+	{
+		static char sFormat[1024];
+		VFormat(sFormat, sizeof(sFormat), sMessage, 2);
+		LogToFileEx(g_sLogPath, "[Manager][Debug] %s", sFormat);
+	}
 
-	ReplaceString(sFilename, sizeof(sFilename), ".smx", "", false);
-	ReplaceString(sFilename, sizeof(sFilename), "callvote_", "", false);
+	#if DEBUG_SQL
+		/**
+		 * Logs a formatted SQL-related message to a log file.
+		 *
+		 * @param sMessage   The format string for the message to log.
+		 * @param ...        Additional arguments to format into the message.
+		 */
+		void LogSQL(const char[] sMessage, any...)
+		{
+			static char sFormat[1024];
+			VFormat(sFormat, sizeof(sFormat), sMessage, 2);
+			LogToFileEx(g_sLogPath, "[Manager][SQL] %s", sFormat);
+		}
+	#else
+		public void LogSQL(const char[] sMessage, any...) {}
+	#endif
 
-	if (g_cvarDebug.BoolValue && onlydebug)
-		LogToFileEx(g_sLogPath, "[Debug] [%s] %s", sFilename, sFormat);
-	else if (!onlydebug)
-		LogToFileEx(g_sLogPath, "[%s] %s", sFilename, sFormat);
-
-	delete file;
-}
+#else
+	public void LogDebug(const char[] sMessage, any...) {}
+	public void LogSQL(const char[] sMessage, any...) {}
+#endif
 
 // =======================================================================================
 // Bibliography

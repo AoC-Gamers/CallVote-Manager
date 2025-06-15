@@ -24,6 +24,18 @@
 	{
 		"es"		"{red}No se pudo{default} conectar a la base de datos."
 	}
+	"DBUnknownDriver"
+	{
+		"es"		"{red}Driver{default} de base de datos desconocido."
+	}
+	"DBQueryErrorTable"
+	{
+		"es"		"{red}Error{default} en la consulta de tabla de base de datos."
+	}
+	"DBTriggerIssue"
+	{
+		"es"		"{red}Problema{default} con el trigger de base de datos para la tabla {blue}%s{default}."
+	}
 	"TryAgain"
 	{
 		"es"		"No se puede solicitar una votación en este momento, ¡inténtalo de nuevo en %is!"
@@ -71,6 +83,10 @@
     "KickSelf"
     {
         "es"        "No puedes {red}expulsarte{default} a ti mismo"
+    }
+    "KickDifferentTeam"
+    {
+        "es"        "Solo puedes {red}expulsar{default} jugadores de tu {olive}mismo equipo{default}"
     }
     "Inmunity"
     {

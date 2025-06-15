@@ -24,6 +24,18 @@
 	{
 		"en"		"{red}Could not{default} connect to database."
 	}
+	"DBUnknownDriver"
+	{
+		"en"		"Unknown database {red}driver{default}."
+	}
+	"DBQueryErrorTable"
+	{
+		"en"		"Database table query {red}error{default}."
+	}
+	"DBTriggerIssue"
+	{
+		"en"		"Database trigger {red}issue{default} for table {blue}%s{default}."
+	}
 	"TryAgain"
 	{
 		"en"		"A vote can't be called right now, try again in %is!"
@@ -71,6 +83,10 @@
     "KickSelf"
     {
         "en"        "You can't {red}kick{default} yourself"
+    }
+    "KickDifferentTeam"
+    {
+        "en"        "You can only {red}kick{default} players from your {olive}same team{default}"
     }
     "Inmunity"
     {
@@ -171,10 +187,6 @@
 	"L4DTeam_Unassigned"
 	{
 		"en"		"None"
-	}
-	"VoteCastYes"
-	{
-		"en"		"Progress"
 	}
 	"VoteCastAnon"
 	{

@@ -21,23 +21,30 @@
 #endif
 #define _callvote_stocks_included
 
+#include <steamidtools>
+
 /*****************************************************************
 			G L O B A L   V A R S
 *****************************************************************/
 
 #define DIR_CALLVOTE		  "logs/callvote.log"
-#define MAX_REASON_LENGTH	  512
 
 /**
- * @section Bitwise values definitions for type vote.
+ * @section Bitwise values definitions for vote types.
+ * Unified enumeration for vote restrictions and type identification.
  */
-#define VOTE_CHANGEDIFFICULTY (1 << 0)	  // 1
-#define VOTE_RESTARTGAME	  (1 << 1)	  // 2
-#define VOTE_KICK			  (1 << 2)	  // 4
-#define VOTE_CHANGEMISSION	  (1 << 3)	  // 8
-#define VOTE_RETURNTOLOBBY	  (1 << 4)	  // 16
-#define VOTE_CHANGECHAPTER	  (1 << 5)	  // 32
-#define VOTE_CHANGEALLTALK	  (1 << 6)	  // 64
+enum VoteType
+{
+	VOTE_NONE           = 0,        // No restrictions
+	VOTE_CHANGEDIFFICULTY = (1<<0), // 1 - Change difficulty
+	VOTE_RESTARTGAME    = (1<<1),   // 2 - Restart game
+	VOTE_KICK           = (1<<2),   // 4 - Kick players
+	VOTE_CHANGEMISSION  = (1<<3),   // 8 - Change mission
+	VOTE_RETURNTOLOBBY  = (1<<4),   // 16 - Return to lobby
+	VOTE_CHANGECHAPTER  = (1<<5),   // 32 - Change chapter
+	VOTE_CHANGEALLTALK  = (1<<6),   // 64 - Change alltalk
+	VOTE_ALL            = 127       // All vote types
+};
 
 
 enum TypeVotes
@@ -73,37 +80,13 @@ stock void LoadTranslation(const char[] translation)
 	LoadTranslations(translation);
 }
 
-/*****************************************************************
-			L 4 D H O O K S
-*****************************************************************/
-
-#if !defined _l4d_stocks_included
-
-enum L4DTeam
-{
-	L4DTeam_Unassigned				= 0,
-	L4DTeam_Spectator				= 1,
-	L4DTeam_Survivor				= 2,
-	L4DTeam_Infected				= 3
-}
-
-/**
- * Returns the clients team using L4DTeam.
- *
- * @param client		Player's index.
- * @return				Current L4DTeam of player.
- * @error				Invalid client index.
- */
-stock L4DTeam L4D_GetClientTeam(int client)
-{
-	int team = GetClientTeam(client);
-	return view_as<L4DTeam>(team);
-}
-
 /**
  * Returns a valid client indexed.
+ * 
+ * OPTIMIZED: Now uses steamidtools.inc IsValidClientIndex() for consistency
+ * and improved validation logic.
  *
- * @param client		Player's index.
+ * @param iClient		Player's index.
  * @return				true if the client is valid, false if not.
  */
 stock bool IsValidClient(int iClient)
@@ -112,15 +95,46 @@ stock bool IsValidClient(int iClient)
 }
 
 /**
- * Client indexed.
- *
- * @param client		Player's index.
- * @return				true if the client is valid, false if not.
+ * Formatea duración en minutos a string legible
  */
-stock bool IsValidClientIndex(int iClient)
+stock void FormatDuration(int minutes, char[] buffer, int maxlen)
 {
-	return (iClient > 0 && iClient <= MaxClients);
+	if (minutes == 0)
+	{
+		strcopy(buffer, maxlen, "Permanent");
+		return;
+	}
+	
+	if (minutes < 60)
+	{
+		Format(buffer, maxlen, "%d minutes", minutes);
+	}
+	else if (minutes < 1440) // Menos de 24 horas
+	{
+		int hours = minutes / 60;
+		int remainingMinutes = minutes % 60;
+		
+		if (remainingMinutes == 0)
+		{
+			Format(buffer, maxlen, "%d hours", hours);
+		}
+		else
+		{
+			Format(buffer, maxlen, "%d hours %d minutes", hours, remainingMinutes);
+		}
+	}
+	else // Días
+	{
+		int days = minutes / 1440;
+		int remainingHours = (minutes % 1440) / 60;
+		
+		if (remainingHours == 0)
+		{
+			Format(buffer, maxlen, "%d days", days);
+		}
+		else
+		{
+			Format(buffer, maxlen, "%d days %d hours", days, remainingHours);
+		}
+	}
 }
-
-#endif
-

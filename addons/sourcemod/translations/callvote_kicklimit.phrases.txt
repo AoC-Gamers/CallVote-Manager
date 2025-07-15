@@ -34,19 +34,23 @@
 	}
 	"KickReached"
 	{
-		"en"		"The limit for {green}kicking{default} calls has been reached ({red}%d{default}/{olive}%d{default})"
+		"#format"	"{1:d},{2:d}"
+		"en"		"The limit for {green}kicking{default} calls has been reached ({red}{1}{default}/{olive}{2}{default})"
 	}
 	"KickLimit"
 	{
-		"en"		"Your call limit to {green}kick{default} is ({olive}%d{default}/{olive}%d{default})"
+		"#format"	"{1:d},{2:d}"
+		"en"		"Your call limit to {green}kick{default} is ({olive}{1}{default}/{olive}{2}{default})"
 	}
 	"KickLimitTarget"
 	{
-		"en"		"The call limit for ({olive}%s{default}) for {green}kick{default} is ({olive}%d{default}/{olive}%d{default})"
+		"#format"	"{1:s},{2:d},{3:d}"
+		"en"		"The call limit for ({olive}{1}{default}) for {green}kick{default} is ({olive}{2}{default}/{olive}{3}{default})"
 	}
 	"KickShow"
 	{
-		"en"		"{blue}%N{default} ({olive}%s{default}) | Kick: {olive}%d{default}"
+		"#format"	"{1:s},{2:s},{3:d}"
+		"en"		"{blue}{1}{default} ({olive}{2}{default}) | Kick: {olive}{3}{default}"
 	}
 	"NoFound"
 	{

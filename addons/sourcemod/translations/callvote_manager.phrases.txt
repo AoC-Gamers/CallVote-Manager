@@ -34,39 +34,48 @@
 	}
 	"DBTriggerIssue"
 	{
-		"en"		"Database trigger {red}issue{default} for table {blue}%s{default}."
+		"#format"	"{1:s}"
+		"en"		"Database trigger {red}issue{default} for table {blue}{1}{default}."
 	}
 	"TryAgain"
 	{
-		"en"		"A vote can't be called right now, try again in %is!"
+		"#format"	"{1:i}"
+		"en"		"A vote can't be called right now, try again in {1}s!"
 	}
 	"ChangeDifficulty"
 	{
-		"en"		"{green}%N{default} called vote for {olive}change difficulty{default}: {blue}%s{default}"
+		"#format"	"{1:N},{2:s}"
+		"en"		"{green}{1}{default} called vote for {olive}change difficulty{default}: {blue}{2}{default}"
 	}
 	"RestartGame"
 	{
-		"en"		"{green}%N{default} called vote for {olive}restart campaign{default}"
+		"#format"	"{1:N}"
+		"en"		"{green}{1}{default} called vote for {olive}restart campaign{default}"
 	}
 	"Kick"
 	{
-		"en"		"{green}%N{default} called vote to {olive}kick{default} {red}%N{default}"
+		"#format"	"{1:N},{2:N}"
+		"en"		"{green}{1}{default} called vote to {olive}kick{default} {red}{2}{default}"
 	}
 	"ChangeMission"
 	{
-		"en"		"{green}%N{default} called vote for {olive}change campaign{default}: {blue}%s{default}"
+		"#format"	"{1:N},{2:s}"
+		"en"		"{green}{1}{default} called vote for {olive}change campaign{default}: {blue}{2}{default}"
 	}
 	"ReturnToLobby"
 	{
-		"en"		"{green}%N{default} called vote to {olive}return lobby{default}"
+		"#format"	"{1:N}"
+		"en"		"{green}{1}{default} called vote to {olive}return lobby{default}"
 	}
 	"ChangeChapter"
 	{
-		"en"		"{green}%N{default} called vote for {olive}change chapter{default}: {blue}%s{default}"
+		"#format"	"{1:N},{2:s}"
+		"en"		"{green}{1}{default} called vote to {olive}change chapter{default}: {blue}{2}{default}"
 	}
 	"ChangeAllTalk"
 	{
-		"en"		"{green}%N{default} called vote for {olive}change AllTalk{default}"
+		"#format"	"{1:N},{2:s},{3:s}"
+		"en"		"{green}{1}{default} called vote for {olive}{2}{default}: {blue}{3}{default}"
 	}
     "VoteDisabled"
     {
@@ -94,106 +103,33 @@
     }
     "InmunityTarget"
     {
-        "en"        "%N tried to {red}kick{default} you"
+		"#format"	"{1:N}"
+        "en"        "{1} tried to {red}kick{default} you"
     }
     "SpecVote"
     {
         "en"        "You can't call a vote while you are {olive}spectating{default}"
     }
-	"l4d2c1"
-	{
-		"en"		"Dead Center"
-	}
-	"l4d2c2"
-	{
-		"en"		"Dark Carnival"
-	}
-	"l4d2c3"
-	{
-		"en"		"Swamp Fever"
-	}
-	"l4d2c4"
-	{
-		"en"		"Hard Rain"
-	}
-	"l4d2c5"
-	{
-		"en"		"The Parish"
-	}
-	"l4d2c6"
-	{
-		"en"		"The Passing"
-	}
-	"l4d2c7"
-	{
-		"en"		"The Sacrifice"
-	}
-	"l4d2c8"
-	{
-		"en"		"No Mercy"
-	}
-	"l4d2c9"
-	{
-		"en"		"Crash Course"
-	}
-	"l4d2c10"
-	{
-		"en"		"Death Toll"
-	}
-	"l4d2c11"
-	{
-		"en"		"Dead Air"
-	}
-	"l4d2c12"
-	{
-		"en"		"Blood Harvest"
-	}
-	"l4d2c13"
-	{
-		"en"		"Cold Stream"
-	}
-	"Easy"
-	{
-		"en"		"Easy"
-	}
-	"Normal"
-	{
-		"en"		"Normal"
-	}
-	"Hard"
-	{
-		"en"		"Hard"
-	}
-	"Impossible"
-	{
-		"en"		"Impossible"
-	}
 	"SameDifficulty"
 	{
 		"en"		"Same difficulty"
 	}
-	"L4DTeam_Survivor"
-	{
-		"en"		"Survivor"
-	}
-	"L4DTeam_Infected"
-	{
-		"en"		"Infected"
-	}
-	"L4DTeam_Spectator"
-	{
-		"en"		"Spectator"
-	}
-	"L4DTeam_Unassigned"
-	{
-		"en"		"None"
-	}
 	"VoteCastAnon"
 	{
-		"en"		"A {olive}%s{default}: %s"
+		"#format"	"{1:s},{2:s}"
+		"en"		"A {olive}{1}{default}: {2}"
 	}
 	"VoteCast"
 	{
-		"en"		"{green}%N{default} from team {olive}%s{default}: %s"
+		"#format"	"{1:N},{2:s},{3:s}"
+		"en"		"{green}{1}{default} from team {olive}{2}{default}: {3}"
+	}
+	"InvalidTarget"
+	{
+		"en"		"Invalid target for kick vote"
+	}
+	"VoteNotAllowedInGameMode"
+	{
+		"en"		"This type of vote is not enabled in this game mode"
 	}
 }

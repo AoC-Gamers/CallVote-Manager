@@ -34,39 +34,48 @@
 	}
 	"DBTriggerIssue"
 	{
-		"es"		"{red}Problema{default} con el trigger de base de datos para la tabla {blue}%s{default}."
+		"#format"	"{1:s}"
+		"es"		"{red}Problema{default} con el trigger de base de datos para la tabla {blue}{1}{default}."
 	}
 	"TryAgain"
 	{
-		"es"		"No se puede solicitar una votación en este momento, ¡inténtalo de nuevo en %is!"
+		"#format"	"{1:i}"
+		"es"		"No se puede solicitar una votación en este momento, ¡inténtalo de nuevo en {1}s!"
 	}
 	"ChangeDifficulty"
 	{
-		"es"		"{green}%N{default} llamó votación para {olive}cambiar la dificultad{default}: {blue}%s{default}"
+		"#format"	"{1:N},{2:s}"
+		"es"		"{green}{1}{default} llamó votación para {olive}cambiar la dificultad{default}: {blue}{2}{default}"
 	}
 	"RestartGame"
 	{
-		"es"		"{green}%N{default} llamó votación para {olive}reiniciar la campaña{default}"
+		"#format"	"{1:N}"
+		"es"		"{green}{1}{default} llamó votación para {olive}reiniciar la campaña{default}"
 	}
 	"Kick"
 	{
-		"es"		"{green}%N{default} llamó votación para {olive}expulsar{default} a {red}%N{default}"
+		"#format"	"{1:N},{2:N}"
+		"es"		"{green}{1}{default} llamó votación para {olive}expulsar{default} a {red}{2}{default}"
 	}
 	"ChangeMission"
 	{
-		"es"		"{green}%N{default} llamó votación para {olive}cambiar la campaña{default}: {blue}%s{default}"
+		"#format"	"{1:N},{2:s}"
+		"es"		"{green}{1}{default} llamó votación para {olive}cambiar la campaña{default}: {blue}{2}{default}"
 	}
 	"ReturnToLobby"
 	{
-		"es"		"{green}%N{default} llamó votación para {olive}volver a la sala de espera{default}"
+		"#format"	"{1:N}"
+		"es"		"{green}{1}{default} llamó votación para {olive}volver a la sala de espera{default}"
 	}
 	"ChangeChapter"
 	{
-		"es"		"{green}%N{default} llamó votación para {olive}cambiar el capitulo{default}: {blue}%s{default}"
+		"#format"	"{1:N},{2:s}"
+		"es"		"{green}{1}{default} llamó votación para {olive}cambiar el capítulo{default}: {blue}{2}{default}"
 	}
 	"ChangeAllTalk"
 	{
-		"es"		"{green}%N{default} llamó votación para {olive}cambiar AllTalk{default}"
+		"#format"	"{1:N},{2:s},{3:s}"
+		"es"		"{green}{1}{default} llamó votación para {olive}{2}{default}: {blue}{3}{default}"
 	}
     "VoteDisabled"
     {
@@ -94,106 +103,33 @@
     }
     "InmunityTarget"
     {
-        "es"        "%N Intento {red}expulsarte{default}"
+		"#format"	"{1:N}"
+        "es"        "{1} Intento {red}expulsarte{default}"
     }
     "SpecVote"
     {
         "es"        "No puedes llamar una votación mientras estás {olive}especteando{default}"
     }
-	"l4d2c1"
-	{
-		"es"		"Punto Muerto"
-	}
-	"l4d2c2"
-	{
-		"es"		"Feria siniestra"
-	}
-	"l4d2c3"
-	{
-		"es"		"Pantanos"
-	}
-	"l4d2c4"
-	{
-		"es"		"El diluvio"
-	}
-	"l4d2c5"
-	{
-		"es"		"La parroquia"
-	}
-	"l4d2c6"
-	{
-		"es"		"Defunción"
-	}
-	"l4d2c7"
-	{
-		"es"		"El sacrificio"
-	}
-	"l4d2c8"
-	{
-		"es"		"Alta médica"
-	}
-	"l4d2c9"
-	{
-		"es"		"Terapia de choque"
-	}
-	"l4d2c10"
-	{
-		"es"		"Toque de difuntos"
-	}
-	"l4d2c11"
-	{
-		"es"		"Último vuelo"
-	}
-	"l4d2c12"
-	{
-		"es"		"Cosecha de sangre"
-	}
-	"l4d2c13"
-	{
-		"es"		"Aguas turbulentas"
-	}
-	"Easy"
-	{
-		"es"		"Fácil"
-	}
-	"Normal"
-	{
-		"es"		"Normal"
-	}
-	"Hard"
-	{
-		"es"		"Avanzado"
-	}
-	"Impossible"
-	{
-		"es"		"Experto"
-	}
 	"SameDifficulty"
 	{
 		"es"		"Es la misma dificultad"
 	}
-	"L4DTeam_Survivor"
-	{
-		"es"		"Sobreviviente"
-	}
-	"L4DTeam_Infected"
-	{
-		"es"		"Infectado"
-	}
-	"L4DTeam_Spectator"
-	{
-		"es"		"Espectador"
-	}
-	"L4DTeam_Unassigned"
-	{
-		"es"		"Ninguno"
-	}
 	"VoteCastAnon"
 	{
-		"es"		"Un {olive}%s{default}: %s"
+		"#format"	"{1:s},{2:s}"
+		"es"		"Un {olive}{1}{default}: {2}"
 	}
 	"VoteCast"
 	{
-		"es"		"{green}%N{default} del equipo {olive}%s{default}: %s"
+		"#format"	"{1:N},{2:s},{3:s}"
+		"es"		"{green}{1}{default} del equipo {olive}{2}{default}: {3}"
+	}
+	"InvalidTarget"
+	{
+		"es"		"Entidad inválida para el voto de expulsión"
+	}
+	"VoteNotAllowedInGameMode"
+	{
+		"es"		"Este tipo de votación no está habilitado en este modo de juego"
 	}
 }

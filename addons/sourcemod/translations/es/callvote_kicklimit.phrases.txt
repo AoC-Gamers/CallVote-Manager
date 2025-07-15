@@ -34,19 +34,23 @@
 	}
 	"KickReached"
 	{
-		"es"		"Se alcanzado el límite de llamadas para {green}expulsar{default} ({red}%d{default}/{olive}%d{default})"
+		"#format"	"{1:d},{2:d}"
+		"es"		"Se alcanzado el límite de llamadas para {green}expulsar{default} ({red}{1}{default}/{olive}{2}{default})"
 	}
 	"KickLimit"
 	{
-		"es"		"Su límite de llamadas para {green}expulsar{default} es de ({olive}%d{default}/{olive}%d{default})"
+		"#format"	"{1:d},{2:d}"
+		"es"		"Su límite de llamadas para {green}expulsar{default} es de ({olive}{1}{default}/{olive}{2}{default})"
 	}
 	"KickLimitTarget"
 	{
-		"es"		"El límite de llamadas de ({olive}%s{default}) para {green}expulsar{default} es de ({olive}%d{default}/{olive}%d{default})"
+		"#format"	"{1:s},{2:d},{3:d}"
+		"es"		"El límite de llamadas de ({olive}{1}{default}) para {green}expulsar{default} es de ({olive}{2}{default}/{olive}{3}{default})"
 	}
 	"KickShow"
 	{
-		"es"		"{blue}%N{default} ({olive}%s{default}) | Kick: {olive}%d{default}"
+		"#format"	"{1:s},{2:s},{3:d}"
+		"es"		"{blue}{1}{default} ({olive}{2}{default}) | Kick: {olive}{3}{default}"
 	}
 	"NoFound"
 	{

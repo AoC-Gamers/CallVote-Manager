@@ -226,21 +226,21 @@ public void OnClientAuthorized(int iClient, const char[] sAuth)
 			F O R W A R D   P L U G I N S
 *****************************************************************/
 
-public void CallVote_Start(int iClient, TypeVotes iVotes, int iTarget)
+public Action CallVote_Start(int iClient, TypeVotes iVotes, int iTarget)
 {
 	if (!g_cvarEnable.BoolValue)
-		return;
+		return Plugin_Continue;
 
 	if (iVotes != Kick)
-		return;
+		return Plugin_Continue;
 
 	log(true, "[CallVote_Start] Call KickVote Client:%N | Target:%N", iClient, iTarget);
 	if (g_cvarKickLimit.IntValue <= g_Players[iClient].Kick)
 	{
 		char sBuffer[128];
 		Format(sBuffer, sizeof(sBuffer), "%t", "KickReached", g_Players[iClient].Kick, g_cvarKickLimit.IntValue);
-		CallVote_Reject(iClient, sBuffer);
-		return;
+		CPrintToChat(iClient, "%t %s", "Tag", sBuffer);
+		return Plugin_Handled; // Block the vote
 	}
 
 	g_iCaller = iClient;
@@ -248,6 +248,7 @@ public void CallVote_Start(int iClient, TypeVotes iVotes, int iTarget)
 	GetClientAuthId(iTarget, AuthId_Steam2, g_Players[g_iCaller].TargetID, MAX_AUTHID_LENGTH);
 
 	g_bVoteKickInProgress = true;
+	return Plugin_Continue; // Allow the vote
 	return;
 }
 

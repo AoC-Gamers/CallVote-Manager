@@ -1,12 +1,12 @@
 #pragma semicolon 1
 #pragma newdecls required
 
-#include <sourcemod> // C:\Users\israe\sourcemodAPI\addons\sourcemod\scripting
-#include <colors> // C:\GitHub\L4D2-Competitive-Rework
-#include <left4dhooks> // C:\GitHub\L4D2-Competitive-Rework
+#include <sourcemod>
+#include <colors>
+#include <left4dhooks>
 #include <callvote_stock>
-#include <language_manager> // C:\GitHub\L4D2-Translation-Localizer
-#include <campaign_manager> // C:\GitHub\L4D2-Translation-Localizer
+#include <language_manager>
+#include <campaign_manager>
 
 
 #undef REQUIRE_EXTENSIONS

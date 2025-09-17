@@ -7,6 +7,283 @@
 #define TABLE_BANS "callvote_bans"
 #define TABLE_CACHE_BANS "callvote_bans_cache"
 
+/**
+ * PlayerBanInfo methodmap - Modern interface for ban information management
+ * Provides encapsulation, validation, and convenience methods for ban operations
+ */
+methodmap PlayerBanInfo < StringMap {
+	
+	/**
+	 * Constructor - Creates a new PlayerBanInfo instance
+	 * 
+	 * @param accountId		The player's AccountID (optional, default: 0)
+	 * @return				A new PlayerBanInfo instance
+	 */
+	public PlayerBanInfo(int accountId = 0) {
+		StringMap data = new StringMap();
+		
+		data.SetValue("accountId", accountId);
+		data.SetValue("banType", 0);
+		data.SetValue("createdTimestamp", 0);
+		data.SetValue("durationMinutes", 0);
+		data.SetValue("expiresTimestamp", 0);
+		data.SetValue("adminAccountId", 0);
+		data.SetString("reason", "");
+		data.SetValue("dbSource", view_as<int>(SourceDB_Unknown));
+		data.SetValue("rsCMD", view_as<int>(SM_REPLY_TO_CONSOLE));
+		
+		return view_as<PlayerBanInfo>(data);
+	}
+	
+	/**
+	 * Property for accessing the AccountId of the object.
+	 *
+	 * Getter:
+	 *   Retrieves the value of "accountId" and returns it as an integer.
+	 *
+	 * Setter:
+	 *   Sets the value of "accountId" to the specified integer.
+	 *
+	 * Usage:
+	 *   - Use the getter to obtain the current AccountId.
+	 *   - Use the setter to update the AccountId.
+	 */
+	property int AccountId {
+		public get() {
+			int value;
+			this.GetValue("accountId", value);
+			return value;
+		}
+		public set(int value) {
+			this.SetValue("accountId", value);
+		}
+	}
+	
+	/**
+	 * Property representing the type of ban.
+	 *
+	 * Getter:
+	 *   Retrieves the current ban type value from the underlying storage using the key "banType".
+	 *
+	 * Setter:
+	 *   Sets the ban type value in the underlying storage using the key "banType".
+	 *   If the provided value is less than 0, it defaults to 0.
+	 *
+	 * @property int BanType
+	 */
+	property int BanType {
+		public get() {
+			int value;
+			this.GetValue("banType", value);
+			return value;
+		}
+		public set(int value) {
+			this.SetValue("banType", value >= 0 ? value : 0);
+		}
+	}
+	
+	/**
+	 * Property for accessing and modifying the "createdTimestamp" value.
+	 *
+	 * Getter:
+	 *   Retrieves the "createdTimestamp" value from the underlying storage.
+	 *   @return int - The stored created timestamp value.
+	 *
+	 * Setter:
+	 *   Sets the "createdTimestamp" value in the underlying storage.
+	 *   Ensures the value is non-negative; if a negative value is provided, it sets it to 0.
+	 *   @param value int - The new created timestamp value to set.
+	 */
+	property int CreatedTimestamp {
+		public get() {
+			int value;
+			this.GetValue("createdTimestamp", value);
+			return value;
+		}
+		public set(int value) {
+			this.SetValue("createdTimestamp", value >= 0 ? value : 0);
+		}
+	}
+	
+	/**
+	 * Property: DurationMinutes
+	 * 
+	 * Gets or sets the duration (in minutes) for the current object.
+	 * 
+	 * Getter:
+	 *   - Retrieves the value of "durationMinutes".
+	 * 
+	 * Setter:
+	 *   - Sets the "durationMinutes" value, ensuring it is not negative.
+	 *   - Automatically updates the "expiresTimestamp" property:
+	 *       - If duration is 0, sets "expiresTimestamp" to 0 (permanent).
+	 *       - Otherwise, sets "expiresTimestamp" to the current time plus the duration (in seconds).
+	 *
+	 * Usage:
+	 *   - Use this property to control how long an object remains valid.
+	 */
+	property int DurationMinutes {
+		public get() {
+			int value;
+			this.GetValue("durationMinutes", value);
+			return value;
+		}
+		public set(int value) {
+			int duration = value >= 0 ? value : 0;
+			this.SetValue("durationMinutes", duration);
+			
+			// Auto-calculate expiration when setting duration
+			if (duration == 0) {
+				this.SetValue("expiresTimestamp", 0); // Permanent
+			} else {
+				this.SetValue("expiresTimestamp", GetTime() + (duration * 60));
+			}
+		}
+	}
+	
+	/**
+	 * Property for managing the expiration timestamp.
+	 *
+	 * Getter:
+	 *   Retrieves the "expiresTimestamp" value associated with this object.
+	 *   @return int - The current expiration timestamp value.
+	 *
+	 * Setter:
+	 *   Sets the "expiresTimestamp" value for this object.
+	 *   If the provided value is negative, it will be set to 0 instead.
+	 *   @param value int - The new expiration timestamp value.
+	 */
+	property int ExpiresTimestamp {
+		public get() {
+			int value;
+			this.GetValue("expiresTimestamp", value);
+			return value;
+		}
+		public set(int value) {
+			this.SetValue("expiresTimestamp", value >= 0 ? value : 0);
+		}
+	}
+	
+	property int AdminAccountId {
+		public get() {
+			int value;
+			this.GetValue("adminAccountId", value);
+			return value;
+		}
+		public set(int value) {
+			this.SetValue("adminAccountId", value);
+		}
+	}
+	
+	property SourceDB DbSource {
+		public get() {
+			int value;
+			this.GetValue("dbSource", value);
+			return view_as<SourceDB>(value);
+		}
+		public set(SourceDB value) {
+			this.SetValue("dbSource", view_as<int>(value));
+		}
+	}
+	
+	property ReplySource CommandReplySource {
+		public get() {
+			int value;
+			this.GetValue("rsCMD", value);
+			return view_as<ReplySource>(value);
+		}
+		public set(ReplySource value) {
+			this.SetValue("rsCMD", view_as<int>(value));
+		}
+	}
+	
+	// Reason management
+	public void GetReason(char[] buffer, int maxlen) {
+		this.GetString("reason", buffer, maxlen);
+	}
+	
+	public void SetReason(const char[] reason) {
+		this.SetString("reason", reason);
+	}
+	
+	// State checking methods
+	public bool IsValid() {
+		return this.AccountId > 0;
+	}
+	
+	public bool IsBanned() {
+		return this.BanType > 0 && !this.IsExpired();
+	}
+	
+	public bool IsExpired() {
+		if (this.IsPermanent()) return false;
+		return GetTime() >= this.ExpiresTimestamp;
+	}
+	
+	public bool IsPermanent() {
+		return this.ExpiresTimestamp == 0 && this.BanType > 0;
+	}
+	
+	// Time utilities
+	public int GetTimeRemaining() {
+		if (this.IsPermanent()) return -1; // Permanent
+		if (this.IsExpired()) return 0;    // Expired
+		return this.ExpiresTimestamp - GetTime();
+	}
+	
+	public void GetFormattedExpiration(char[] buffer, int maxlen) {
+		if (this.IsPermanent()) {
+			strcopy(buffer, maxlen, "Permanent");
+		} else if (this.IsExpired()) {
+			strcopy(buffer, maxlen, "Expired");
+		} else {
+			FormatTime(buffer, maxlen, "%Y-%m-%d %H:%M:%S", this.ExpiresTimestamp);
+		}
+	}
+	
+	public void GetFormattedDuration(char[] buffer, int maxlen) {
+		if (this.IsPermanent()) {
+			strcopy(buffer, maxlen, "Permanent");
+		} else {
+			Format(buffer, maxlen, "%d minutes", this.DurationMinutes);
+		}
+	}
+	
+	// Ban type utilities
+	public void GetBanTypeString(char[] buffer, int maxlen) {
+		GetBanTypeString(this.BanType, buffer, maxlen);
+	}
+	
+	// Quick setup methods
+	public void ApplyBan(int banType, int durationMinutes, const char[] reason, int adminAccountId) {
+		this.BanType = banType;
+		this.DurationMinutes = durationMinutes; // Auto-calculates expiration
+		this.SetReason(reason);
+		this.AdminAccountId = adminAccountId;
+		this.CreatedTimestamp = GetTime();
+	}
+	
+	public void Clear() {
+		this.BanType = 0;
+		this.CreatedTimestamp = 0;
+		this.DurationMinutes = 0;
+		this.ExpiresTimestamp = 0;
+		this.AdminAccountId = 0;
+		this.SetReason("");
+	}
+	
+	// Debug utilities
+	public void ToString(char[] buffer, int maxlen) {
+		char reason[128], banTypes[64], expiration[32];
+		this.GetReason(reason, sizeof(reason));
+		this.GetBanTypeString(banTypes, sizeof(banTypes));
+		this.GetFormattedExpiration(expiration, sizeof(expiration));
+		
+		Format(buffer, maxlen, "PlayerBanInfo[AccountID=%d, BanType=%d(%s), Duration=%d, Expires=%s, Reason=%s]",
+			this.AccountId, this.BanType, banTypes, this.DurationMinutes, expiration, reason);
+	}
+}
+
 enum struct InstallationStatus {
 	bool mysqlTables;
 	bool mysqlProcedures;
@@ -16,6 +293,7 @@ enum struct InstallationStatus {
 	int totalOperations;
 	int completedOperations;  // Nuevo campo para rastrear operaciones completadas
 	Handle timeoutTimer;
+	ReplySource cmdReplySource;  // Contexto del comando original
 }
 
 InstallationStatus g_InstallStatus;
@@ -71,13 +349,9 @@ void InitDatabase()
 void ConnectMySQL()
 {
 	if (SQL_CheckConfig(TABLE_BANS))
-	{
 		SQL_TConnect(MySQL_ConnectCallback, TABLE_BANS);
-	}
 	else
-	{
 		CVBLog.SQL("MySQL configuration '%s' not found, using SQLite only", TABLE_BANS);
-	}
 }
 
 public void MySQL_ConnectCallback(Handle owner, Handle hndl, const char[] error, any data)
@@ -130,44 +404,23 @@ void CreateMySQLTables()
 	
 	iLen = 0;
 	iLen += Format(sQuery[iLen], sizeof(sQuery) - iLen, "CREATE TABLE IF NOT EXISTS %s (", TABLE_BANS);
-	iLen += Format(sQuery[iLen], sizeof(sQuery) - iLen, "id INT AUTO_INCREMENT PRIMARY KEY, ");
-	iLen += Format(sQuery[iLen], sizeof(sQuery) - iLen, "account_id INT NOT NULL, ");
-	iLen += Format(sQuery[iLen], sizeof(sQuery) - iLen, "ban_type INT NOT NULL, ");
-	iLen += Format(sQuery[iLen], sizeof(sQuery) - iLen, "created_timestamp INT NOT NULL, ");
-	iLen += Format(sQuery[iLen], sizeof(sQuery) - iLen, "duration_minutes INT NOT NULL DEFAULT 0, ");
-	iLen += Format(sQuery[iLen], sizeof(sQuery) - iLen, "expires_timestamp INT NOT NULL DEFAULT 0, ");
-	iLen += Format(sQuery[iLen], sizeof(sQuery) - iLen, "admin_account_id INT, ");
+	iLen += Format(sQuery[iLen], sizeof(sQuery) - iLen, "id INT(11) NOT NULL AUTO_INCREMENT, ");
+	iLen += Format(sQuery[iLen], sizeof(sQuery) - iLen, "account_id INT(11) NOT NULL, ");
+	iLen += Format(sQuery[iLen], sizeof(sQuery) - iLen, "ban_type INT(11) NOT NULL, ");
+	iLen += Format(sQuery[iLen], sizeof(sQuery) - iLen, "created_timestamp INT(11) NOT NULL, ");
+	iLen += Format(sQuery[iLen], sizeof(sQuery) - iLen, "duration_minutes INT(11) DEFAULT 0, ");
+	iLen += Format(sQuery[iLen], sizeof(sQuery) - iLen, "expires_timestamp INT(11) DEFAULT 0, ");
+	iLen += Format(sQuery[iLen], sizeof(sQuery) - iLen, "admin_account_id INT(11) DEFAULT NULL, ");
 	iLen += Format(sQuery[iLen], sizeof(sQuery) - iLen, "reason TEXT DEFAULT NULL, ");
-	iLen += Format(sQuery[iLen], sizeof(sQuery) - iLen, "is_active BOOLEAN DEFAULT TRUE, ");
-	iLen += Format(sQuery[iLen], sizeof(sQuery) - iLen, "UNIQUE KEY unique_active_ban (account_id, is_active), ");
-	iLen += Format(sQuery[iLen], sizeof(sQuery) - iLen, "INDEX idx_account_id (account_id), ");
-	iLen += Format(sQuery[iLen], sizeof(sQuery) - iLen, "INDEX idx_active_account (account_id, is_active, expires_timestamp)");
+	iLen += Format(sQuery[iLen], sizeof(sQuery) - iLen, "is_active TINYINT(1) DEFAULT 1, ");
+	iLen += Format(sQuery[iLen], sizeof(sQuery) - iLen, "PRIMARY KEY (id), ");
+	iLen += Format(sQuery[iLen], sizeof(sQuery) - iLen, "KEY idx_account_active (account_id, is_active, expires_timestamp), ");
+	iLen += Format(sQuery[iLen], sizeof(sQuery) - iLen, "KEY idx_expires (expires_timestamp, is_active), ");
+	iLen += Format(sQuery[iLen], sizeof(sQuery) - iLen, "KEY idx_admin (admin_account_id), ");
+	iLen += Format(sQuery[iLen], sizeof(sQuery) - iLen, "KEY idx_created (created_timestamp)");
 	iLen += Format(sQuery[iLen], sizeof(sQuery) - iLen, ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
 	
 	SQL_TQuery(g_hMySQLDB, MySQLTables_Callback, sQuery);
-}
-
-public void QueryBan_MySQLCallback(Handle owner, Handle hndl, const char[] error, any data)
-{
-	DataPack dpQueryBanMySQL = view_as<DataPack>(data);
-	dpQueryBanMySQL.Reset();
-	int accountId = dpQueryBanMySQL.ReadCell();
-	int client = dpQueryBanMySQL.ReadCell();
-	dpQueryBanMySQL.ReadCell();
-	delete dpQueryBanMySQL;
-	
-	if (hndl == null)
-	{
-		CVBLog.MySQL("Error querying MySQL ban: %s", error);
-		if (g_hSQLiteDB != null)
-		{
-			QueryBanByAccountId_SQLite(accountId, client);
-		}
-		return;
-	}
-	
-	DBResultSet results = view_as<DBResultSet>(hndl);
-	ProcessBanQueryResult(results, accountId, client, true);
 }
 
 /**
@@ -231,104 +484,6 @@ void CreateSQLiteIndexes()
 	SQL_TQuery(g_hSQLiteDB, SQLiteIndexes_Callback, sQuery);
 }
 
-public void QueryBan_SQLiteCallback(Handle owner, Handle hndl, const char[] error, any data)
-{
-	DataPack dpQueryBanSQLite = view_as<DataPack>(data);
-	dpQueryBanSQLite.Reset();
-	int accountId = dpQueryBanSQLite.ReadCell();
-	int client = dpQueryBanSQLite.ReadCell();
-	dpQueryBanSQLite.ReadCell();
-	delete dpQueryBanSQLite;
-	
-	DBResultSet results = view_as<DBResultSet>(hndl);
-	if (results == null)
-	{
-		CVBLog.SQLite("Error querying SQLite ban: %s", error);
-		return;
-	}
-	
-	ProcessBanQueryResult(results, accountId, client, false);
-}
-
-/**
- * Processes the result of a ban query for a specific player account.
- *
- * This function checks if a ban exists for the given account ID by examining the provided
- * database result set. If a ban is found, it populates the PlayerBanInfo structure for the
- * client, updates the string map cache, and, if the query originated from MySQL, updates
- * the SQLite cache as well. If no ban is found, it updates the cache and resets the ban
- * information for the client.
- *
- * @param results        The database result set containing the ban query results.
- * @param accountId      The account ID of the player being checked.
- * @param client         The client index associated with the player.
- * @param fromMySQL      True if the query was executed on a MySQL database, false otherwise.
- */
-void ProcessBanQueryResult(DBResultSet results, int accountId, int client, bool fromMySQL)
-{
-	bool hasBan = results.FetchRow();
-	
-	if (hasBan)
-	{
-		PlayerBanInfo banInfo;
-		banInfo.accountId = results.FetchInt(0);
-		banInfo.banType = results.FetchInt(1);
-		banInfo.createdTimestamp = results.FetchInt(2);
-		banInfo.durationMinutes = results.FetchInt(3);
-		banInfo.expiresTimestamp = results.FetchInt(4);
-		banInfo.isLoaded = true;
-		banInfo.isChecking = false;
-		
-		if (IsValidClientIndex(client))
-		{
-			g_PlayerBans[client] = banInfo;
-		}
-		
-		UpdateStringMapCache(accountId, true, banInfo.banType);
-		
-		if (fromMySQL && g_hSQLiteDB != null)
-		{
-			UpdateSQLiteCache(banInfo);
-		}
-		
-		CVBLog.Debug("Ban found for AccountID %d: Type=%d, Expires=%d", 
-			accountId, banInfo.banType, banInfo.expiresTimestamp);
-	}
-	else
-	{
-		UpdateStringMapCache(accountId, false, 0);
-		
-		if (IsValidClientIndex(client))
-		{
-			g_PlayerBans[client].isLoaded = true;
-			g_PlayerBans[client].isChecking = false;
-			g_PlayerBans[client].banType = 0;
-		}
-		
-		CVBLog.Debug("No active ban for AccountID %d", accountId);
-	}
-}
-
-void QueryBanByAccountId_SQLite(int accountId, int client)
-{
-	char sQuery[MAX_QUERY_LENGTH];
-	int iLen = 0;
-	
-	DataPack dp = new DataPack();
-	dp.WriteCell(accountId);
-	dp.WriteCell(client);
-	dp.WriteCell(GetTime());
-	
-	iLen = 0;
-	// Consultar la tabla de cache SQLite simplificada
-	iLen += Format(sQuery[iLen], sizeof(sQuery) - iLen, "SELECT account_id, ban_type, cached_timestamp, ");
-	iLen += Format(sQuery[iLen], sizeof(sQuery) - iLen, "0 as duration_minutes, ttl_expires, 0 as admin_account_id, 0 as reason ");
-	iLen += Format(sQuery[iLen], sizeof(sQuery) - iLen, "FROM `%s` WHERE account_id = %d ", TABLE_CACHE_BANS, accountId);
-	iLen += Format(sQuery[iLen], sizeof(sQuery) - iLen, "AND (ttl_expires = 0 OR ttl_expires > %d) ", GetTime());
-	iLen += Format(sQuery[iLen], sizeof(sQuery) - iLen, "ORDER BY cached_timestamp DESC LIMIT 1");
-	
-	SQL_TQuery(g_hSQLiteDB, QueryBan_SQLiteCallback, sQuery, dp);
-}
 
 /**
  * Updates the local SQLite cache with ban information for a player.
@@ -338,7 +493,7 @@ void QueryBanByAccountId_SQLite(int accountId, int client)
  *
  * @param banInfo           Struct containing the player's ban information.
  */
-void UpdateSQLiteCache(PlayerBanInfo banInfo)
+void CVB_UpdateSQLiteBan(PlayerBanInfo banInfo)
 {
 	if (g_hSQLiteDB == null)
 		return;
@@ -354,43 +509,62 @@ void UpdateSQLiteCache(PlayerBanInfo banInfo)
 	iLen += Format(sQuery[iLen], sizeof(sQuery) - iLen, "REPLACE INTO `%s` (", TABLE_CACHE_BANS);
 	iLen += Format(sQuery[iLen], sizeof(sQuery) - iLen, "`account_id`, `ban_type`, `cached_timestamp`, `ttl_expires`) ");
 	iLen += Format(sQuery[iLen], sizeof(sQuery) - iLen, "VALUES (%d, %d, %d, %d)",
-		banInfo.accountId, banInfo.banType, GetTime(), ttlExpires);
+		banInfo.AccountId, banInfo.BanType, GetTime(), ttlExpires);
 
 	CVBLog.SQLite("SQLite cache updated for AccountID %d, ban type: %d, TTL expires: %d",
-		banInfo.accountId, banInfo.banType, ttlExpires);
+		banInfo.AccountId, banInfo.BanType, ttlExpires);
 	
 	SQL_TQuery(g_hSQLiteDB, Generic_QueryCallback, sQuery);
 }
 
+
 /**
- * Checks if the specified account has an active ban in the database.
+ * Checks if the given player has an active ban in the MySQL database.
  *
- * @param accountId  The unique identifier of the account to check.
- * @param client     (Optional) The client index associated with the account. Defaults to 0 if not specified.
+ * This function calls a stored procedure to verify if the specified account ID has an active ban.
+ * If the database connection is unavailable, or if there is an error or no result, it returns false.
+ * If a valid ban is found, it updates the banType in the provided PlayerBanInfo structure and returns true.
  *
- * This function initiates an asynchronous SQL query to call the stored procedure 'sp_CheckActiveBan'
- * for the given accountId. The result is handled in the CheckActiveBan_Callback function.
- * If the database connection is not available, the function returns immediately.
+ * @param banInfo      Reference to a PlayerBanInfo structure containing the player's account ID.
+ *                     The banType field will be updated if an active ban is found.
+ * @return             True if an active ban exists for the account, false otherwise.
  */
-void CVB_CheckActiveBan(int accountId, int client = 0)
+bool CVB_CheckMysqlActiveBan(PlayerBanInfo banInfo)
 {
 	if (g_hMySQLDB == null)
-	{
-		return;
-	}
-	
+		return false;
+
 	char sQuery[512];
-	DataPack dpCheckActiveBan = new DataPack();
-	dpCheckActiveBan.WriteCell(accountId);
-	dpCheckActiveBan.WriteCell(client);
-	dpCheckActiveBan.WriteCell(GetTime());
-	
-	FormatEx(sQuery, sizeof(sQuery), 
-		"CALL %s(%d)",
-		PROCEDURE_CHECK_ACTIVE_BAN, accountId);
-	
+	FormatEx(sQuery, sizeof(sQuery), "CALL %s(%d)", PROCEDURE_CHECK_ACTIVE_BAN, banInfo.AccountId);
 	CVBLog.MySQL("CVB_CheckActiveBan: %s", sQuery);
-	SQL_TQuery(g_hMySQLDB, CheckActiveBan_Callback, sQuery, dpCheckActiveBan);
+
+	DBResultSet results = SQL_Query(g_hMySQLDB, sQuery);
+	if (results == null)
+	{
+		char sError[256];
+		SQL_GetError(g_hMySQLDB, sError, sizeof(sError));
+		CVBLog.MySQL("Error in sp_CheckActiveBan: %s", sError);
+		return false;
+	}
+
+	if (!results.FetchRow())
+	{
+		CVBLog.MySQL("sp_CheckActiveBan returned no results for AccountID %d", banInfo.AccountId);
+		delete results;
+		return false;
+	}
+
+	bool isNull = results.IsFieldNull(0);
+	if (isNull)
+	{
+		CVBLog.MySQL("sp_CheckActiveBan returned NULL for AccountID %d", banInfo.AccountId);
+		delete results;
+		return false;
+	}
+
+	banInfo.BanType = results.FetchInt(0);
+	delete results;
+	return true;
 }
 
 public void CheckActiveBan_Callback(Handle owner, Handle hndl, const char[] error, any data)
@@ -411,46 +585,51 @@ public void CheckActiveBan_Callback(Handle owner, Handle hndl, const char[] erro
 	DBResultSet results = view_as<DBResultSet>(hndl);
 	if (!results.FetchRow())
 	{
-		CVBLog.MySQL("sp_CheckActiveBan returned no results for AccountID %d", accountId);
+		CVBLog.MySQL("sp_CheckActiveBan returned no results for %N AccountID %d", client, accountId);
 		return;
 	}
 
 	bool isNull = results.IsFieldNull(0);
-	int banType = 0;
-	if (!isNull)
-	{
-		banType = results.FetchInt(0);
-	}
-
 	if (isNull)
 	{
+		CVBLog.MySQL("sp_CheckActiveBan returned NULL for %N AccountID %d", client, accountId);
 		return;
 	}
-	else if (banType > 0)
+
+	if (!IsValidClientIndex(client))
 	{
-		PlayerBanInfo banInfo;
-		banInfo.accountId = accountId;
-		banInfo.banType = banType;
-		banInfo.isLoaded = true;
-		banInfo.isChecking = false;
+		CVBLog.MySQL("Invalid client index %d for AccountID %d in sp_CheckActiveBan", client, accountId);
+		return;
+	}
 
-		if (IsValidClientIndex(client))
-		{
-			g_PlayerBans[client] = banInfo;
-		}
+	int banType = results.FetchInt(0);
+	if (banType > 0)
+	{
+		PlayerBanInfo banInfo = new PlayerBanInfo(accountId);
+		banInfo.BanType = banType;
+		banInfo.CreatedTimestamp = 0;
+		banInfo.DurationMinutes = 0; // Duration is not returned by the procedure
+		banInfo.ExpiresTimestamp = 0; // Will be calculated by MySQL procedure
 
-		UpdateStringMapCache(accountId, true, banType);
+		CVB_UpdateCacheStringMap(banInfo);
+		g_ClientStates[client].isLoaded = true;
+		g_ClientStates[client].isChecking = false;
+		CVBLog.Debug("Client %d cache updated with banType=%d after DB check", client, banType);
+		delete banInfo;
 	}
 	else if (banType == 0)
 	{
-		UpdateStringMapCache(accountId, false, 0);
+		PlayerBanInfo banInfo = new PlayerBanInfo(accountId);
+		banInfo.BanType = 0; // No ban
+		banInfo.CreatedTimestamp = 0;
+		banInfo.DurationMinutes = 0; // Permanent ban
+		banInfo.ExpiresTimestamp = 0; // No expiration
+		CVB_UpdateCacheStringMap(banInfo);
 
-		if (IsValidClientIndex(client))
-		{
-			g_PlayerBans[client].isLoaded = true;
-			g_PlayerBans[client].isChecking = false;
-			g_PlayerBans[client].banType = 0;
-		}
+		g_ClientStates[client].isLoaded = true;
+		g_ClientStates[client].isChecking = false;
+		CVBLog.Debug("Client %d cache updated with banType=0 (no ban) after DB check", client);
+		delete banInfo;
 	}
 }
 
@@ -467,7 +646,7 @@ public void CheckActiveBan_Callback(Handle owner, Handle hndl, const char[] erro
  * The result is handled in the CVB_InsertBan_Callback function.
  * If the MySQL database handle is not available, an error is logged and the function returns early.
  */
-void CVB_InsertBan(int targetAccountId, int banType, int durationMinutes, int adminAccountId, int reasonCode)
+void CVB_InsertMysqlBan(int targetAccountId, int banType, int durationMinutes, int adminAccountId, const char[] reasonText)
 {
 	if (g_hMySQLDB == null)
 	{
@@ -476,9 +655,6 @@ void CVB_InsertBan(int targetAccountId, int banType, int durationMinutes, int ad
 		CReplyToCommand(adminId, "MySQL not available for InsertBan"); // add translations
 		return;
 	}
-	
-	char reasonText[256];
-	GetReasonTextByCode(reasonCode, reasonText, sizeof(reasonText));
 	
 	char sQuery[MAX_QUERY_LENGTH];
 	char sEscapedReason[512];
@@ -489,11 +665,9 @@ void CVB_InsertBan(int targetAccountId, int banType, int durationMinutes, int ad
 	dpInsertBan.WriteCell(banType);
 	dpInsertBan.WriteCell(adminAccountId);
 	
-	FormatEx(sQuery, sizeof(sQuery), 
-		"CALL %s(%d, %d, %d, %d, '%s')", 
-		PROCEDURE_INSERT_BAN, targetAccountId, banType, durationMinutes, adminAccountId, sEscapedReason);
+	FormatEx(sQuery, sizeof(sQuery), "CALL %s(%d, %d, %d, %d, '%s')", PROCEDURE_INSERT_BAN, targetAccountId, banType, durationMinutes, adminAccountId, sEscapedReason);
 		
-	CVBLog.MySQL("CVB_InsertBan: %s", sQuery);
+	CVBLog.MySQL("CVB_InsertBanWithReason: %s", sQuery);
 	SQL_TQuery(g_hMySQLDB, CVB_InsertBan_Callback, sQuery, dpInsertBan);
 }
 
@@ -544,13 +718,33 @@ public void CVB_InsertBan_Callback(Handle owner, Handle hndl, const char[] error
 		if (adminId != NO_INDEX)
 			CReplyToCommand(adminId, "Ban inserted successfully for AccountID %d: %s", targetAccountId, message); // add translations
 		CVBLog.SQL("Ban inserted successfully: ID=%d, AccountID=%d, Message=%s", banId, targetAccountId, message);
-		UpdateStringMapCache(targetAccountId, true, banType);
+		
+		// Also update SQLite cache when ban is inserted
+		PlayerBanInfo banInfo = new PlayerBanInfo(targetAccountId);
+		banInfo.BanType = banType;
+		banInfo.CreatedTimestamp = GetTime();
+		banInfo.DurationMinutes = 0;
+		banInfo.ExpiresTimestamp = 0;
+
+		// Update StringMap cache with the new ban type
+		CVB_UpdateCacheStringMap(banInfo);
+		CVBLog.Debug("StringMap cache updated for AccountID %d with new banType %d after successful insert", targetAccountId, banType);
+		delete banInfo;
+		
+		// If target player is online, also update their client state
+		int targetClient = FindClientByAccountID(targetAccountId);
+		if (targetClient > 0 && IsValidClient(targetClient))
+		{
+			SetClientBanInfo(targetClient, banType, 0, 0); // durationMinutes=0 for permanent ban
+			CVBLog.Debug("Client state updated for online player %N (AccountID: %d) with new banType %d", targetClient, targetAccountId, banType);
+		}
+		CVB_UpdateSQLiteBan(banInfo);
 	}
 	else if (resultCode == 1)
 	{
 		if (adminId != NO_INDEX)
-			CReplyToCommand(adminId, "Ban already exists for AccountID %d: %s", targetAccountId, message); // add translations
-		CVBLog.SQL("Existing more severe ban found: %s", message);
+			CReplyToCommand(adminId, "Player already has an active ban for AccountID %d: %s", targetAccountId, message); // add translations
+		CVBLog.SQL("Active ban already exists: %s", message);
 	}
 	else if (resultCode == 2)
 	{
@@ -572,7 +766,7 @@ public void CVB_InsertBan_Callback(Handle owner, Handle hndl, const char[] error
  * passing the target and admin account IDs. The result is handled asynchronously
  * in the CVB_RemoveBan_Callback function.
  */
-void CVB_RemoveBan(int targetAccountId, int adminAccountId)
+void CVB_RemoveMysqlBan(int targetAccountId, int adminAccountId)
 {
 	if (g_hMySQLDB == null)
 	{
@@ -590,10 +784,10 @@ void CVB_RemoveBan(int targetAccountId, int adminAccountId)
 	DataPack dpRemoveBan = new DataPack();
 	dpRemoveBan.WriteCell(targetAccountId);
 	dpRemoveBan.WriteCell(adminAccountId);
-	SQL_TQuery(g_hMySQLDB, CVB_RemoveBan_Callback, sQuery, dpRemoveBan);
+	SQL_TQuery(g_hMySQLDB, CVB_RemoveMysqlBan_Callback, sQuery, dpRemoveBan);
 }
 
-public void CVB_RemoveBan_Callback(Handle owner, Handle hndl, const char[] error, any data)
+public void CVB_RemoveMysqlBan_Callback(Handle owner, Handle hndl, const char[] error, any data)
 {
 	DataPack dpRemoveBan = view_as<DataPack>(data);
 	dpRemoveBan.Reset();
@@ -605,9 +799,11 @@ public void CVB_RemoveBan_Callback(Handle owner, Handle hndl, const char[] error
 
 	if (hndl == null)
 	{
-		CVBLog.MySQL("Error in %s: %s", PROCEDURE_REMOVE_BAN, error);
+		CVBLog.MySQL("Database error removing ban for AccountID %d: %s", targetAccountId, error);
 		if (adminId != NO_INDEX)
-			CReplyToCommand(adminId, "Error in %s: %s", PROCEDURE_REMOVE_BAN, error); // add translations
+		{
+			CPrintToChat(adminId, "%t %t", "Tag", "DatabaseError");
+		}
 		return;
 	}
 
@@ -620,40 +816,60 @@ public void CVB_RemoveBan_Callback(Handle owner, Handle hndl, const char[] error
 		return;
 	}
 
-	int resultCode = results.FetchInt(0);
+	int removedBanId = results.FetchInt(0);     // removed_ban_id 
+	int resultCode = results.FetchInt(1);       // result_code
 	char message[256];
-	results.FetchString(1, message, sizeof(message));
-	bool isNull = results.IsFieldNull(2);
-	int removedBanId = 0;
-	if (!isNull)
-	{
-		removedBanId = results.FetchInt(2);
-	}
+	results.FetchString(2, message, sizeof(message)); // message
 
 	if (resultCode == 0)
 	{
 		CVBLog.SQL("Ban removed successfully: ID=%d, AccountID=%d, Message=%s", removedBanId, targetAccountId, message);
+		
+		// Find target player for messaging
+		int targetId = FindClientByAccountID(targetAccountId);
+		
+		// Message to admin
 		if (adminId != NO_INDEX)
-			CReplyToCommand(adminId, "Ban removed successfully for AccountID %d", targetAccountId); // add translations
-		UpdateStringMapCache(targetAccountId, false, 0);
-		if (g_hSQLiteDB != null)
+		{
+			char targetName[MAX_NAME_LENGTH] = "Unknown Player";
+			if (targetId != NO_INDEX)
+				GetClientName(targetId, targetName, sizeof(targetName));
+			CPrintToChat(adminId, "%t %t", "Tag", "BanRemovedSuccess", targetName);
+		}
+		
+		// Message to target player if online
+		if (targetId != NO_INDEX)
+		{
+			CPrintToChat(targetId, "%t %t", "Tag", "YourBanRemoved");
+		}
+		
+		// Force refresh cache to ensure immediate update
+		ForceRefreshCacheEntry(targetAccountId);
+		
+		// Update SQLite cache
+		if (g_hSQLiteDB != null && g_cvarSQLiteCache.BoolValue)
 		{
 			char sQuery[MAX_QUERY_LENGTH];
-			Format(sQuery, sizeof(sQuery), "UPDATE %s SET is_active = 0 WHERE account_id = %d", TABLE_BANS, targetAccountId);
+			Format(sQuery, sizeof(sQuery), "DELETE FROM %s WHERE account_id = %d", TABLE_CACHE_BANS, targetAccountId);
 			SQL_TQuery(g_hSQLiteDB, Generic_QueryCallback, sQuery);
+			CVBLog.SQLite("SQLite cache cleared for removed ban AccountID %d", targetAccountId);
 		}
 	}
 	else if (resultCode == 1)
 	{
 		CVBLog.SQL("No active ban found for AccountID %d: %s", targetAccountId, message);
 		if (adminId != NO_INDEX)
-			CReplyToCommand(adminId, "No active ban found for AccountID %d: %s", targetAccountId, message); // add translations
+		{
+			CPrintToChat(adminId, "%t %t", "Tag", "NoBanFound");
+		}
 	}
-	else if (resultCode == 4 && isNull)
+	else if (resultCode == 4)
 	{
 		CVBLog.MySQL("Database error removing ban for AccountID %d: %s", targetAccountId, message);
 		if (adminId != NO_INDEX)
-			CReplyToCommand(adminId, "Database error removing ban for AccountID %d: %s", targetAccountId, message); // add translations
+		{
+			CPrintToChat(adminId, "%t %t", "Tag", "DatabaseError");
+		}
 	}
 	else
 	{
@@ -672,17 +888,17 @@ public void CVB_RemoveBan_Callback(Handle owner, Handle hndl, const char[] error
  * This function constructs a SQL query to call the stored procedure for cleaning expired bans,
  * then asynchronously executes the query. The adminAccountId is stored in a DataPack for use in the callback.
  */
-void CVB_CleanExpiredBans(int adminAccountId, int batchSize = 100)
+void CVB_CleanExpiredMysqlBans(int adminAccountId, int batchSize = 100)
 {
 	char sQuery[MAX_QUERY_LENGTH];
 	FormatEx(sQuery, sizeof(sQuery), "CALL %s(%d)", PROCEDURE_CLEAN_EXPIRED, batchSize);
 
 	DataPack dpCleanExpiredBans = new DataPack();
 	dpCleanExpiredBans.WriteCell(adminAccountId);
-	SQL_TQuery(g_hMySQLDB, CVB_CleanExpiredBans_Callback, sQuery, dpCleanExpiredBans);
+	SQL_TQuery(g_hMySQLDB, CVB_CleanExpiredMysqlBans_Callback, sQuery, dpCleanExpiredBans);
 }
 
-public void CVB_CleanExpiredBans_Callback(Handle owner, Handle hndl, const char[] error, any data)
+public void CVB_CleanExpiredMysqlBans_Callback(Handle owner, Handle hndl, const char[] error, any data)
 {
 	DataPack dpCleanExpiredBans = view_as<DataPack>(data);
 	dpCleanExpiredBans.Reset();
@@ -708,10 +924,10 @@ public void CVB_CleanExpiredBans_Callback(Handle owner, Handle hndl, const char[
 		return;
 	}
 
-	int cleanedCount = results.FetchInt(0);
-	int resultCode = results.FetchInt(1);
+	int cleanedCount = results.FetchInt(0);     // cleaned_count
+	int resultCode = results.FetchInt(1);       // result_code  
 	char message[256];
-	results.FetchString(2, message, sizeof(message));
+	results.FetchString(2, message, sizeof(message)); // message
 
 	if (resultCode == 0)
 	{
@@ -785,93 +1001,111 @@ void InstallStoredProcedures()
 	InstallStoredProceduresWithConfig(defaultConfig);
 }
 
-/**
- * Checks if the specified account has a full ban in the database.
- *
- * This function asynchronously queries the database to determine if the given account ID
- * is currently fully banned. It prepares a SQL query to call the stored procedure `sp_CheckFullBan`
- * and retrieves relevant ban information. The result is handled in the `CheckFullBan_Callback` function.
- *
- * @param accountId  The account ID to check for a full ban.
- * @param client     (Optional) The client index associated with the account. Defaults to 0 if not specified.
- */
-void CVB_CheckFullBan(int targetAccountId, int adminAccountId)
+void CVB_CheckMysqlFullBan(PlayerBanInfo playerInfo)
 {
 	if (g_hMySQLDB == null)
 	{
+		int adminId = FindClientByAccountID(playerInfo.AdminAccountId);
+		if (adminId != NO_INDEX)
+		{
+			CReplyToCommand(adminId, "%t %t", "Tag", "DatabaseError");
+			CReplyToCommand(adminId, "MySQL connection is not available");
+		}
 		return;
 	}
 	
 	char sQuery[MAX_QUERY_LENGTH];
-	FormatEx(sQuery, sizeof(sQuery), 
-		"CALL %s(%d)",
-		PROCEDURE_CHECK_FULL_BAN, targetAccountId);
-	CVBLog.MySQL("CVB_CheckFullBan: %s", sQuery);
-
+	FormatEx(sQuery, sizeof(sQuery), "CALL %s(%d)", PROCEDURE_CHECK_FULL_BAN, playerInfo.AccountId);
+	CVBLog.MySQL("Executing: %s", sQuery);
+	
 	DataPack dpCheckFullBan = new DataPack();
-	dpCheckFullBan.WriteCell(targetAccountId);
-	dpCheckFullBan.WriteCell(adminAccountId);
-	dpCheckFullBan.WriteCell(GetTime());
-	SQL_TQuery(g_hMySQLDB, CheckFullBan_Callback, sQuery, dpCheckFullBan);
+	dpCheckFullBan.WriteCell(playerInfo.AccountId);
+	
+	CVBLog.MySQL("Sending query via SQL_TQuery to callback CheckMysqlFullBan_Callback");
+	SQL_TQuery(g_hMySQLDB, CheckMysqlFullBan_Callback, sQuery, dpCheckFullBan);
 }
 
-public void CheckFullBan_Callback(Handle owner, Handle hndl, const char[] error, any data)
+public void CheckMysqlFullBan_Callback(Handle owner, Handle hndl, const char[] error, any data)
 {
 	DataPack dpCheckFullBan = view_as<DataPack>(data);
 	dpCheckFullBan.Reset();
 	int targetAccountId = dpCheckFullBan.ReadCell();
-	int adminAccountId = dpCheckFullBan.ReadCell();
-	dpCheckFullBan.ReadCell();
 	delete dpCheckFullBan;
+	
+	char sAccountId[32];
+	IntToString(targetAccountId, sAccountId, sizeof(sAccountId));
+	
+	PlayerBanInfo banInfo = new PlayerBanInfo(targetAccountId);
+	if (!CVB_GetCacheStringMap(banInfo))
+	{
+		CVBLog.Debug("Failed to retrieve player info from cache for AccountID %d", targetAccountId);
+		delete banInfo;
+		return;
+	}
 
-	int adminId = FindClientByAccountID(adminAccountId);
+	int adminId = FindClientByAccountID(banInfo.AdminAccountId);
 	int targetId = FindClientByAccountID(targetAccountId);
+	SetCmdReplySource(banInfo.CommandReplySource);
+
 	if (hndl == null)
 	{
-		CVBLog.MySQL("Error in %s: %s", PROCEDURE_CHECK_FULL_BAN, error);
 		if (adminId != NO_INDEX)
-			CReplyToCommand(adminId, "Error in %s: %s", PROCEDURE_CHECK_FULL_BAN, error); // add translations
+		{
+			CReplyToCommand(adminId, "%t %t", "Tag", "DatabaseError");
+			CReplyToCommand(adminId, "MySQL Error: %s", error);
+		}
 		return;
 	}
 	
 	DBResultSet results = view_as<DBResultSet>(hndl);
-	if (!results.FetchRow())
+	
+	bool hasResults = results.HasResults;
+	CVBLog.MySQL("DBResultSet.HasResults = %s for %s (AccountID %d)", hasResults ? "true" : "false", PROCEDURE_CHECK_FULL_BAN, banInfo.AccountId);
+
+	if (!hasResults)
 	{
-		CVBLog.MySQL("Error in %s: No results for AccountID %d", PROCEDURE_CHECK_FULL_BAN, targetAccountId);
+		CVBLog.MySQL("CRITICAL: %s has no result set for AccountID %d - procedure may not exist", PROCEDURE_CHECK_FULL_BAN, banInfo.AccountId);
 		if (adminId != NO_INDEX)
-			CReplyToCommand(adminId, "Error in %s: No results for AccountID %d", PROCEDURE_CHECK_FULL_BAN, targetAccountId);
+		{
+			CReplyToCommand(adminId, "%t %t", "Tag", "DatabaseError");
+			CReplyToCommand(adminId, "CRITICAL: Procedure %s has no result set", PROCEDURE_CHECK_FULL_BAN);
+		}
 		return;
 	}
 	
+	bool fetchResult = results.FetchRow();
+	CVBLog.MySQL("DBResultSet.FetchRow() = %s for %s (AccountID %d)", fetchResult ? "true" : "false", PROCEDURE_CHECK_FULL_BAN, banInfo.AccountId);
+	
 	bool hasBan = results.FetchInt(0) > 0;
+	CVBLog.MySQL("%s: AccountID %d, has_ban = %d", PROCEDURE_CHECK_FULL_BAN, banInfo.AccountId, hasBan ? 1 : 0);
 	
 	if (hasBan)
 	{
-		PlayerBanInfo banInfo;
-		banInfo.accountId = targetAccountId;
-		banInfo.banType = results.FetchInt(1);
-		banInfo.expiresTimestamp = results.FetchInt(2);
-		banInfo.createdTimestamp = results.FetchInt(3);
-		banInfo.durationMinutes = results.FetchInt(4);
-		banInfo.isLoaded = true;
-		banInfo.isChecking = false;
-		
+		// Orden de columnas del procedimiento sp_CheckFullBan:
+		// 0: has_ban, 1: ban_type, 2: expires_timestamp, 3: created_timestamp, 
+		// 4: duration_minutes, 5: admin_account_id, 6: reason, 7: ban_id
+		banInfo.BanType = results.FetchInt(1);
+		banInfo.ExpiresTimestamp = results.FetchInt(2);
+		banInfo.CreatedTimestamp = results.FetchInt(3);
+		banInfo.DurationMinutes = results.FetchInt(4);
+		banInfo.AdminAccountId = results.FetchInt(5);
+		char tempReason[128];
+		results.FetchString(6, tempReason, sizeof(tempReason));
+		banInfo.SetReason(tempReason);
+
+		CVB_UpdateCacheStringMap(banInfo);
+
 		if (targetId != NO_INDEX && IsValidClientIndex(targetId))
 		{
-			g_PlayerBans[targetId] = banInfo;
+			g_ClientStates[targetId].isLoaded = true;
+			g_ClientStates[targetId].isChecking = false;
 		}
 
-		UpdateStringMapCache(targetAccountId, true, banInfo.banType);
-		
 		if (g_hSQLiteDB != null)
-		{
-			UpdateSQLiteCache(banInfo);
-		}
+			CVB_UpdateSQLiteBan(banInfo);
 
-		CVBLog.Debug("%s: Complete ban info loaded for AccountID %d: Type=%d, Expires=%d", 
-			PROCEDURE_CHECK_FULL_BAN, targetAccountId, banInfo.banType, banInfo.expiresTimestamp);
-		
-		// Show formatted ban information to admin
+		CVBLog.Debug("%s: Complete ban info loaded for AccountID %d: Type=%d, Expires=%d", PROCEDURE_CHECK_FULL_BAN, banInfo.AccountId, banInfo.BanType, banInfo.ExpiresTimestamp);
+
 		if (adminId != NO_INDEX)
 		{
 			char targetName[MAX_NAME_LENGTH] = "Unknown Player";
@@ -882,28 +1116,21 @@ public void CheckFullBan_Callback(Handle owner, Handle hndl, const char[] error,
 				GetClientName(targetId, targetName, sizeof(targetName));
 				GetClientAuthId(targetId, AuthId_Steam2, targetSteamId, sizeof(targetSteamId));
 			}
-			else
-			{
-				// For offline players, try to construct SteamID2 from AccountID
-				AccountIDToSteamID2(targetAccountId, targetSteamId, sizeof(targetSteamId));
-			}
 			
 			char sBanTypes[128];
-			GetBanTypeString(banInfo.banType, sBanTypes, sizeof(sBanTypes));
+			banInfo.GetBanTypeString(sBanTypes, sizeof(sBanTypes));
 			
 			char sExpiration[64];
-			if (banInfo.expiresTimestamp == 0)
-			{
+
+			if (banInfo.ExpiresTimestamp == 0)
 				Format(sExpiration, sizeof(sExpiration), "%T", "BanStatusPermanent", adminId);
-			}
 			else
-			{
-				FormatTime(sExpiration, sizeof(sExpiration), "%Y-%m-%d %H:%M:%S", banInfo.expiresTimestamp);
-			}
+				FormatTime(sExpiration, sizeof(sExpiration), "%Y-%m-%d %H:%M:%S", banInfo.ExpiresTimestamp);
+			
+			CVBLog.Debug("Sending 'HAS BAN' messages to admin %d for player %s [%s], ban type: %s", adminId, targetName, targetSteamId, sBanTypes);
 			
 			CReplyToCommand(adminId, "%t %t", "Tag", "BanStatusHeader", targetName);
-			CReplyToCommand(adminId, "%t %t", "Tag", "BanStatusSteamID2", targetSteamId);
-			CReplyToCommand(adminId, "%t %t", "Tag", "BanStatusAccountID", targetAccountId);
+			CReplyToCommand(adminId, "%t %t", "Tag", "BanStatusAccountID", banInfo.AccountId);
 			CReplyToCommand(adminId, "%t %t", "Tag", "BanStatusBanned");
 			CReplyToCommand(adminId, "%t %t", "Tag", "BanStatusRestrictedTypes", sBanTypes);
 			CReplyToCommand(adminId, "%t %t", "Tag", "BanStatusExpiration", sExpiration);
@@ -911,16 +1138,19 @@ public void CheckFullBan_Callback(Handle owner, Handle hndl, const char[] error,
 	}
 	else
 	{
-		UpdateStringMapCache(targetAccountId, false, 0);
+		banInfo.AdminAccountId = 0;
+		banInfo.CommandReplySource = SM_REPLY_TO_CONSOLE;
+
+		CVB_UpdateCacheStringMap(banInfo);
+		
 		if (targetId != NO_INDEX && IsValidClientIndex(targetId))
 		{
-			g_PlayerBans[targetId].isLoaded = true;
-			g_PlayerBans[targetId].isChecking = false;
-			g_PlayerBans[targetId].banType = 0;
+			g_ClientStates[targetId].isLoaded = true;
+			g_ClientStates[targetId].isChecking = false;
 		}
-		CVBLog.Debug("%s: No active ban for AccountID %d", PROCEDURE_CHECK_FULL_BAN, targetAccountId);
+
+		CVBLog.Debug("%s: No active ban for AccountID %d", PROCEDURE_CHECK_FULL_BAN, banInfo.AccountId);
 		
-		// Show "not banned" message to admin
 		if (adminId != NO_INDEX)
 		{
 			char targetName[MAX_NAME_LENGTH] = "Unknown Player";
@@ -931,18 +1161,15 @@ public void CheckFullBan_Callback(Handle owner, Handle hndl, const char[] error,
 				GetClientName(targetId, targetName, sizeof(targetName));
 				GetClientAuthId(targetId, AuthId_Steam2, targetSteamId, sizeof(targetSteamId));
 			}
-			else
-			{
-				// For offline players, try to construct SteamID2 from AccountID
-				AccountIDToSteamID2(targetAccountId, targetSteamId, sizeof(targetSteamId));
-			}
+			
+			CVBLog.Debug("Sending 'NO BAN' messages to admin %d for player %s [%s]", adminId, targetName, targetSteamId);
 			
 			CReplyToCommand(adminId, "%t %t", "Tag", "BanStatusHeader", targetName);
-			CReplyToCommand(adminId, "%t %t", "Tag", "BanStatusSteamID2", targetSteamId);
-			CReplyToCommand(adminId, "%t %t", "Tag", "BanStatusAccountID", targetAccountId);
+			CReplyToCommand(adminId, "%t %t", "Tag", "BanStatusAccountID", banInfo.AccountId);
 			CReplyToCommand(adminId, "%t %t", "Tag", "BanStatusUnbanned");
 		}
 	}
+	delete banInfo;
 }
 
 public void SyncTransaction_Success(Database db, any data, int numQueries, Handle[] results, any[] queryData)
@@ -970,6 +1197,8 @@ void InitInstallationTracking(int client, bool installMySQL, bool installSQLite)
 	g_InstallStatus.sqliteTables = false;
 	g_InstallStatus.sqliteIndexes = false;
 	g_InstallStatus.clientUserId = (client == SERVER_INDEX) ? 0 : GetClientUserId(client);
+	g_InstallStatus.cmdReplySource = GetCmdReplySource();  // Guardar contexto del comando
+	CVBLog.Debug("Captured command context - ReplySource: %d (0=Console, 1=Chat)", g_InstallStatus.cmdReplySource);
 	g_InstallStatus.totalOperations = 0;
 	g_InstallStatus.completedOperations = 0; // Resetear contador
 	
@@ -980,14 +1209,10 @@ void InitInstallationTracking(int client, bool installMySQL, bool installSQLite)
 	}
 	
 	if (installMySQL && g_hMySQLDB != null)
-	{
 		g_InstallStatus.totalOperations += 2;
-	}
 	
 	if (installSQLite && g_hSQLiteDB != null)
-	{
 		g_InstallStatus.totalOperations += 2;
-	}
 	
 	CVBLog.Debug("Installation tracking initialized: %d operations planned", g_InstallStatus.totalOperations);
 
@@ -1009,6 +1234,242 @@ void InitInstallationTracking(int client, bool installMySQL, bool installSQLite)
 			CreateSQLiteTables();
 		}
 	}
+}
+
+/*****************************************************************
+			R E I N S T A L L A T I O N   T R A C K I N G
+*****************************************************************/
+
+/**
+ * Inicializa el seguimiento de REINSTALACIÓN completa de base de datos
+ * PELIGROSO: Elimina todo y lo recrea desde cero
+ *
+ * @param client            Cliente que ejecutó el comando
+ * @param installMySQL      Si debe reinstalar MySQL completamente
+ * @param installSQLite     Si debe reinstalar SQLite completamente
+ */
+void InitReinstallationTracking(int client, bool installMySQL, bool installSQLite)
+{
+	// Reset all installation status
+	g_InstallStatus.mysqlTables = false;
+	g_InstallStatus.mysqlProcedures = false;
+	g_InstallStatus.sqliteTables = false;
+	g_InstallStatus.sqliteIndexes = false;
+	g_InstallStatus.clientUserId = (client == SERVER_INDEX) ? 0 : GetClientUserId(client);
+	g_InstallStatus.cmdReplySource = GetCmdReplySource();
+	CVBLog.Debug("REINSTALL: Captured command context - ReplySource: %d", g_InstallStatus.cmdReplySource);
+	g_InstallStatus.totalOperations = 0;
+	g_InstallStatus.completedOperations = 0;
+	
+	if (g_InstallStatus.timeoutTimer != null)
+	{
+		delete g_InstallStatus.timeoutTimer;
+		g_InstallStatus.timeoutTimer = null;
+	}
+	
+	// Count operations: DROP operations + CREATE operations
+	if (installMySQL && g_hMySQLDB != null)
+		g_InstallStatus.totalOperations += 4; // Drop procedures + Drop table + Create table + Create procedures
+	
+	if (installSQLite && g_hSQLiteDB != null)
+		g_InstallStatus.totalOperations += 4; // Drop indexes + Drop table + Create table + Create indexes
+	
+	CVBLog.Debug("REINSTALL: Tracking initialized: %d operations planned (DANGEROUS)", g_InstallStatus.totalOperations);
+
+	if (g_InstallStatus.totalOperations > 0)
+	{
+		g_InstallStatus.timeoutTimer = CreateTimer(45.0, Timer_InstallationTimeout, _, TIMER_FLAG_NO_MAPCHANGE);
+		
+		CVBLog.Debug("REINSTALL: Starting DESTRUCTIVE operations...");
+		
+		if (installMySQL && g_hMySQLDB != null)
+		{
+			CVBLog.Debug("REINSTALL: Starting MySQL complete reinstallation...");
+			DropMySQLStructures();
+		}
+		
+		if (installSQLite && g_hSQLiteDB != null)
+		{
+			CVBLog.Debug("REINSTALL: Starting SQLite complete reinstallation...");
+			DropSQLiteStructures();
+		}
+	}
+}
+
+/*****************************************************************
+			D R O P   S T R U C T U R E S   F U N C T I O N S
+*****************************************************************/
+
+/**
+ * DANGEROUS: Drops all MySQL stored procedures
+ * This is part of the complete reinstallation process
+ */
+void DropMySQLStructures()
+{
+	CVBLog.Debug("REINSTALL: Dropping all MySQL stored procedures...");
+	
+	// Instead of dropping all procedures at once, we'll drop them one by one
+	// Start with the first procedure
+	DropNextMySQLProcedure(0);
+}
+
+/**
+ * Recursively drops MySQL procedures one by one to avoid syntax errors
+ */
+void DropNextMySQLProcedure(int procedureIndex)
+{
+	char procedureNames[6][64] = {
+		PROCEDURE_CHECK_ACTIVE_BAN,
+		PROCEDURE_CHECK_FULL_BAN,
+		PROCEDURE_INSERT_BAN,
+		PROCEDURE_REMOVE_BAN,
+		PROCEDURE_CLEAN_EXPIRED,
+		PROCEDURE_GET_STATISTICS
+	};
+	
+	if (procedureIndex >= sizeof(procedureNames))
+	{
+		// All procedures dropped, now drop the table
+		CVBLog.Debug("REINSTALL: All MySQL procedures dropped successfully");
+		MarkOperationComplete("mysql_drop_procedures", true);
+		DropMySQLTable();
+		return;
+	}
+	
+	char sQuery[256];
+	Format(sQuery, sizeof(sQuery), "DROP PROCEDURE IF EXISTS %s", procedureNames[procedureIndex]);
+	
+	DataPack dp = new DataPack();
+	dp.WriteCell(procedureIndex);
+	
+	SQL_TQuery(g_hMySQLDB, DropMySQLProcedure_Callback, sQuery, dp);
+}
+
+/**
+ * Callback for dropping individual MySQL procedure
+ */
+void DropMySQLProcedure_Callback(Database db, DBResultSet results, const char[] error, DataPack data)
+{
+	data.Reset();
+	int procedureIndex = data.ReadCell();
+	delete data;
+	
+	if (error[0])
+	{
+		CVBLog.Debug("REINSTALL: Error dropping MySQL procedure %d: %s", procedureIndex, error);
+		LogError("[DropMySQLProcedure_Callback] Error dropping procedure %d: %s", procedureIndex, error);
+		MarkOperationComplete("mysql_drop_procedures", false);
+		return;
+	}
+	
+	CVBLog.Debug("REINSTALL: MySQL procedure %d dropped successfully", procedureIndex);
+	
+	// Continue with next procedure
+	DropNextMySQLProcedure(procedureIndex + 1);
+}
+
+/**
+ * DANGEROUS: Drops the MySQL callvote_bans table
+ */
+void DropMySQLTable()
+{
+	CVBLog.Debug("REINSTALL: Dropping MySQL table %s...", TABLE_BANS);
+	
+	char sQuery[256];
+	Format(sQuery, sizeof(sQuery), "DROP TABLE IF EXISTS %s", TABLE_BANS);
+	
+	SQL_TQuery(g_hMySQLDB, DropMySQLTable_Callback, sQuery);
+}
+
+/**
+ * Callback for dropping MySQL table
+ */
+void DropMySQLTable_Callback(Database db, DBResultSet results, const char[] error, any data)
+{
+	if (error[0])
+	{
+		CVBLog.Debug("REINSTALL: Error dropping MySQL table: %s", error);
+		LogError("[DropMySQLTable_Callback] Error: %s", error);
+		MarkOperationComplete("mysql_drop_table", false);
+		return;
+	}
+	
+	CVBLog.Debug("REINSTALL: MySQL table dropped successfully");
+	MarkOperationComplete("mysql_drop_table", true);
+	
+	// Now recreate the table
+	CreateMySQLTables();
+}
+
+/**
+ * DANGEROUS: Drops all SQLite structures
+ * This includes indexes and the cache table
+ */
+void DropSQLiteStructures()
+{
+	CVBLog.Debug("REINSTALL: Dropping SQLite indexes...");
+	
+	char sQuery[1024];
+	Format(sQuery, sizeof(sQuery), 
+		"DROP INDEX IF EXISTS idx_account_id; " ...
+		"DROP INDEX IF EXISTS idx_ttl_expires; " ...
+		"DROP INDEX IF EXISTS idx_cached_timestamp"
+	);
+	
+	SQL_TQuery(g_hSQLiteDB, DropSQLiteIndexes_Callback, sQuery);
+}
+
+/**
+ * Callback for dropping SQLite indexes
+ */
+void DropSQLiteIndexes_Callback(Database db, DBResultSet results, const char[] error, any data)
+{
+	if (error[0])
+	{
+		CVBLog.Debug("REINSTALL: Error dropping SQLite indexes: %s", error);
+		LogError("[DropSQLiteIndexes_Callback] Error: %s", error);
+		MarkOperationComplete("sqlite_drop_indexes", false);
+		return;
+	}
+	
+	CVBLog.Debug("REINSTALL: SQLite indexes dropped successfully");
+	MarkOperationComplete("sqlite_drop_indexes", true);
+	
+	// Now drop the table
+	DropSQLiteTable();
+}
+
+/**
+ * DANGEROUS: Drops the SQLite cache table
+ */
+void DropSQLiteTable()
+{
+	CVBLog.Debug("REINSTALL: Dropping SQLite table %s...", TABLE_CACHE_BANS);
+	
+	char sQuery[256];
+	Format(sQuery, sizeof(sQuery), "DROP TABLE IF EXISTS %s", TABLE_CACHE_BANS);
+	
+	SQL_TQuery(g_hSQLiteDB, DropSQLiteTable_Callback, sQuery);
+}
+
+/**
+ * Callback for dropping SQLite table
+ */
+void DropSQLiteTable_Callback(Database db, DBResultSet results, const char[] error, any data)
+{
+	if (error[0])
+	{
+		CVBLog.Debug("REINSTALL: Error dropping SQLite table: %s", error);
+		LogError("[DropSQLiteTable_Callback] Error: %s", error);
+		MarkOperationComplete("sqlite_drop_table", false);
+		return;
+	}
+	
+	CVBLog.Debug("REINSTALL: SQLite table dropped successfully");
+	MarkOperationComplete("sqlite_drop_table", true);
+	
+	// Now recreate the table
+	CreateSQLiteTables();
 }
 
 /**
@@ -1041,6 +1502,16 @@ void MarkOperationComplete(const char[] operation, bool success)
 		g_InstallStatus.sqliteIndexes = success;
 		changed = true;
 	}
+	// Handle DROP operations for reinstallation
+	else if (StrEqual(operation, "mysql_drop_procedures") || 
+			 StrEqual(operation, "mysql_drop_table") ||
+			 StrEqual(operation, "sqlite_drop_indexes") ||
+			 StrEqual(operation, "sqlite_drop_table"))
+	{
+		// For DROP operations, we just increment the counter
+		// The actual status is tracked by the subsequent CREATE operations
+		changed = true;
+	}
 	
 	if (!changed)
 	{
@@ -1071,12 +1542,11 @@ void CheckInstallationComplete()
 	if (g_InstallStatus.completedOperations >= g_InstallStatus.totalOperations)
 	{
 		CVBLog.Debug("All operations completed, generating final report...");
+		CVBLog.Debug("About to call GenerateInstallationReport(false) - current client: %d", g_InstallStatus.clientUserId);
 		GenerateInstallationReport(false);
 	}
 	else
-	{
 		CVBLog.Debug("Installation not yet complete, waiting for more operations...");
-	}
 }
 
 /**
@@ -1086,18 +1556,24 @@ void CheckInstallationComplete()
  */
 void GenerateInstallationReport(bool isTimeout)
 {
-	int client = (g_InstallStatus.clientUserId == 0) ? SERVER_INDEX : GetClientOfUserId(g_InstallStatus.clientUserId);
+	CVBLog.Debug("=== GenerateInstallationReport START ===");
+	CVBLog.Debug("Timeout parameter: %s", isTimeout ? "true" : "false");
+	CVBLog.Debug("g_InstallStatus.clientUserId: %d", g_InstallStatus.clientUserId);
 	
-	if (client < SERVER_INDEX && g_InstallStatus.clientUserId != 0)
+	int client = (g_InstallStatus.clientUserId == 0) ? SERVER_INDEX : GetClientOfUserId(g_InstallStatus.clientUserId);
+	CVBLog.Debug("Resolved client: %d", client);
+	
+	if (client == SERVER_INDEX && g_InstallStatus.clientUserId != 0)
 	{
-		CVBLog.Debug("Client disconnected, skipping installation report");
+		CVBLog.Debug("Client disconnected (GetClientOfUserId returned 0), skipping installation report");
 		return;
 	}
 
-	CVBLog.Debug("Generating installation report for client %N (isTimeout: %s)", client, isTimeout ? "true" : "false");
+	CVBLog.Debug("Generating installation report for client (isTimeout: %s)", isTimeout ? "true" : "false");
 
 	if (g_InstallStatus.timeoutTimer != null)
 	{
+		CVBLog.Debug("Deleting timeout timer...");
 		delete g_InstallStatus.timeoutTimer;
 		g_InstallStatus.timeoutTimer = null;
 	}
@@ -1109,10 +1585,12 @@ void GenerateInstallationReport(bool isTimeout)
 	
 	if (isValidTarget)
 	{
+		CVBLog.Debug("Target is valid, starting report generation...");
 		CReplyToCommand(client, "%t", "InstallResultHeader");
 		
 		if (isTimeout)
 		{
+			CVBLog.Debug("Timeout detected, sending timeout message...");
 			CReplyToCommand(client, "%t %t", "Tag", "InstallationTimeout");
 		}
 		
@@ -1120,32 +1598,20 @@ void GenerateInstallationReport(bool isTimeout)
 		{
 			char status[64];
 			if (g_InstallStatus.mysqlTables && g_InstallStatus.mysqlProcedures)
-			{
 				Format(status, sizeof(status), "%t", "InstallSuccess");
-			}
 			else if (g_InstallStatus.mysqlTables && !g_InstallStatus.mysqlProcedures)
-			{
 				Format(status, sizeof(status), "%t", "TablesCreatedProceduresFailed");
-			}
 			else if (!g_InstallStatus.mysqlTables && g_InstallStatus.mysqlProcedures)
-			{
 				Format(status, sizeof(status), "%t", "TablesFailedProceduresSuccess");
-			}
 			else
-			{
 				Format(status, sizeof(status), "%t", "InstallationFailed");
-			}
 			
 			CReplyToCommand(client, "%t %t", "Tag", "MySQLStatus", status);
 			
 			if (g_InstallStatus.mysqlTables)
-			{
 				CReplyToCommand(client, "%t %t", "Tag", "ComponentSuccess", "Tablas principales");
-			}
 			else
-			{
 				CReplyToCommand(client, "%t %t", "Tag", "ComponentFailed", "Tablas principales");
-			}
 			
 			if (g_InstallStatus.mysqlProcedures)
 			{
@@ -1166,50 +1632,32 @@ void GenerateInstallationReport(bool isTimeout)
 				CReplyToCommand(client, "%t %t (%d/6)", "Tag", "ComponentSuccess", "Procedimientos almacenados", procedureCount);
 			}
 			else
-			{
 				CReplyToCommand(client, "%t %t", "Tag", "ComponentFailed", "Procedimientos almacenados");
-			}
 		}
 		
 		if (g_InstallStatus.sqliteTables || g_InstallStatus.sqliteIndexes)
 		{
 			char status[64];
 			if (g_InstallStatus.sqliteTables && g_InstallStatus.sqliteIndexes)
-			{
 				Format(status, sizeof(status), "%t", "InstallSuccess");
-			}
 			else if (g_InstallStatus.sqliteTables && !g_InstallStatus.sqliteIndexes)
-			{
 				Format(status, sizeof(status), "%t", "TablesCreatedIndexesFailed");
-			}
 			else if (!g_InstallStatus.sqliteTables && g_InstallStatus.sqliteIndexes)
-			{
 				Format(status, sizeof(status), "%t", "TablesFailedIndexesSuccess");
-			}
 			else
-			{
 				Format(status, sizeof(status), "%t", "InstallationFailed");
-			}
 			
 			CReplyToCommand(client, "%t %t", "Tag", "SQLiteStatus", status);
 
 			if (g_InstallStatus.sqliteTables)
-			{
 				CReplyToCommand(client, "%t %t", "Tag", "ComponentSuccess", "Tabla de cache");
-			}
 			else
-			{
 				CReplyToCommand(client, "%t %t", "Tag", "ComponentFailed", "Tabla de cache");
-			}
 			
 			if (g_InstallStatus.sqliteIndexes)
-			{
 				CReplyToCommand(client, "%t %t", "Tag", "ComponentSuccess", "Índices de optimización (1/1)");
-			}
 			else
-			{
 				CReplyToCommand(client, "%t %t", "Tag", "ComponentFailed", "Índices de optimización");
-			}
 		}
 		
 		if (isTimeout)
@@ -1271,6 +1719,82 @@ void GenerateInstallationReport(bool isTimeout)
 				CReplyToCommand(client, "%t %t", "Tag", "AllProceduresEnabled");
 			}
 		}
+		
+		bool installationSuccessful = true;
+		CVBLog.Debug("Evaluating installation success - MySQL(T:%s P:%s) SQLite(T:%s I:%s)", 
+			g_InstallStatus.mysqlTables ? "true" : "false",
+			g_InstallStatus.mysqlProcedures ? "true" : "false",
+			g_InstallStatus.sqliteTables ? "true" : "false", 
+			g_InstallStatus.sqliteIndexes ? "true" : "false");
+			
+		if (g_InstallStatus.mysqlTables || g_InstallStatus.mysqlProcedures)
+		{
+			CVBLog.Debug("MySQL operations detected, checking success...");
+			if (!g_InstallStatus.mysqlTables || !g_InstallStatus.mysqlProcedures)
+			{
+				CVBLog.Debug("MySQL operations incomplete - marking as failed");
+				installationSuccessful = false;
+			}
+		}
+		if (g_InstallStatus.sqliteTables || g_InstallStatus.sqliteIndexes)
+		{
+			CVBLog.Debug("SQLite operations detected, checking success...");
+			if (!g_InstallStatus.sqliteTables || !g_InstallStatus.sqliteIndexes)
+			{
+				CVBLog.Debug("SQLite operations incomplete - marking as failed");
+				installationSuccessful = false;
+			}
+		}
+		
+		CVBLog.Debug("Final installation success evaluation: %s, isTimeout: %s", 
+			installationSuccessful ? "true" : "false", 
+			isTimeout ? "true" : "false");
+		
+		CVBLog.Debug("About to send final message - checking conditions:");
+		CVBLog.Debug("  installationSuccessful: %s", installationSuccessful ? "true" : "false");
+		CVBLog.Debug("  !isTimeout: %s", !isTimeout ? "true" : "false");
+		CVBLog.Debug("  Combined condition: %s", (installationSuccessful && !isTimeout) ? "true" : "false");
+		
+		if (installationSuccessful && !isTimeout)
+		{
+			CVBLog.Debug("=== SENDING SUCCESS MESSAGE ===");
+			CVBLog.Debug("Client: %d, Saved ReplySource: %d", client, g_InstallStatus.cmdReplySource);
+			
+			ReplySource oldSource = SetCmdReplySource(g_InstallStatus.cmdReplySource);
+			CVBLog.Debug("Applied saved command context, old source: %d", oldSource);
+			
+			CVBLog.Debug("Calling CReplyToCommand with success message...");
+			CReplyToCommand(client, "%t %t", "Tag", "InstallationCompletedSuccessfully");
+			
+			SetCmdReplySource(oldSource);
+			CVBLog.Debug("=== SUCCESS MESSAGE SENT ===");
+		}
+		else if (isTimeout)
+		{
+			CVBLog.Debug("=== SENDING TIMEOUT MESSAGE ===");
+			CVBLog.Debug("Client: %d, Saved ReplySource: %d", client, g_InstallStatus.cmdReplySource);
+			
+			ReplySource oldSource = SetCmdReplySource(g_InstallStatus.cmdReplySource);
+			
+			CVBLog.Debug("Calling CReplyToCommand with timeout message...");
+			CReplyToCommand(client, "%t %t", "Tag", "InstallationCompletedWithTimeout");
+			
+			SetCmdReplySource(oldSource);
+			CVBLog.Debug("=== TIMEOUT MESSAGE SENT ===");
+		}
+		else
+		{
+			CVBLog.Debug("=== SENDING ERROR MESSAGE ===");
+			CVBLog.Debug("Client: %d, Saved ReplySource: %d", client, g_InstallStatus.cmdReplySource);
+			
+			ReplySource oldSource = SetCmdReplySource(g_InstallStatus.cmdReplySource);
+			
+			CVBLog.Debug("Calling CReplyToCommand with error message...");
+			CReplyToCommand(client, "%t %t", "Tag", "InstallationCompletedWithErrors");
+			
+			SetCmdReplySource(oldSource);
+			CVBLog.Debug("=== ERROR MESSAGE SENT ===");
+		}
 	}
 	else
 	{
@@ -1299,7 +1823,6 @@ void GenerateInstallationReport(bool isTimeout)
 		g_InstallStatus.sqliteIndexes ? "OK" : "FAIL",
 		isTimeout ? "(TIMEOUT)" : "");
 	
-	// Reset installation status
 	g_InstallStatus.totalOperations = 0;
 	g_InstallStatus.completedOperations = 0;
 	
@@ -1312,7 +1835,7 @@ void GenerateInstallationReport(bool isTimeout)
 public Action Timer_InstallationTimeout(Handle timer)
 {
 	g_InstallStatus.timeoutTimer = null;
-	CVBLog.Debug("Installation timeout reached - generating report");
+	CVBLog.Debug("Installation timeout reached - generating timeout report (client: %d)", g_InstallStatus.clientUserId);
 	GenerateInstallationReport(true);
 	return Plugin_Stop;
 }
@@ -1322,9 +1845,7 @@ public void MySQLTables_Callback(Handle owner, Handle hndl, const char[] error, 
 	bool success = (hndl != null);
 	
 	if (!success)
-	{
 		CVBLog.SQL("Error creating MySQL tables: %s", error);
-	}
 	else
 	{
 		CVBLog.SQL("MySQL tables created successfully");
@@ -1369,13 +1890,9 @@ public void SQLiteIndexes_Callback(Handle owner, Handle hndl, const char[] error
 	CVBLog.Debug("SQLiteIndexes_Callback called - success: %s", success ? "true" : "false");
 	
 	if (!success)
-	{
 		CVBLog.SQL("Error creating SQLite indexes: %s", error);
-	}
 	else
-	{
 		CVBLog.SQL("SQLite indexes created successfully");
-	}
 	
 	MarkOperationComplete("sqlite_indexes", success);
 }
@@ -1422,15 +1939,12 @@ bool AdvanceToNextProcedure(InstallationPR iPR)
 	while (iPR.current < view_as<int>(PROC_SIZE))
 	{
 		if (GetCurrentProcedure(iPR) != view_as<Procedure>(-1))
-		{
 			return true;
-		}
 		iPR.current++;
 	}
 	
 	return false;
 }
-
 
 /**
  * Installs stored procedures in the MySQL database using the provided configuration.
@@ -1455,9 +1969,7 @@ void InstallStoredProceduresWithConfig(InstallationPR config)
 
 	Procedure firstProc = GetCurrentProcedure(config);
 	if (firstProc != view_as<Procedure>(-1))
-	{
 		CreateProcedureWithConfig(firstProc, config);
-	}
 	else
 	{
 		CVBLog.SQL("No procedures configured for installation");
@@ -1482,13 +1994,13 @@ void CreateProcedureWithConfig(Procedure pr, InstallationPR iPR)
 			iLen = 0;
 			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "CREATE PROCEDURE %s(IN p_account_id INT) ", PROCEDURE_CHECK_ACTIVE_BAN);
 			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "BEGIN ");
-			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "DECLARE ban_type INT DEFAULT 0; ");
+			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "DECLARE ban_type_result INT DEFAULT 0; ");
 			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "DECLARE EXIT HANDLER FOR SQLEXCEPTION BEGIN SELECT 0 as ban_type; END; ");
-			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "SELECT ban_type INTO ban_type FROM callvote_bans ");
+			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "SELECT IFNULL(ban_type, 0) INTO ban_type_result FROM callvote_bans ");
 			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "WHERE account_id = p_account_id AND is_active = 1 ");
 			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "AND (expires_timestamp = 0 OR expires_timestamp > UNIX_TIMESTAMP()) ");
 			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "ORDER BY created_timestamp DESC LIMIT 1; ");
-			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "SELECT ban_type; ");
+			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "SELECT ban_type_result as ban_type; ");
 			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "END");
 		}
 		case PROC_CHECK_FULL_BAN:
@@ -1496,18 +2008,20 @@ void CreateProcedureWithConfig(Procedure pr, InstallationPR iPR)
 			iLen = 0;
 			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "CREATE PROCEDURE %s(IN p_account_id INT) ", PROCEDURE_CHECK_FULL_BAN);
 			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "BEGIN ");
-			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "DECLARE EXIT HANDLER FOR SQLEXCEPTION BEGIN SELECT 0 as has_ban, 0 as ban_type, 0 as expires_timestamp, 0 as created_timestamp, 0 as duration_minutes, 0 as admin_account_id, '' as reason, 0 as ban_id; END; ");
-			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "SELECT CASE WHEN b.id IS NOT NULL THEN 1 ELSE 0 END as has_ban, ");
-			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "IFNULL(b.ban_type, 0) as ban_type, ");
-			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "IFNULL(b.expires_timestamp, 0) as expires_timestamp, ");
-			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "IFNULL(b.created_timestamp, 0) as created_timestamp, ");
-			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "IFNULL(b.duration_minutes, 0) as duration_minutes, ");
-			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "IFNULL(b.admin_account_id, 0) as admin_account_id, ");
-			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "IFNULL(b.reason, '') as reason, ");
-			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "IFNULL(b.id, 0) as ban_id ");
-			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "FROM callvote_bans b ");
-			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "WHERE b.account_id = p_account_id AND b.is_active = 1 AND (b.expires_timestamp = 0 OR b.expires_timestamp > UNIX_TIMESTAMP()) ");
-			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "ORDER BY b.created_timestamp DESC LIMIT 1; ");
+			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "DECLARE EXIT HANDLER FOR SQLEXCEPTION BEGIN ");
+			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "SELECT 0 as has_ban, 0 as ban_type, 0 as expires_timestamp, ");
+			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "0 as created_timestamp, 0 as duration_minutes, 0 as admin_account_id, ");
+			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "'' as reason, 0 as ban_id; ");
+			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "END; ");
+			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "SELECT ");
+			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "IFNULL((SELECT 1 FROM callvote_bans WHERE account_id = p_account_id AND is_active = 1 AND (expires_timestamp = 0 OR expires_timestamp > UNIX_TIMESTAMP()) LIMIT 1), 0) as has_ban, ");
+			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "IFNULL((SELECT ban_type FROM callvote_bans WHERE account_id = p_account_id AND is_active = 1 AND (expires_timestamp = 0 OR expires_timestamp > UNIX_TIMESTAMP()) ORDER BY created_timestamp DESC LIMIT 1), 0) as ban_type, ");
+			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "IFNULL((SELECT expires_timestamp FROM callvote_bans WHERE account_id = p_account_id AND is_active = 1 AND (expires_timestamp = 0 OR expires_timestamp > UNIX_TIMESTAMP()) ORDER BY created_timestamp DESC LIMIT 1), 0) as expires_timestamp, ");
+			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "IFNULL((SELECT created_timestamp FROM callvote_bans WHERE account_id = p_account_id AND is_active = 1 AND (expires_timestamp = 0 OR expires_timestamp > UNIX_TIMESTAMP()) ORDER BY created_timestamp DESC LIMIT 1), 0) as created_timestamp, ");
+			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "IFNULL((SELECT duration_minutes FROM callvote_bans WHERE account_id = p_account_id AND is_active = 1 AND (expires_timestamp = 0 OR expires_timestamp > UNIX_TIMESTAMP()) ORDER BY created_timestamp DESC LIMIT 1), 0) as duration_minutes, ");
+			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "IFNULL((SELECT admin_account_id FROM callvote_bans WHERE account_id = p_account_id AND is_active = 1 AND (expires_timestamp = 0 OR expires_timestamp > UNIX_TIMESTAMP()) ORDER BY created_timestamp DESC LIMIT 1), 0) as admin_account_id, ");
+			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "IFNULL((SELECT reason FROM callvote_bans WHERE account_id = p_account_id AND is_active = 1 AND (expires_timestamp = 0 OR expires_timestamp > UNIX_TIMESTAMP()) ORDER BY created_timestamp DESC LIMIT 1), '') as reason, ");
+			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "IFNULL((SELECT id FROM callvote_bans WHERE account_id = p_account_id AND is_active = 1 AND (expires_timestamp = 0 OR expires_timestamp > UNIX_TIMESTAMP()) ORDER BY created_timestamp DESC LIMIT 1), 0) as ban_id; ");
 			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "END");
 		}
 		case PROC_INSERT_BAN:
@@ -1516,26 +2030,24 @@ void CreateProcedureWithConfig(Procedure pr, InstallationPR iPR)
 			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "CREATE PROCEDURE %s(", PROCEDURE_INSERT_BAN);
 			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "IN p_account_id INT, IN p_ban_type INT, IN p_duration_minutes INT, IN p_admin_account_id INT, IN p_reason TEXT) ");
 			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "BEGIN ");
-			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "DECLARE ban_id INT DEFAULT 0; ");
-			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "DECLARE result_code INT DEFAULT 0; ");
-			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "DECLARE message VARCHAR(255) DEFAULT ''; ");
-			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "DECLARE expires_ts INT DEFAULT 0; ");
-			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "DECLARE EXIT HANDLER FOR SQLEXCEPTION BEGIN ROLLBACK; GET DIAGNOSTICS CONDITION 1 message = MESSAGE_TEXT; SELECT 0 as ban_id, 4 as result_code, message as message; END; ");
+			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "DECLARE v_existing_ban_type INT DEFAULT 0; ");
+			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "DECLARE v_existing_ban_id INT DEFAULT 0; ");
+			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "DECLARE v_expires_time INT; ");
+			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "DECLARE v_current_time INT DEFAULT UNIX_TIMESTAMP(); ");
+			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "DECLARE v_ban_id INT DEFAULT 0; ");
+			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "DECLARE v_result_code INT DEFAULT 0; ");
+			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "DECLARE v_message VARCHAR(255) DEFAULT ''; ");
+			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "DECLARE EXIT HANDLER FOR SQLEXCEPTION BEGIN ROLLBACK; SELECT 0 as ban_id, 4 as result_code, 'Database error occurred' as message; END; ");
 			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "START TRANSACTION; ");
-			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "SELECT id INTO ban_id FROM callvote_bans WHERE account_id = p_account_id AND is_active = 1 AND (expires_timestamp = 0 OR expires_timestamp > UNIX_TIMESTAMP()) LIMIT 1; ");
-			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "IF ban_id > 0 THEN ");
-			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "SET result_code = 1; ");
-			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "SET message = 'Player already has an active ban'; ");
-			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "SELECT ban_id, result_code, message; ");
-			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "ELSE ");
-			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "IF p_duration_minutes > 0 THEN SET expires_ts = UNIX_TIMESTAMP() + (p_duration_minutes * 60); ELSE SET expires_ts = 0; END IF; ");
-			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "INSERT INTO callvote_bans (account_id, ban_type, created_timestamp, duration_minutes, expires_timestamp, admin_account_id, reason, is_active) VALUES (p_account_id, p_ban_type, UNIX_TIMESTAMP(), p_duration_minutes, expires_ts, p_admin_account_id, p_reason, 1); ");
-			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "SET ban_id = LAST_INSERT_ID(); ");
-			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "SET result_code = 0; ");
-			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "SET message = 'Ban inserted successfully'; ");
-			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "SELECT ban_id, result_code, message; ");
-			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "END IF; ");
+			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "SELECT ban_type, id INTO v_existing_ban_type, v_existing_ban_id FROM callvote_bans WHERE account_id = p_account_id AND is_active = 1 AND (expires_timestamp = 0 OR expires_timestamp > v_current_time) ORDER BY created_timestamp DESC LIMIT 1; ");
+			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "UPDATE callvote_bans SET is_active = 0 WHERE account_id = p_account_id AND is_active = 1; ");
+			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "SET v_expires_time = CASE WHEN p_duration_minutes > 0 THEN v_current_time + (p_duration_minutes * 60) ELSE 0 END; ");
+			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "INSERT INTO callvote_bans (account_id, ban_type, created_timestamp, duration_minutes, expires_timestamp, admin_account_id, reason, is_active) VALUES (p_account_id, p_ban_type, v_current_time, p_duration_minutes, v_expires_time, p_admin_account_id, p_reason, 1); ");
+			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "SET v_ban_id = LAST_INSERT_ID(); ");
+			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "SET v_result_code = 0; ");
+			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "SET v_message = 'Ban inserted successfully'; ");
 			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "COMMIT; ");
+			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "SELECT v_ban_id as ban_id, v_result_code as result_code, v_message as message; ");
 			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "END");
 		}
 		case PROC_REMOVE_BAN:
@@ -1544,24 +2056,25 @@ void CreateProcedureWithConfig(Procedure pr, InstallationPR iPR)
 			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "CREATE PROCEDURE %s(", PROCEDURE_REMOVE_BAN);
 			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "IN p_account_id INT, IN p_admin_account_id INT) ");
 			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "BEGIN ");
-			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "DECLARE result_code INT DEFAULT 0; ");
-			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "DECLARE message VARCHAR(255) DEFAULT ''; ");
-			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "DECLARE removed_ban_id INT DEFAULT NULL; ");
 			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "DECLARE v_current_time INT DEFAULT UNIX_TIMESTAMP(); ");
-			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "DECLARE EXIT HANDLER FOR SQLEXCEPTION BEGIN ROLLBACK; GET DIAGNOSTICS CONDITION 1 message = MESSAGE_TEXT; SELECT 4 as result_code, message as message, NULL as removed_ban_id; END; ");
+			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "DECLARE v_removed_ban_id INT DEFAULT 0; ");
+			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "DECLARE v_result_code INT DEFAULT 0; ");
+			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "DECLARE v_message VARCHAR(255) DEFAULT ''; ");
+			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "DECLARE EXIT HANDLER FOR SQLEXCEPTION BEGIN ROLLBACK; SELECT 0 as removed_ban_id, 4 as result_code, 'Database error occurred' as message; END; ");
 			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "START TRANSACTION; ");
-			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "SELECT id INTO removed_ban_id FROM callvote_bans WHERE account_id = p_account_id AND is_active = 1 AND (expires_timestamp = 0 OR expires_timestamp > v_current_time) ORDER BY created_timestamp DESC LIMIT 1; ");
-			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "IF removed_ban_id IS NULL THEN ");
-			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "SET result_code = 1; ");
-			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "SET message = 'No active ban found for this player'; ");
-			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "SELECT result_code, message, removed_ban_id; ");
-			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "ELSE ");
-			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "UPDATE callvote_bans SET is_active = 0 WHERE id = removed_ban_id; ");
-			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "SET result_code = 0; ");
-			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "SET message = 'Ban removed successfully'; ");
-			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "SELECT result_code, message, removed_ban_id; ");
-			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "END IF; ");
+			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "SELECT id INTO v_removed_ban_id FROM callvote_bans WHERE account_id = p_account_id AND is_active = 1 AND (expires_timestamp = 0 OR expires_timestamp > v_current_time) ORDER BY created_timestamp DESC LIMIT 1; ");
+			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "IF v_removed_ban_id IS NULL OR v_removed_ban_id = 0 THEN ");
+			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "SET v_result_code = 1; ");
+			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "SET v_message = 'No active ban found for this player'; ");
+			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "SET v_removed_ban_id = 0; ");
 			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "COMMIT; ");
+			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "ELSE ");
+			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "UPDATE callvote_bans SET is_active = 0 WHERE id = v_removed_ban_id; ");
+			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "SET v_result_code = 0; ");
+			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "SET v_message = 'Ban removed successfully'; ");
+			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "COMMIT; ");
+			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "END IF; ");
+			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "SELECT v_removed_ban_id as removed_ban_id, v_result_code as result_code, v_message as message; ");
 			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "END");
 		}
 		case PROC_CLEAN_EXPIRED:
@@ -1574,14 +2087,14 @@ void CreateProcedureWithConfig(Procedure pr, InstallationPR iPR)
 			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "DECLARE v_cleaned_count INT DEFAULT 0; ");
 			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "DECLARE v_result_code INT DEFAULT 0; ");
 			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "DECLARE v_message VARCHAR(255) DEFAULT ''; ");
-			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "DECLARE EXIT HANDLER FOR SQLEXCEPTION BEGIN ROLLBACK; SELECT 4 as result_code, 'Database error during cleanup' as message, NULL as cleaned_count; END; ");
+			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "DECLARE EXIT HANDLER FOR SQLEXCEPTION BEGIN ROLLBACK; SELECT 0 as cleaned_count, 4 as result_code, 'Database error during cleanup' as message; END; ");
 			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "START TRANSACTION; ");
 			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "UPDATE callvote_bans SET is_active = 0 WHERE is_active = 1 AND expires_timestamp > 0 AND expires_timestamp < v_current_time LIMIT p_batch_size; ");
 			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "SET v_cleaned_count = ROW_COUNT(); ");
 			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "SET v_result_code = 0; ");
 			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "SET v_message = CONCAT('Cleaned ', v_cleaned_count, ' expired bans'); ");
 			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "COMMIT; ");
-			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "SELECT v_result_code as result_code, v_message as message, v_cleaned_count as cleaned_count; ");
+			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "SELECT v_cleaned_count as cleaned_count, v_result_code as result_code, v_message as message; ");
 			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "END");
 		}
 		case PROC_GET_STATISTICS:
@@ -1592,9 +2105,9 @@ void CreateProcedureWithConfig(Procedure pr, InstallationPR iPR)
 			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "DECLARE v_current_time INT DEFAULT UNIX_TIMESTAMP(); ");
 			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "DECLARE v_cutoff_time INT DEFAULT v_current_time - (p_days_back * 86400); ");
 			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "SELECT COUNT(CASE WHEN is_active = 1 AND (expires_timestamp = 0 OR expires_timestamp > v_current_time) THEN 1 END) as active_bans, ");
-			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "COUNT(CASE WHEN is_active = 0 OR (expires_timestamp > 0 AND expires_timestamp <= v_current_time) THEN 1 END) as expired_bans, ");
+			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "COUNT(CASE WHEN is_active = 0 OR (expires_timestamp > 0 AND expires_timestamp <= UNIX_TIMESTAMP()) THEN 1 END) as expired_bans, ");
 			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "COUNT(CASE WHEN created_timestamp >= v_cutoff_time THEN 1 END) as recent_bans, ");
-		 	iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "COUNT(DISTINCT account_id) as unique_players, ");
+			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "COUNT(DISTINCT account_id) as unique_players, ");
 			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "COUNT(DISTINCT admin_account_id) as unique_admins FROM callvote_bans; ");
 			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "SELECT CASE WHEN ban_type = 1 THEN 'Difficulty' WHEN ban_type = 2 THEN 'Restart' WHEN ban_type = 4 THEN 'Kick' WHEN ban_type = 8 THEN 'Mission' WHEN ban_type = 16 THEN 'Lobby' WHEN ban_type = 32 THEN 'Chapter' WHEN ban_type = 64 THEN 'AllTalk' WHEN ban_type = 127 THEN 'All Types' ELSE CONCAT('Custom (', ban_type, ')') END as ban_type_name, COUNT(*) as count, AVG(duration_minutes) as avg_duration FROM callvote_bans WHERE created_timestamp >= v_cutoff_time GROUP BY ban_type ORDER BY count DESC; ");
 			iLen += Format(szCreateQuery[iLen], sizeof(szCreateQuery) - iLen, "SELECT admin_account_id, COUNT(*) as total_bans, AVG(duration_minutes) as avg_duration, COUNT(CASE WHEN duration_minutes = 0 THEN 1 END) as permanent_bans FROM callvote_bans WHERE admin_account_id IS NOT NULL AND created_timestamp >= v_cutoff_time GROUP BY admin_account_id ORDER BY total_bans DESC LIMIT 10; ");
@@ -1638,14 +2151,10 @@ void CreateProcedureWithConfig_Callback(Database db, DBResultSet results, const 
 	{
 		bool isExpectedWarning = false;
 		if (StrContains(error, "already exists", false) != -1)
-		{
 			isExpectedWarning = true;
-		}
 		
 		if (isExpectedWarning)
-		{
 			CVBLog.SQL("Procedure at index %d skipped (expected warning): %s", iPR.current, error);
-		}
 		else
 		{
 			CVBLog.Debug("Actual error at index %d: '%s'", iPR.current, error);
@@ -1655,21 +2164,80 @@ void CreateProcedureWithConfig_Callback(Database db, DBResultSet results, const 
 		}
 	}
 	else
-	{
 		CVBLog.SQL("Successfully created procedure at index: %d", iPR.current);
-	}
 	
 	if (AdvanceToNextProcedure(iPR))
 	{
 		Procedure nextProc = GetCurrentProcedure(iPR);
 		if (nextProc != view_as<Procedure>(-1))
-		{
 			CreateProcedureWithConfig(nextProc, iPR);
-		}
 	}
 	else
 	{
 		CVBLog.SQL("All configured procedures installed successfully");
 		MarkOperationComplete("mysql_procedures", true);
 	}
+}
+
+
+/**
+ * Checks if there is an active ban for the given player in the SQLite cache.
+ *
+ * This function queries the SQLite database for a ban entry matching the provided
+ * account ID. It verifies if the ban is still valid based on the TTL (time-to-live)
+ * and cache expiration settings. If a valid cached ban is found, the ban type is
+ * updated in the provided PlayerBanInfo structure and the function returns true.
+ * If the cache entry is expired or not found, it removes the expired entry and returns false.
+ *
+ * Logging is performed for cache hits, misses, errors, and expired entries.
+ *
+ * @param banInfo      Reference to a PlayerBanInfo structure containing the account ID.
+ *                     The banType field will be updated if a valid cached ban is found.
+ * @return             True if an active cached ban exists and is valid; false otherwise.
+ */
+bool CVB_CheckSQLiteBan(PlayerBanInfo banInfo)
+{
+	if (!g_cvarSQLiteCache.BoolValue || g_hSQLiteDB == null)
+		return false;
+	
+	char sQuery[512];
+	int iLen = 0;
+	
+	iLen += Format(sQuery[iLen], sizeof(sQuery) - iLen, "SELECT ban_type, cached_timestamp ");
+	iLen += Format(sQuery[iLen], sizeof(sQuery) - iLen, "FROM %s WHERE account_id = %d ", TABLE_CACHE_BANS, banInfo.AccountId);
+	iLen += Format(sQuery[iLen], sizeof(sQuery) - iLen, "AND (ttl_expires = 0 OR ttl_expires > %d)", GetTime());
+
+	CVBLog.SQLite("Executing SQLite cache query: %s", sQuery);
+	DBResultSet results = SQL_Query(g_hSQLiteDB, sQuery);
+	
+	if (results == null)
+	{
+		char sError[256];
+		SQL_GetError(g_hSQLiteDB, sError, sizeof(sError));
+		CVBLog.SQLite("Error in SQLite cache query: %s", sError);
+		return false;
+	}
+	
+	if (!results.FetchRow())
+	{
+		delete results;
+		CVBLog.SQLite("SQLite cache MISS for AccountID %d", banInfo.AccountId);
+		return false;
+	}
+
+	banInfo.BanType = results.FetchInt(0);
+	int cachedTimestamp = results.FetchInt(1);
+	delete results;
+
+	int sqliteTTLSeconds = g_cvarSQLiteTTLMinutes.IntValue * 60;
+	if ((GetTime() - cachedTimestamp) < sqliteTTLSeconds)
+	{
+		CVBLog.SQLite("SQLite cache HIT for AccountID %d (type: %d)", banInfo.AccountId, banInfo.BanType);
+		return true;
+	}
+
+	CVBLog.SQLite("SQLite cache EXPIRED for AccountID %d - removing entry", banInfo.AccountId);
+	banInfo.BanType = 0;
+	RemoveExpiredCacheEntry(banInfo.AccountId);
+	return false;
 }

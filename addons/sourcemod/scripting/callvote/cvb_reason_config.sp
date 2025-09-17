@@ -5,22 +5,20 @@
 
 enum struct BanReasonInfo
 {
-    int code;                    // Numeric code
-    char name[64];              // Internal name (ex: REASON_SPAM_VOTES)
-    char translation[64];       // Translation key
+    int id;                     // Numeric ID (0-10)
+    char code[64];              // Reason code (ex: REASON_SPAM_VOTES)
     char keywords[256];         // Keywords separated by ;
-    int severity;               // Severity level (1-8)
-    char description[128];      // Description in English
 }
 
 ArrayList g_BanReasons;          // List of loaded reasons
 KeyValues g_ReasonConfig;        // KeyValues from configuration file
-int g_DefaultReasonCode = 8;     // Default reason
 
 bool LoadBanReasonsConfig()
 {
     char configPath[PLATFORM_MAX_PATH];
     BuildPath(Path_SM, configPath, sizeof(configPath), "configs/callvote_ban_reasons.cfg");
+    
+    CVBLog.Debug("LoadBanReasonsConfig called - config path: %s", configPath);
     
     if (!FileExists(configPath))
     {
@@ -28,6 +26,8 @@ bool LoadBanReasonsConfig()
         CreateDefaultConfig(configPath);
         return false;
     }
+    
+    CVBLog.Debug("Configuration file exists, creating KeyValues...");
     
     g_ReasonConfig = new KeyValues("BanReasons");
     
@@ -38,10 +38,14 @@ bool LoadBanReasonsConfig()
         return false;
     }
     
-    g_ReasonConfig.JumpToKey("settings", false);
-    g_DefaultReasonCode = g_ReasonConfig.GetNum("default_reason", 8);
-
-    g_ReasonConfig.GoBack();
+    CVBLog.Debug("KeyValues imported successfully");
+    
+    // Leer ReasonsSize si existe
+    int reasonsSize = g_ReasonConfig.GetNum("ReasonsSize", 0);
+    if (reasonsSize > 0)
+    {
+        CVBLog.Debug("Configuration specifies %d reasons", reasonsSize);
+    }
     
     LoadBanReasons();
     CVBLog.Debug("Loaded %d ban reasons from configuration", g_BanReasons.Length);
@@ -63,10 +67,6 @@ bool InitializeMessageCodeSystem()
         reasonCount = GetBanReasonCount();
     }
     
-    Call_StartForward(g_gfOnBanReasonsLoaded);
-    Call_PushCell(reasonCount);
-    Call_Finish();
-    
     LogMessage("Message code system initialized successfully with %d ban reasons", reasonCount);
     return true;
 }
@@ -80,11 +80,13 @@ void LoadBanReasons()
     
     g_BanReasons = new ArrayList(sizeof(BanReasonInfo));
     
-    if (!g_ReasonConfig.JumpToKey("reasons", false))
+    if (!g_ReasonConfig.JumpToKey("Reasons", false))
     {
-        LogError("No 'reasons' section found in ban reasons configuration");
+        LogError("No 'Reasons' section found in ban reasons configuration");
         return;
     }
+    
+    CVBLog.Debug("Successfully navigated to 'Reasons' section");
     
     if (!g_ReasonConfig.GotoFirstSubKey(false))
     {
@@ -93,18 +95,21 @@ void LoadBanReasons()
         return;
     }
     
+    CVBLog.Debug("Found reason entries, starting to load...");
+    
     do
     {
         BanReasonInfo reason;
         char keyName[8];
         g_ReasonConfig.GetSectionName(keyName, sizeof(keyName));
-        reason.code = StringToInt(keyName);
+        reason.id = StringToInt(keyName);
+        
+        CVBLog.Debug("Processing reason section '%s' (id: %d)", keyName, reason.id);
 
-        g_ReasonConfig.GetString("name", reason.name, sizeof(reason.name));
-        g_ReasonConfig.GetString("translation", reason.translation, sizeof(reason.translation));
+        g_ReasonConfig.GetString("code", reason.code, sizeof(reason.code));
         g_ReasonConfig.GetString("keywords", reason.keywords, sizeof(reason.keywords));
-        g_ReasonConfig.GetString("description", reason.description, sizeof(reason.description));
-        reason.severity = g_ReasonConfig.GetNum("severity", 1);
+        
+        CVBLog.Debug("Loaded reason %d: code='%s', keywords='%s'", reason.id, reason.code, reason.keywords);
         
         g_BanReasons.PushArray(reason);
         
@@ -112,8 +117,6 @@ void LoadBanReasons()
     
     g_ReasonConfig.GoBack();
     g_ReasonConfig.GoBack();
-    
-    FireOnBanReasonsLoaded(g_BanReasons.Length);
 }
 
 void CreateDefaultConfig(const char[] configPath)
@@ -121,28 +124,23 @@ void CreateDefaultConfig(const char[] configPath)
     CVBLog.Debug("Creating default ban reasons configuration at: %s", configPath);
 }
 
-bool GetBanReasonByCode(int code, BanReasonInfo reason)
+bool FindReasonCodeByKeywords(const char[] searchText, char[] output, int maxlen)
 {
-    for (int i = 0; i < g_BanReasons.Length; i++)
-    {
-        BanReasonInfo temp;
-        g_BanReasons.GetArray(i, temp);
-        
-        if (temp.code == code)
-        {
-            reason = temp;
-            return true;
-        }
-    }
+    CVBLog.Debug("FindReasonCodeByKeywords called with: '%s'", searchText);
     
-    return false;
-}
-
-int FindReasonByKeywords(const char[] searchText)
-{
     char searchLower[256];
     strcopy(searchLower, sizeof(searchLower), searchText);
     StringToLower(searchLower);
+    CVBLog.Debug("Converted to lowercase: '%s'", searchLower);
+    
+    if (g_BanReasons == null)
+    {
+        CVBLog.Debug("g_BanReasons is null, using default");
+        Format(output, maxlen, "#REASON_ADMIN_DECISION");
+        return false;
+    }
+    
+    CVBLog.Debug("Searching through %d ban reasons...", g_BanReasons.Length);
     
     for (int i = 0; i < g_BanReasons.Length; i++)
     {
@@ -153,32 +151,27 @@ int FindReasonByKeywords(const char[] searchText)
         strcopy(keywords, sizeof(keywords), reason.keywords);
         StringToLower(keywords);
         
+        CVBLog.Debug("Checking reason %d: code='%s', keywords='%s'", i, reason.code, keywords);
+        
         char keywordList[16][32];
         int keywordCount = ExplodeString(keywords, ";", keywordList, sizeof(keywordList), sizeof(keywordList[]));
         
         for (int j = 0; j < keywordCount; j++)
         {
+            CVBLog.Debug("  Checking keyword %d: '%s' in '%s'", j, keywordList[j], searchLower);
             if (StrContains(searchLower, keywordList[j]) != -1)
             {
-                return reason.code;
+                Format(output, maxlen, "#%s", reason.code);
+                CVBLog.Debug("Found match! Returning: '%s'", output);
+                return true;
             }
         }
     }
     
-    return g_DefaultReasonCode;
-}
-
-void GetBanReasonString_FromConfig(int reasonCode, int client, char[] output, int maxlen)
-{
-    BanReasonInfo reason;
-    if (GetBanReasonByCode(reasonCode, reason))
-    {
-        Format(output, maxlen, "%T", reason.translation, client);
-    }
-    else
-    {
-        Format(output, maxlen, "%T", "REASON_UNKNOWN", client);
-    }
+    // Default reason
+    CVBLog.Debug("No match found, using default reason");
+    Format(output, maxlen, "#REASON_ADMIN_DECISION");
+    return false;
 }
 
 void StringToLower(char[] str)
@@ -189,82 +182,11 @@ void StringToLower(char[] str)
     }
 }
 
-int GetBanReasonFromString_Enhanced(const char[] reasonString)
+void CVB_GetBanReason(const char[] reasonString, char[] output, int maxlen)
 {
-    return FindReasonByKeywords(reasonString);
-}
-
-int GetReasonIdFromConfig(const char[] reasonText)
-{
-    if (reasonText[0] == '\0')
-    {
-        return g_DefaultReasonCode;
-    }
-    
-    char searchLower[256];
-    strcopy(searchLower, sizeof(searchLower), reasonText);
-    StringToLower(searchLower);
-    
-    for (int i = 0; i < g_BanReasons.Length; i++)
-    {
-        BanReasonInfo reason;
-        g_BanReasons.GetArray(i, reason);
-        
-        char nameLower[64];
-        strcopy(nameLower, sizeof(nameLower), reason.name);
-        StringToLower(nameLower);
-        
-        if (StrEqual(searchLower, nameLower))
-        {
-            return reason.code;
-        }
-    }
-    
-    int keywordMatch = FindReasonByKeywords(reasonText);
-    if (keywordMatch != g_DefaultReasonCode)
-    {
-        return keywordMatch;
-    }
-    
-    for (int i = 0; i < g_BanReasons.Length; i++)
-    {
-        BanReasonInfo reason;
-        g_BanReasons.GetArray(i, reason);
-        
-        char descLower[128];
-        strcopy(descLower, sizeof(descLower), reason.description);
-        StringToLower(descLower);
-        
-        if (StrContains(descLower, searchLower) != -1)
-        {
-            return reason.code;
-        }
-    }
-    
-    return g_DefaultReasonCode;
-}
-
-/**
- * Retrieves the description text for a given reason code.
- *
- * @param reasonCode    The integer code representing the reason.
- * @param output        The buffer to store the resulting reason description.
- * @param maxlen        The maximum length of the output buffer.
- *
- * If the reason code is found, the corresponding description is copied to the output buffer.
- * If not found, "Unknown reason" is copied instead.
- */
-void GetReasonTextByCode(int reasonCode, char[] output, int maxlen)
-{
-    BanReasonInfo reason;
-    if (GetBanReasonByCode(reasonCode, reason))
-    {
-        strcopy(output, maxlen, reason.description);
-    }
-    else
-    {
-        strcopy(output, maxlen, "Unknown reason");
-    }
+    CVBLog.Debug("CVB_GetBanReason called with: '%s'", reasonString);
+    FindReasonCodeByKeywords(reasonString, output, maxlen);
+    CVBLog.Debug("CVB_GetBanReason result: '%s'", output);
 }
 
 void CleanupBanReasons()
@@ -285,27 +207,4 @@ void CleanupBanReasons()
 int GetBanReasonCount()
 {
     return (g_BanReasons != null) ? g_BanReasons.Length : 0;
-}
-
-bool IsVoteTypeBanned(int banType, TypeVotes voteType)
-{
-	if (banType == 0)
-	{
-		return false;
-	}
-
-	int voteFlag;
-	switch (voteType)
-	{
-		case ChangeDifficulty: voteFlag = view_as<int>(VOTE_CHANGEDIFFICULTY);
-		case RestartGame: voteFlag = view_as<int>(VOTE_RESTARTGAME);
-		case Kick: voteFlag = view_as<int>(VOTE_KICK);
-		case ChangeMission: voteFlag = view_as<int>(VOTE_CHANGEMISSION);
-		case ReturnToLobby: voteFlag = view_as<int>(VOTE_RETURNTOLOBBY);
-		case ChangeChapter: voteFlag = view_as<int>(VOTE_CHANGECHAPTER);
-		case ChangeAllTalk: voteFlag = view_as<int>(VOTE_CHANGEALLTALK);
-		default: return false;
-	}
-
-	return (banType & voteFlag) != 0;
 }

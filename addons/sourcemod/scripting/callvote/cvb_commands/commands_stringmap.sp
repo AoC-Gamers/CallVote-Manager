@@ -10,7 +10,7 @@ public Action Command_StringMapCheck(int client, int args)
 {
 	if (args < 1)
 	{
-		CReplyToCommand(client, "%t %t", "Tag", "UsageStringMapCheck");
+		CReplyToCommand(client, "%t %t: sm_cvb_stringmap_check <player>", "Tag", "Usage");
 		return Plugin_Handled;
 	}
 
@@ -18,10 +18,8 @@ public Action Command_StringMapCheck(int client, int args)
 	GetCmdArg(1, targetName, sizeof(targetName));
 
 	int target = FindTarget(client, targetName, true, false);
-	if (target == -1)
-	{
+	if (target == NO_INDEX)
 		return Plugin_Handled;
-	}
 
 	if (!IsValidClient(target))
 	{
@@ -36,28 +34,26 @@ public Action Command_StringMapCheck(int client, int args)
 	char targetNameSafe[MAX_NAME_LENGTH];
 	GetClientName(target, targetNameSafe, sizeof(targetNameSafe));
 
-	CReplyToCommand(client, "%t Checking StringMap cache for player %s [%s] (AccountID: %d)", 
-		"Tag", targetNameSafe, steamId2, accountId);
+	CReplyToCommand(client, "%t Checking StringMap cache for player %s [%s] (AccountID: %d)", "Tag", targetNameSafe, steamId2, accountId);
 
-	// Check StringMap cache for non-banned players
-	if (CheckStringMapCache(accountId))
+	PlayerBanInfo banInfo = new PlayerBanInfo(accountId);
+	if (CVB_GetCacheStringMap(banInfo))
 	{
-		CReplyToCommand(client, "%t ✅ Player is cached as NOT BANNED in StringMap", "Tag");
+		if (banInfo.BanType == 0)
+			CReplyToCommand(client, "%t Player is cached as NOT BANNED in StringMap", "Tag");
+		else
+		{
+			char banTypeStr[128];
+			banInfo.GetBanTypeString(banTypeStr, sizeof(banTypeStr));
+			CReplyToCommand(client, "%t Player is cached as BANNED in StringMap", "Tag");
+			CReplyToCommand(client, "%t Ban Type: %s (%d)", "Tag", banTypeStr, banInfo.BanType);
+		}
+		delete banInfo;
 		return Plugin_Handled;
 	}
 
-	// Check PlayerBans cache for banned players
-	int banType = GetCachedBanType(accountId);
-	if (banType > 0)
-	{
-		char banTypeStr[128];
-		GetBanTypeString(banType, banTypeStr, sizeof(banTypeStr));
-		CReplyToCommand(client, "%t ❌ Player is cached as BANNED in StringMap", "Tag");
-		CReplyToCommand(client, "%t Ban Type: %s (%d)", "Tag", banTypeStr, banType);
-		return Plugin_Handled;
-	}
-
-	CReplyToCommand(client, "%t ⚪ Player is NOT FOUND in StringMap cache", "Tag");
+	CReplyToCommand(client, "%t Player is NOT FOUND in StringMap cache", "Tag");
+	delete banInfo;
 	return Plugin_Handled;
 }
 
@@ -68,28 +64,32 @@ public Action Command_StringMapCheckOffline(int client, int args)
 {
 	if (args < 1)
 	{
-		CReplyToCommand(client, "%t %t", "Tag", "UsageStringMapCheckID");
+		CReplyToCommand(client, "%t %t: sm_cvb_stringmap_checkid <steamid>", "Tag", "Usage");
 		return Plugin_Handled;
 	}
 
 	char steamId[64];
 	GetCmdArg(1, steamId, sizeof(steamId));
 
-	AsyncContext context = new AsyncContext();
-	context.ContinuationType = CONTINUE_STRINGMAP_CHECK;
-
-	if (!ValidateAndConvertSteamIDAsync(client, steamId, context))
+	AsyncContext context = CreateAsyncContextForCheckOffline(client);
+	if (context == null)
 	{
-		// If validation fails immediately, clean up
-		if (context.IsValid())
-		{
-			delete context;
-		}
 		return Plugin_Handled;
 	}
 
-	// If we reach here, validation was successful and we can proceed immediately
-	Continue_StringMapCheckOffline_Async(context);
+	SteamIDValidationResult validationResult = ValidateAndConvertSteamIDAsync(client, steamId, context);
+	if (validationResult == STEAMID_VALIDATION_ERROR)
+	{
+		// Context has already been cleaned up by ValidateAndConvertSteamIDAsync
+		return Plugin_Handled;
+	}
+	else if (validationResult == STEAMID_VALIDATION_SUCCESS)
+	{
+		// Validation was successful, continue immediately
+		Continue_StringMapCheckOffline_Async(context);
+	}
+	// For STEAMID_VALIDATION_ASYNC, the callback will handle continuation
+
 	return Plugin_Handled;
 }
 
@@ -100,7 +100,7 @@ public Action Command_StringMapRemove(int client, int args)
 {
 	if (args < 1)
 	{
-		CReplyToCommand(client, "%t %t", "Tag", "UsageStringMapRemove");
+		CReplyToCommand(client, "%t %t: sm_cvb_stringmap_remove <player>", "Tag", "Usage");
 		return Plugin_Handled;
 	}
 
@@ -108,10 +108,8 @@ public Action Command_StringMapRemove(int client, int args)
 	GetCmdArg(1, targetName, sizeof(targetName));
 
 	int target = FindTarget(client, targetName, true, false);
-	if (target == -1)
-	{
+	if (target == NO_INDEX)
 		return Plugin_Handled;
-	}
 
 	if (!IsValidClient(target))
 	{
@@ -123,29 +121,23 @@ public Action Command_StringMapRemove(int client, int args)
 	char steamId2[MAX_AUTHID_LENGTH];
 	GetClientAuthId(target, AuthId_Steam2, steamId2, sizeof(steamId2));
 
-	// Remove from StringMap cache only
 	char sAccountId[16];
 	IntToString(accountId, sAccountId, sizeof(sAccountId));
 	
-	bool wasInNonBanned = g_hCacheStringMap.Remove(sAccountId);
-	bool wasInBanned = g_hPlayerBans.Remove(sAccountId);
+	bool wasInCache = (g_smClientCache != null) ? g_smClientCache.Remove(sAccountId) : false;
 
 	char targetNameSafe[MAX_NAME_LENGTH];
 	GetClientName(target, targetNameSafe, sizeof(targetNameSafe));
 
-	if (wasInNonBanned || wasInBanned)
+	if (wasInCache)
 	{
-		CReplyToCommand(client, "%t StringMap cache cleared for player %s [%s] (AccountID: %d)", 
-			"Tag", targetNameSafe, steamId2, accountId);
+		CReplyToCommand(client, "%t StringMap cache cleared for player %s [%s] (AccountID: %d)", "Tag", targetNameSafe, steamId2, accountId);
 		
-		CVBLog.Debug("Admin %N cleared StringMap cache for player %N [%s] (AccountID: %d)", 
-			client, target, steamId2, accountId);
+		CVBLog.Debug("Admin %N cleared StringMap cache for player %N [%s] (AccountID: %d)", client, target, steamId2, accountId);
 	}
 	else
-	{
-		CReplyToCommand(client, "%t Player %s [%s] was not found in StringMap cache", 
-			"Tag", targetNameSafe, steamId2);
-	}
+		CReplyToCommand(client, "%t Player %s [%s] was not found in StringMap cache", "Tag", targetNameSafe, steamId2);
+
 
 	return Plugin_Handled;
 }
@@ -157,28 +149,36 @@ public Action Command_StringMapRemoveOffline(int client, int args)
 {
 	if (args < 1)
 	{
-		CReplyToCommand(client, "%t %t", "Tag", "UsageStringMapRemoveID");
+		CReplyToCommand(client, "%t %t: sm_cvb_stringmap_removeid <steamid>", "Tag", "Usage");
 		return Plugin_Handled;
 	}
 
 	char steamId[64];
 	GetCmdArg(1, steamId, sizeof(steamId));
 
-	AsyncContext context = new AsyncContext();
-	context.ContinuationType = CONTINUE_STRINGMAP_REMOVE;
-
-	if (!ValidateAndConvertSteamIDAsync(client, steamId, context))
+	// Para el comando remove, usamos la factory de check ya que no necesitamos información adicional
+	AsyncContext context = CreateAsyncContextForCheckOffline(client);
+	if (context == null)
 	{
-		// If validation fails immediately, clean up
-		if (context.IsValid())
-		{
-			delete context;
-		}
 		return Plugin_Handled;
 	}
+	
+	// Actualizamos el tipo de continuación específico para remove
+	context.ContinuationType = CONTINUE_STRINGMAP_REMOVE;
 
-	// If we reach here, validation was successful and we can proceed immediately
-	Continue_StringMapRemoveOffline_Async(context);
+	SteamIDValidationResult validationResult = ValidateAndConvertSteamIDAsync(client, steamId, context);
+	if (validationResult == STEAMID_VALIDATION_ERROR)
+	{
+		// Context has already been cleaned up by ValidateAndConvertSteamIDAsync
+		return Plugin_Handled;
+	}
+	else if (validationResult == STEAMID_VALIDATION_SUCCESS)
+	{
+		// Validation was successful, continue immediately
+		Continue_StringMapRemoveOffline_Async(context);
+	}
+	// For STEAMID_VALIDATION_ASYNC, the callback will handle continuation
+
 	return Plugin_Handled;
 }
 
@@ -199,30 +199,27 @@ void Continue_StringMapCheckOffline_Async(AsyncContext context)
 	char steamId2[MAX_AUTHID_LENGTH];
 	context.GetTargetSteamId(steamId2, sizeof(steamId2));
 
-	CReplyToCommand(admin, "%t Checking StringMap cache for SteamID %s (AccountID: %d)", 
-		"Tag", steamId2, accountId);
+	CReplyToCommand(admin, "%t Checking StringMap cache for SteamID %s (AccountID: %d)", "Tag", steamId2, accountId);
 
-	// Check StringMap cache for non-banned players
-	if (CheckStringMapCache(accountId))
+	PlayerBanInfo banInfo = new PlayerBanInfo(accountId);
+	if (CVB_GetCacheStringMap(banInfo))
 	{
-		CReplyToCommand(admin, "%t ✅ SteamID is cached as NOT BANNED in StringMap", "Tag");
-		delete context;
-		return;
-	}
-
-	// Check PlayerBans cache for banned players
-	int banType = GetCachedBanType(accountId);
-	if (banType > 0)
-	{
-		char banTypeStr[128];
-		GetBanTypeString(banType, banTypeStr, sizeof(banTypeStr));
-		CReplyToCommand(admin, "%t ❌ SteamID is cached as BANNED in StringMap", "Tag");
-		CReplyToCommand(admin, "%t Ban Type: %s (%d)", "Tag", banTypeStr, banType);
+		if (banInfo.BanType == 0)
+			CReplyToCommand(admin, "%t ✅ SteamID is cached as NOT BANNED in StringMap", "Tag");
+		else
+		{
+			char banTypeStr[128];
+			banInfo.GetBanTypeString(banTypeStr, sizeof(banTypeStr));
+			CReplyToCommand(admin, "%t ❌ SteamID is cached as BANNED in StringMap", "Tag");
+			CReplyToCommand(admin, "%t Ban Type: %s (%d)", "Tag", banTypeStr, banInfo.BanType);
+		}
+		delete banInfo;
 		delete context;
 		return;
 	}
 
 	CReplyToCommand(admin, "%t ⚪ SteamID is NOT FOUND in StringMap cache", "Tag");
+	delete banInfo;
 	delete context;
 }
 
@@ -243,26 +240,19 @@ void Continue_StringMapRemoveOffline_Async(AsyncContext context)
 	char steamId2[MAX_AUTHID_LENGTH];
 	context.GetTargetSteamId(steamId2, sizeof(steamId2));
 
-	// Remove from StringMap cache only
 	char sAccountId[16];
 	IntToString(accountId, sAccountId, sizeof(sAccountId));
 	
-	bool wasInNonBanned = g_hCacheStringMap.Remove(sAccountId);
-	bool wasInBanned = g_hPlayerBans.Remove(sAccountId);
+	bool wasInCache = (g_smClientCache != null) ? g_smClientCache.Remove(sAccountId) : false;
 
-	if (wasInNonBanned || wasInBanned)
+	if (wasInCache)
 	{
-		CReplyToCommand(admin, "%t StringMap cache cleared for SteamID %s (AccountID: %d)", 
-			"Tag", steamId2, accountId);
-		
-		CVBLog.Debug("Admin %N cleared StringMap cache for SteamID %s (AccountID: %d)", 
-			admin, steamId2, accountId);
+		CReplyToCommand(admin, "%t StringMap cache cleared for SteamID %s (AccountID: %d)", "Tag", steamId2, accountId);
+		CVBLog.Debug("Admin %N cleared StringMap cache for SteamID %s (AccountID: %d)", admin, steamId2, accountId);
 	}
 	else
-	{
-		CReplyToCommand(admin, "%t SteamID %s was not found in StringMap cache", 
-			"Tag", steamId2);
-	}
+		CReplyToCommand(admin, "%t SteamID %s was not found in StringMap cache", "Tag", steamId2);
+
 
 	delete context;
 }

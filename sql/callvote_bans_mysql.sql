@@ -44,8 +44,6 @@ CREATE TABLE IF NOT EXISTS `callvote_bans` (
     `is_active` TINYINT(1) DEFAULT 1,
     
     PRIMARY KEY (`id`),
-    
-    UNIQUE KEY `unique_active_ban` (`account_id`, `is_active`),
 
     KEY `idx_account_active` (`account_id`, `is_active`, `expires_timestamp`),
     KEY `idx_expires` (`expires_timestamp`, `is_active`),
@@ -133,7 +131,7 @@ DROP PROCEDURE IF EXISTS `sp_InsertBanWithValidation`$$
 -- Resumen de posibles valores de salida para sp_InsertBanWithValidation:
 --   result_code:
 --     0 = Éxito. Ban insertado correctamente. (message: 'Ban inserted successfully')
---     1 = Ya existe un ban más severo o igual. (message: 'Existing ban is more severe or equal (Type: X)')
+--     1 = Ya existe un ban activo para este jugador. (message: 'Player already has an active ban (Type: X)')
 --     2 = Cuenta inválida. (message: 'Invalid account')
 --     4 = Error de base de datos. (message: 'Database error occurred')
 --   ban_id:
@@ -172,37 +170,32 @@ BEGIN
     ORDER BY created_timestamp DESC 
     LIMIT 1;
 
-    IF v_existing_ban_type > 0 AND v_existing_ban_type >= p_ban_type THEN
-        SET v_result_code = 1;
-        SET v_message = CONCAT('Existing ban is more severe or equal (Type: ', v_existing_ban_type, ')');
-        SET v_ban_id = v_existing_ban_id;
-        COMMIT;
-    ELSE
-        UPDATE callvote_bans 
-        SET is_active = 0 
-        WHERE account_id = p_account_id AND is_active = 1;
+    -- Siempre desactivar cualquier ban previo activo
+    UPDATE callvote_bans 
+    SET is_active = 0 
+    WHERE account_id = p_account_id AND is_active = 1;
 
-        SET v_expires_time = CASE 
-            WHEN p_duration_minutes > 0 THEN v_current_time + (p_duration_minutes * 60)
-            ELSE 0 
-        END;
+    -- Crear el nuevo ban
+    SET v_expires_time = CASE 
+        WHEN p_duration_minutes > 0 THEN v_current_time + (p_duration_minutes * 60)
+        ELSE 0 
+    END;
 
-        INSERT INTO callvote_bans (
-            account_id, ban_type, created_timestamp,
-            duration_minutes, expires_timestamp, admin_account_id,
-            reason, is_active
-        ) VALUES (
-            p_account_id, p_ban_type, v_current_time,
-            p_duration_minutes, v_expires_time, p_admin_account_id,
-            p_reason, 1
-        );
-        
-        SET v_ban_id = LAST_INSERT_ID();
-        SET v_result_code = 0;
-        SET v_message = 'Ban inserted successfully';
-        
-        COMMIT;
-    END IF;
+    INSERT INTO callvote_bans (
+        account_id, ban_type, created_timestamp,
+        duration_minutes, expires_timestamp, admin_account_id,
+        reason, is_active
+    ) VALUES (
+        p_account_id, p_ban_type, v_current_time,
+        p_duration_minutes, v_expires_time, p_admin_account_id,
+        p_reason, 1
+    );
+    
+    SET v_ban_id = LAST_INSERT_ID();
+    SET v_result_code = 0;
+    SET v_message = 'Ban inserted successfully';
+    
+    COMMIT;
     
     -- Devolver resultado como SELECT
     SELECT v_ban_id as ban_id, v_result_code as result_code, v_message as message;

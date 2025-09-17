@@ -3,6 +3,16 @@
 #endif
 #define _cvb_commands_included
 
+// AsyncContext StringMap keys constants
+#define ASYNCCTX_ADMIN_USERID "admin_user_id"
+#define ASYNCCTX_TARGET_ACCOUNTID "target_account_id"
+#define ASYNCCTX_CONTINUATION_TYPE "continuation_type"
+#define ASYNCCTX_BAN_TYPE "ban_type"
+#define ASYNCCTX_DURATION_MINUTES "duration_minutes"
+#define ASYNCCTX_TARGET_STEAMID "target_steamid"
+#define ASYNCCTX_ORIGINAL_STEAMID "original_steamid"
+#define ASYNCCTX_REASON "reason"
+
 enum SteamID64_ContinuationType
 {
 	CONTINUE_BAN_OFFLINE = 0,
@@ -12,7 +22,8 @@ enum SteamID64_ContinuationType
 	CONTINUE_SQLITE_CHECK = 4,
 	CONTINUE_SQLITE_REMOVE = 5,
 	CONTINUE_STRINGMAP_CHECK = 6,
-	CONTINUE_STRINGMAP_REMOVE = 7
+	CONTINUE_STRINGMAP_REMOVE = 7,
+	CONTINUE_REFRESH_CACHE = 8
 };
 
 methodmap AsyncContext < Handle {
@@ -32,21 +43,22 @@ methodmap AsyncContext < Handle {
 	 * Property: AdminUserId
 	 * 
 	 * Gets or sets the admin user ID associated with this object.
-	 * Internally, this property accesses the "admin_user_id" key in the underlying StringMap.
-	 *
-	 * Getter:
-	 *   - Retrieves the integer value of "admin_user_id" from the StringMap.
-	 * Setter:
-	 *   - Sets the integer value of "admin_user_id" in the StringMap.
+	 * Includes validation to prevent invalid values.
 	 */
 	property int AdminUserId {
 		public get() {
+			if (!this.IsValid()) return 0;
 			int value;
-			view_as<StringMap>(this).GetValue("admin_user_id", value);
+			view_as<StringMap>(this).GetValue(ASYNCCTX_ADMIN_USERID, value);
 			return value;
 		}
 		public set(int value) {
-			view_as<StringMap>(this).SetValue("admin_user_id", value);
+			if (!this.IsValid()) return;
+			if (value < 0) {
+				LogError("AsyncContext: Invalid AdminUserId: %d", value);
+				return;
+			}
+			view_as<StringMap>(this).SetValue(ASYNCCTX_ADMIN_USERID, value);
 		}
 	}
 	
@@ -55,24 +67,22 @@ methodmap AsyncContext < Handle {
 	 * Property: TargetAccountId
 	 * 
 	 * Gets or sets the target account ID associated with this object.
-	 * Internally, this property accesses the "target_account_id" key in the underlying StringMap.
-	 *
-	 * Getter:
-	 *   - Retrieves the integer value of "target_account_id" from the StringMap.
-	 *   - Returns the account ID as an integer.
-	 *
-	 * Setter:
-	 *   - Sets the integer value of "target_account_id" in the StringMap.
-	 *   - Accepts an integer value to assign as the account ID.
+	 * Includes validation to prevent invalid values.
 	 */
 	property int TargetAccountId {
 		public get() {
+			if (!this.IsValid()) return 0;
 			int value;
-			view_as<StringMap>(this).GetValue("target_account_id", value);
+			view_as<StringMap>(this).GetValue(ASYNCCTX_TARGET_ACCOUNTID, value);
 			return value;
 		}
 		public set(int value) {
-			view_as<StringMap>(this).SetValue("target_account_id", value);
+			if (!this.IsValid()) return;
+			if (value <= 0) {
+				LogError("AsyncContext: Invalid TargetAccountId: %d", value);
+				return;
+			}
+			view_as<StringMap>(this).SetValue(ASYNCCTX_TARGET_ACCOUNTID, value);
 		}
 	}
 	
@@ -80,24 +90,22 @@ methodmap AsyncContext < Handle {
 	 * Property: ContinuationType
 	 * 
 	 * Gets or sets the continuation type associated with a SteamID64.
-	 * 
-	 * Getter:
-	 *   - Retrieves the "continuation_type" value from the underlying StringMap and returns it as a SteamID64_ContinuationType.
-	 * 
-	 * Setter:
-	 *   - Sets the "continuation_type" value in the underlying StringMap using the provided SteamID64_ContinuationType.
-	 *
-	 * @return SteamID64_ContinuationType The current continuation type.
-	 * @param value SteamID64_ContinuationType The continuation type to set.
+	 * Includes validation for known continuation types.
 	 */
 	property SteamID64_ContinuationType ContinuationType {
 		public get() {
+			if (!this.IsValid()) return view_as<SteamID64_ContinuationType>(-1);
 			int value;
-			view_as<StringMap>(this).GetValue("continuation_type", value);
+			view_as<StringMap>(this).GetValue(ASYNCCTX_CONTINUATION_TYPE, value);
 			return view_as<SteamID64_ContinuationType>(value);
 		}
 		public set(SteamID64_ContinuationType value) {
-			view_as<StringMap>(this).SetValue("continuation_type", view_as<int>(value));
+			if (!this.IsValid()) return;
+			if (value < CONTINUE_BAN_OFFLINE || value > CONTINUE_REFRESH_CACHE) {
+				LogError("AsyncContext: Invalid ContinuationType: %d", value);
+				return;
+			}
+			view_as<StringMap>(this).SetValue(ASYNCCTX_CONTINUATION_TYPE, view_as<int>(value));
 		}
 	}
 	
@@ -105,22 +113,22 @@ methodmap AsyncContext < Handle {
 	 * Property: BanType
 	 * 
 	 * Gets or sets the ban type associated with this object.
-	 * Internally, this property uses a StringMap to store and retrieve the "ban_type" value.
-	 * 
-	 * Getter:
-	 *   - Retrieves the integer value of "ban_type" from the underlying StringMap.
-	 * 
-	 * Setter:
-	 *   - Sets the integer value of "ban_type" in the underlying StringMap.
+	 * Includes validation for valid ban type ranges.
 	 */
 	property int BanType {
 		public get() {
+			if (!this.IsValid()) return 0;
 			int value;
-			view_as<StringMap>(this).GetValue("ban_type", value);
+			view_as<StringMap>(this).GetValue(ASYNCCTX_BAN_TYPE, value);
 			return value;
 		}
 		public set(int value) {
-			view_as<StringMap>(this).SetValue("ban_type", value);
+			if (!this.IsValid()) return;
+			if (value < 0 || value > view_as<int>(VOTE_ALL)) {
+				LogError("AsyncContext: Invalid BanType: %d (max: %d)", value, view_as<int>(VOTE_ALL));
+				return;
+			}
+			view_as<StringMap>(this).SetValue(ASYNCCTX_BAN_TYPE, value);
 		}
 	}
 	
@@ -128,22 +136,22 @@ methodmap AsyncContext < Handle {
 	 * Property: DurationMinutes
 	 * 
 	 * Gets or sets the duration in minutes for the current object.
-	 * Internally, this property accesses the "duration_minutes" key in the underlying StringMap.
-	 *
-	 * Getter:
-	 *   - Retrieves the integer value associated with "duration_minutes".
-	 *
-	 * Setter:
-	 *   - Sets the integer value for "duration_minutes".
+	 * Includes validation for non-negative values.
 	 */
 	property int DurationMinutes {
 		public get() {
+			if (!this.IsValid()) return 0;
 			int value;
-			view_as<StringMap>(this).GetValue("duration_minutes", value);
+			view_as<StringMap>(this).GetValue(ASYNCCTX_DURATION_MINUTES, value);
 			return value;
 		}
 		public set(int value) {
-			view_as<StringMap>(this).SetValue("duration_minutes", value);
+			if (!this.IsValid()) return;
+			if (value < 0) {
+				LogError("AsyncContext: Invalid DurationMinutes: %d", value);
+				return;
+			}
+			view_as<StringMap>(this).SetValue(ASYNCCTX_DURATION_MINUTES, value);
 		}
 	}
 	
@@ -152,18 +160,38 @@ methodmap AsyncContext < Handle {
 	 *
 	 * @param buffer    The character array to store the retrieved SteamID.
 	 * @param maxlen    The maximum length of the buffer.
+	 * @return          True if successful, false if context is invalid.
 	 */
-	public void GetTargetSteamId(char[] buffer, int maxlen) {
-		view_as<StringMap>(this).GetString("target_steamid", buffer, maxlen);
+	public bool GetTargetSteamId(char[] buffer, int maxlen) {
+		if (!this.IsValid()) {
+			buffer[0] = '\0';
+			return false;
+		}
+		return view_as<StringMap>(this).GetString(ASYNCCTX_TARGET_STEAMID, buffer, maxlen);
 	}
 	
 	/**
 	 * Sets the target SteamID in the underlying StringMap.
+	 * Includes validation for empty strings and length limits.
 	 *
 	 * @param steamid	The SteamID to set as the target.
+	 * @return          True if successful, false if validation fails.
 	 */
-	public void SetTargetSteamId(const char[] steamid) {
-		view_as<StringMap>(this).SetString("target_steamid", steamid);
+	public bool SetTargetSteamId(const char[] steamid) {
+		if (!this.IsValid()) return false;
+		
+		if (strlen(steamid) == 0) {
+			LogError("AsyncContext: Empty SteamID provided");
+			return false;
+		}
+		
+		if (strlen(steamid) >= MAX_AUTHID_LENGTH) {
+			LogError("AsyncContext: SteamID too long: %s", steamid);
+			return false;
+		}
+		
+		view_as<StringMap>(this).SetString(ASYNCCTX_TARGET_STEAMID, steamid);
+		return true;
 	}
 	
 	/**
@@ -171,18 +199,33 @@ methodmap AsyncContext < Handle {
 	 *
 	 * @param buffer    The buffer to store the retrieved SteamID.
 	 * @param maxlen    The maximum length of the buffer.
+	 * @return          True if successful, false if context is invalid.
 	 */
-	public void GetOriginalSteamId(char[] buffer, int maxlen) {
-		view_as<StringMap>(this).GetString("original_steamid", buffer, maxlen);
+	public bool GetOriginalSteamId(char[] buffer, int maxlen) {
+		if (!this.IsValid()) {
+			buffer[0] = '\0';
+			return false;
+		}
+		return view_as<StringMap>(this).GetString(ASYNCCTX_ORIGINAL_STEAMID, buffer, maxlen);
 	}
 	
 	/**
 	 * Sets the original SteamID for this object.
+	 * Includes validation for empty strings.
 	 *
 	 * @param steamid	The SteamID string to associate as the original SteamID.
+	 * @return          True if successful, false if validation fails.
 	 */
-	public void SetOriginalSteamId(const char[] steamid) {
-		view_as<StringMap>(this).SetString("original_steamid", steamid);
+	public bool SetOriginalSteamId(const char[] steamid) {
+		if (!this.IsValid()) return false;
+		
+		if (strlen(steamid) == 0) {
+			LogError("AsyncContext: Empty original SteamID provided");
+			return false;
+		}
+		
+		view_as<StringMap>(this).SetString(ASYNCCTX_ORIGINAL_STEAMID, steamid);
+		return true;
 	}
 	
 	/**
@@ -190,18 +233,75 @@ methodmap AsyncContext < Handle {
 	 *
 	 * @param buffer	Buffer to store the retrieved reason string.
 	 * @param maxlen	Maximum length of the buffer.
+	 * @return          True if successful, false if context is invalid.
 	 */
-	public void GetReason(char[] buffer, int maxlen) {
-		view_as<StringMap>(this).GetString("reason", buffer, maxlen);
+	public bool GetReason(char[] buffer, int maxlen) {
+		if (!this.IsValid()) {
+			buffer[0] = '\0';
+			return false;
+		}
+		return view_as<StringMap>(this).GetString(ASYNCCTX_REASON, buffer, maxlen);
 	}
 	
 	/**
 	 * Sets the reason string in the underlying StringMap for this object.
+	 * Includes validation and automatic truncation for oversized reasons.
 	 *
 	 * @param reason	The reason to be set, as a constant character array.
+	 * @return          True if set without truncation, false if truncated or failed.
 	 */
-	public void SetReason(const char[] reason) {
-		view_as<StringMap>(this).SetString("reason", reason);
+	public bool SetReason(const char[] reason) {
+		if (!this.IsValid()) return false;
+		
+		if (strlen(reason) >= 256) {
+			LogError("AsyncContext: Reason too long, truncating");
+			char truncated[256];
+			strcopy(truncated, sizeof(truncated), reason);
+			view_as<StringMap>(this).SetString(ASYNCCTX_REASON, truncated);
+			return false;
+		}
+		
+		view_as<StringMap>(this).SetString(ASYNCCTX_REASON, reason);
+		return true;
+	}
+	
+	/**
+	 * Validates that context has required data for ban operations.
+	 * 
+	 * @return True if context has all required data for ban operations.
+	 */
+	public bool HasRequiredDataForBan() {
+		return this.IsValid() && 
+			   this.AdminUserId > 0 && 
+			   this.TargetAccountId > 0 &&
+			   this.BanType > 0 &&
+			   this.ContinuationType == CONTINUE_BAN_OFFLINE;
+	}
+	
+	/**
+	 * Validates that context has required data for check operations.
+	 * 
+	 * @return True if context has all required data for check operations.
+	 */
+	public bool HasRequiredDataForCheck() {
+		return this.IsValid() && 
+			   this.AdminUserId > 0 && 
+			   this.TargetAccountId > 0 &&
+			   (this.ContinuationType == CONTINUE_CHECK_OFFLINE ||
+				this.ContinuationType == CONTINUE_SQLITE_CHECK ||
+				this.ContinuationType == CONTINUE_STRINGMAP_CHECK);
+	}
+	
+	/**
+	 * Validates that context has required data for unban operations.
+	 * 
+	 * @return True if context has all required data for unban operations.
+	 */
+	public bool HasRequiredDataForUnban() {
+		return this.IsValid() && 
+			   this.AdminUserId > 0 && 
+			   this.TargetAccountId > 0 &&
+			   this.ContinuationType == CONTINUE_UNBAN_OFFLINE;
 	}
 	
 	/**
@@ -209,7 +309,9 @@ methodmap AsyncContext < Handle {
 	 * This effectively removes all stored key-value pairs, returning the object to its initial state.
 	 */
 	public void Reset() {
-		view_as<StringMap>(this).Clear();
+		if (this.IsValid()) {
+			view_as<StringMap>(this).Clear();
+		}
 	}
 	
 	/**
@@ -220,6 +322,60 @@ methodmap AsyncContext < Handle {
 	public bool IsValid() {
 		return this != null && view_as<StringMap>(this) != null;
 	}
+}
+
+/**
+ * Factory function: Creates AsyncContext for ban offline operations.
+ * Sets up basic context without SteamID conversion (handled by ValidateAndConvertSteamIDAsync).
+ * 
+ * @param adminUserId   Admin's user ID
+ * @param banType       Ban type flags
+ * @param duration      Duration in minutes (0 = permanent)
+ * @param reason        Ban reason (optional)
+ * @return AsyncContext Configured context ready for validation
+ */
+AsyncContext CreateAsyncContextForBanOffline(int adminUserId, int banType, int duration, const char[] reason = "") {
+	AsyncContext ctx = new AsyncContext();
+	ctx.ContinuationType = CONTINUE_BAN_OFFLINE;
+	ctx.AdminUserId = adminUserId;
+	ctx.BanType = banType;
+	ctx.DurationMinutes = duration;
+	
+	if (strlen(reason) > 0) {
+		ctx.SetReason(reason);
+	}
+	
+	return ctx;
+}
+
+/**
+ * Factory function: Creates AsyncContext for check offline operations.
+ * Sets up basic context without SteamID conversion (handled by ValidateAndConvertSteamIDAsync).
+ * 
+ * @param adminUserId   Admin's user ID
+ * @return AsyncContext Configured context ready for validation
+ */
+AsyncContext CreateAsyncContextForCheckOffline(int adminUserId) {
+	AsyncContext ctx = new AsyncContext();
+	ctx.ContinuationType = CONTINUE_CHECK_OFFLINE;
+	ctx.AdminUserId = adminUserId;
+	
+	return ctx;
+}
+
+/**
+ * Factory function: Creates AsyncContext for unban offline operations.
+ * Sets up basic context without SteamID conversion (handled by ValidateAndConvertSteamIDAsync).
+ * 
+ * @param adminUserId   Admin's user ID
+ * @return AsyncContext Configured context ready for validation
+ */
+AsyncContext CreateAsyncContextForUnbanOffline(int adminUserId) {
+	AsyncContext ctx = new AsyncContext();
+	ctx.ContinuationType = CONTINUE_UNBAN_OFFLINE;
+	ctx.AdminUserId = adminUserId;
+	
+	return ctx;
 }
 
 #include "cvb_commands/commands_sql.sp"
@@ -234,6 +390,7 @@ void RegisterCommands()
 {
 	// commands_sql.sp
 	RegAdminCmd("sm_cvb_install", Command_InstallDatabase, ADMFLAG_ROOT, "Install/recreate tables and stored procedures: mysql|sqlite|all (default: all)");
+	RegAdminCmd("sm_cvb_reinstall", Command_ReinstallDatabase, ADMFLAG_ROOT, "DANGEROUS: Drop and recreate ALL tables/procedures: mysql|sqlite|all (default: all)");
 	RegAdminCmd("sm_cvb_verify", Command_VerifyInstallation, ADMFLAG_ROOT, "Verify installation: mysql (stored procedures) | sqlite (database structure)");
 	RegAdminCmd("sm_cvb_truncate", Command_Truncate, ADMFLAG_ROOT, "Clear bans database: mysql|sqlite|all [confirm] (default: all)");
 	RegAdminCmd("sm_cvb_cleanup", Command_CleanupBans, ADMFLAG_ROOT, "Clean expired bans: mysql|cache|all (default: mysql)");
@@ -246,7 +403,6 @@ void RegisterCommands()
 	RegAdminCmd("sm_cvb_unbanid", Command_UnbanOffline, ADMFLAG_UNBAN, "Unban offline player by SteamID (any format)");
 	RegAdminCmd("sm_cvb_check", Command_Check, ADMFLAG_GENERIC, "Check player ban status: sm_cvb_check <#userid|name> (no args = panel)");
 	RegAdminCmd("sm_cvb_checkid", Command_CheckOffline, ADMFLAG_GENERIC, "Check ban status by SteamID (any format)");
-	RegConsoleCmd("sm_mybans", Command_MyBans, "View your own vote ban status with cache update");
 
 	// commands_sqlite.sp
 	RegAdminCmd("sm_cvb_sqlite_check", Command_SQLiteCheck, ADMFLAG_GENERIC, "Check player ban status in SQLite cache");
@@ -259,6 +415,11 @@ void RegisterCommands()
 	RegAdminCmd("sm_cvb_stringmap_checkid", Command_StringMapCheckOffline, ADMFLAG_GENERIC, "Check ban status in StringMap cache by SteamID (any format)");
 	RegAdminCmd("sm_cvb_stringmap_remove", Command_StringMapRemove, ADMFLAG_UNBAN, "Remove player from StringMap cache (online player)");
 	RegAdminCmd("sm_cvb_stringmap_removeid", Command_StringMapRemoveOffline, ADMFLAG_UNBAN, "Remove player from StringMap cache by SteamID (any format)");
+	RegAdminCmd("sm_cvb_refresh", Command_RefreshPlayer, ADMFLAG_UNBAN, "Force refresh cache for online player");
+	RegAdminCmd("sm_cvb_refreshid", Command_RefreshPlayerOffline, ADMFLAG_UNBAN, "Force refresh cache by SteamID (any format)");
+	
+	// Performance and optimization commands
+	RegAdminCmd("sm_cvb_stringpool", Command_StringPoolStats, ADMFLAG_GENERIC, "Show StringPool usage statistics");
 
 #if DEBUG
 	// commands_debug.sp
@@ -306,17 +467,24 @@ void GetBanTypeString(int banType, char[] output, int maxlen)
 	}
 }
 
+// Result enum for SteamID validation
+enum SteamIDValidationResult
+{
+	STEAMID_VALIDATION_SUCCESS,      // Validation successful, continue synchronously
+	STEAMID_VALIDATION_ASYNC,        // Validation requires async processing, callback will handle continuation
+	STEAMID_VALIDATION_ERROR         // Validation failed, context has been cleaned up
+};
+
 // Modern AsyncContext-based validation function
-bool ValidateAndConvertSteamIDAsync(int client, const char[] steamId, AsyncContext context)
+SteamIDValidationResult ValidateAndConvertSteamIDAsync(int client, const char[] steamId, AsyncContext context)
 {
 	if (client == SERVER_INDEX)
 	{
 		context.TargetAccountId = 0;
 		context.SetTargetSteamId("CONSOLE");
-		return true;
+		return STEAMID_VALIDATION_SUCCESS;
 	}
 
-	// Store original SteamID for reference
 	context.SetOriginalSteamId(steamId);
 	context.AdminUserId = GetClientUserId(client);
 
@@ -328,71 +496,86 @@ bool ValidateAndConvertSteamIDAsync(int client, const char[] steamId, AsyncConte
 		{
 			CReplyToCommand(client, "%t %t", "Tag", "CannotProcessSpecialCases", steamId);
 			CReplyToCommand(client, "%t %t", "Tag", "SpecialCases");
-			return false;
+			delete context;
+			return STEAMID_VALIDATION_ERROR;
 		}
 		case STEAMID_FORMAT_STEAMID2:
 		{
 			int accountId = SteamID2ToAccountID(steamId);
-			if (accountId <= 0) {
+
+			if (accountId <= 0)
+			{
 				CReplyToCommand(client, "%t %t", "Tag", "InvalidSteamIDFormat", steamId);
-				return false;
+				delete context;
+				return STEAMID_VALIDATION_ERROR;
 			}
+
 			context.TargetAccountId = accountId;
 			context.SetTargetSteamId(steamId);
-			return true;
+			return STEAMID_VALIDATION_SUCCESS;
 		}
 		case STEAMID_FORMAT_STEAMID3:
 		{
 			int accountId = SteamID3ToAccountID(steamId);
-			if (accountId <= 0) {
+			if (accountId <= 0)
+			{
 				CReplyToCommand(client, "%t %t", "Tag", "InvalidSteamIDFormat", steamId);
-				return false;
+				delete context;
+				return STEAMID_VALIDATION_ERROR;
 			}
+
 			context.TargetAccountId = accountId;
 			
 			char steamId2[MAX_AUTHID_LENGTH];
-			if (!AccountIDToSteamID2(accountId, steamId2, sizeof(steamId2))) {
+
+			if (!AccountIDToSteamID2(accountId, steamId2, sizeof(steamId2)))
+			{
 				CReplyToCommand(client, "%t %t", "Tag", "InternalError", accountId);
-				return false;
+				delete context;
+				return STEAMID_VALIDATION_ERROR;
 			}
+
 			context.SetTargetSteamId(steamId2);
-			return true;
+			return STEAMID_VALIDATION_SUCCESS;
 		}
 		case STEAMID_FORMAT_STEAMID64:
 		{
 			// For SteamID64, we need async conversion
 			if (g_bSteamWorksLoaded && g_cvarSteamIDToolsHTTP.IntValue == 1)
-			{
 				Steamworks_RequestSteamID64ToAID_Async(steamId, context);
-			}
 			else if (g_bSystem2Loaded && g_cvarSteamIDToolsHTTP.IntValue == 2)
-			{
 				System2_RequestSteamID64ToAID_Async(steamId, context);
-			}
 			else
 			{
 				CReplyToCommand(client, "%t %t", "Tag", "SteamWorksOrSystem2Required");
 				CReplyToCommand(client, "%t %t", "Tag", "PleaseUseOtherFormats");
-				return false;
+				delete context;
+				return STEAMID_VALIDATION_ERROR;
 			}
-			return false; // Async operation, will continue in callback
+			return STEAMID_VALIDATION_ASYNC; // Async operation, will continue in callback
 		}
 		case STEAMID_FORMAT_ACCOUNTID:
 		{
 			int accountId = StringToInt(steamId);
-			if (accountId <= 0) {
+			if (accountId <= 0)
+			{
 				CReplyToCommand(client, "%t %t", "Tag", "InvalidSteamIDFormat", steamId);
-				return false;
+				delete context;
+				return STEAMID_VALIDATION_ERROR;
 			}
+
 			context.TargetAccountId = accountId;
 			
 			char steamId2[MAX_AUTHID_LENGTH];
-			if (!AccountIDToSteamID2(accountId, steamId2, sizeof(steamId2))) {
+			if (!AccountIDToSteamID2(accountId, steamId2, sizeof(steamId2)))
+			{
 				CReplyToCommand(client, "%t %t", "Tag", "InternalError", accountId);
-				return false;
+				delete context;
+				return STEAMID_VALIDATION_ERROR;
 			}
+
 			context.SetTargetSteamId(steamId2);
-			return true;
+			return STEAMID_VALIDATION_SUCCESS;
 		}
 		case STEAMID_FORMAT_UNKNOWN:
 		{
@@ -402,11 +585,14 @@ bool ValidateAndConvertSteamIDAsync(int client, const char[] steamId, AsyncConte
 			CReplyToCommand(client, "%t %t", "Tag", "SteamID3Format");
 			CReplyToCommand(client, "%t %t", "Tag", "SteamID64Format");
 			CReplyToCommand(client, "%t %t", "Tag", "AccountIDFormat");
-			return false;
+			delete context;
+			return STEAMID_VALIDATION_ERROR;
 		}
 	}
 	
-	return false;
+	// This should never be reached, but clean up just in case
+	delete context;
+	return STEAMID_VALIDATION_ERROR;
 }
 
 bool GetAdminInfo(int client, int &adminAccountId, char[] adminSteamId2, int maxlen)
@@ -444,9 +630,8 @@ void Steamworks_RequestSteamID64ToAID_Async(const char[] steamid64, AsyncContext
 	if (hRequest == INVALID_HANDLE)
 	{
 		int admin = GetClientOfUserId(context.AdminUserId);
-		if (admin > 0) {
-			CReplyToCommand(admin, "%t %t", "Tag", "SteamWorksHTTPRequestFailed");
-		}
+
+		CReplyToCommand(admin, "%t %t", "Tag", "SteamWorksHTTPRequestFailed");
 		LogError("Failed to create SteamWorks HTTP request for URL: %s", url);
 		delete context;
 		return;
@@ -466,11 +651,6 @@ public void SteamWorks_OnSteamID64ToAIDResponse_Async(Handle hRequest, bool bFai
 	}
 
 	int admin = GetClientOfUserId(context.AdminUserId);
-	if (admin <= 0) {
-		CVBLog.Debug("Admin disconnected during async SteamID conversion");
-		delete context;
-		return;
-	}
 
 	if (bFailure || !bRequestSuccessful || eStatusCode != k_EHTTPStatusCode200OK)
 	{
@@ -491,15 +671,17 @@ public void SteamWorks_OnSteamID64ToAIDResponse_Async(Handle hRequest, bool bFai
 	
 	char[] response = new char[bodySize + 1];
 	// Initialize buffer with nulls
-	for (int i = 0; i <= bodySize; i++) {
+	for (int i = 0; i <= bodySize; i++)
+	{
 		response[i] = '\0';
 	}
+
 	SteamWorks_GetHTTPResponseBodyData(hRequest, response, bodySize);
 	response[bodySize] = '\0';
 	TrimString(response);
 	
 	int accountId = StringToInt(response);
-	if (accountId <= 0)
+	if (accountId <= SERVER_INDEX)
 	{
 		char originalSteamId[64];
 		context.GetOriginalSteamId(originalSteamId, sizeof(originalSteamId));
@@ -510,44 +692,30 @@ public void SteamWorks_OnSteamID64ToAIDResponse_Async(Handle hRequest, bool bFai
 
 	// Update context with converted AccountID
 	context.TargetAccountId = accountId;
-	
-	// Convert to SteamID2 format
-	char steamId2[MAX_AUTHID_LENGTH];
-	if (!AccountIDToSteamID2(accountId, steamId2, sizeof(steamId2))) {
-		CReplyToCommand(admin, "%t %t", "Tag", "InternalError", accountId);
-		delete context;
-		return;
-	}
-	context.SetTargetSteamId(steamId2);
 
 	// Continue with the operation based on continuation type
 	switch (context.ContinuationType)
 	{
-		case CONTINUE_BAN_OFFLINE: {
+		case CONTINUE_BAN_OFFLINE:
 			Continue_BanOffline_Async(context);
-		}
-		case CONTINUE_UNBAN_OFFLINE: {
+		case CONTINUE_UNBAN_OFFLINE:
 			Continue_UnbanOffline_Async(context);
-		}
-		case CONTINUE_CHECK_OFFLINE: {
+		case CONTINUE_CHECK_OFFLINE:
 			Continue_CheckOffline_Async(context);
-		}
-		case CONTINUE_SQLITE_VERIFY: {
-			Continue_SQLiteVerify_Async(context);
-		}
-		case CONTINUE_SQLITE_CHECK: {
+		case CONTINUE_SQLITE_VERIFY:
+			Continue_SQLiteVerify_Async(context)
+		case CONTINUE_SQLITE_CHECK:
 			Continue_SQLiteCheckOffline_Async(context);
-		}
-		case CONTINUE_SQLITE_REMOVE: {
+		case CONTINUE_SQLITE_REMOVE:
 			Continue_CacheRemoveOffline_Async(context);
-		}
-		case CONTINUE_STRINGMAP_CHECK: {
+		case CONTINUE_STRINGMAP_CHECK:
 			Continue_StringMapCheckOffline_Async(context);
-		}
-		case CONTINUE_STRINGMAP_REMOVE: {
+		case CONTINUE_STRINGMAP_REMOVE:
 			Continue_StringMapRemoveOffline_Async(context);
-		}
-		default: {
+		case CONTINUE_REFRESH_CACHE:
+			Continue_RefreshPlayerOffline_Async(context);
+		default:
+		{
 			LogError("Unknown continuation type: %d", context.ContinuationType);
 			delete context;
 		}
@@ -573,17 +741,13 @@ void System2_RequestSteamID64ToAID_Async(const char[] steamid64, AsyncContext co
 public void System2_OnSteamID64ToAIDResponse_Async(bool success, const char[] error, System2HTTPRequest request, System2HTTPResponse response, HTTPRequestMethod method)
 {
 	AsyncContext context = view_as<AsyncContext>(request.Any);
-	if (!context.IsValid()) {
+	if (!context.IsValid())
+	{
 		LogError("Invalid context received in System2 callback");
 		return;
 	}
 
 	int admin = GetClientOfUserId(context.AdminUserId);
-	if (admin <= 0) {
-		CVBLog.Debug("Admin disconnected during async SteamID conversion");
-		delete context;
-		return;
-	}
 
 	if (!success || response == null)
 	{
@@ -597,7 +761,7 @@ public void System2_OnSteamID64ToAIDResponse_Async(bool success, const char[] er
 	response.GetContent(szResponse, sizeof(szResponse));
 	TrimString(szResponse);
 	int accountId = StringToInt(szResponse);
-	if (accountId <= 0)
+	if (accountId <= SERVER_INDEX)
 	{
 		char originalSteamId[64];
 		context.GetOriginalSteamId(originalSteamId, sizeof(originalSteamId));
@@ -607,42 +771,29 @@ public void System2_OnSteamID64ToAIDResponse_Async(bool success, const char[] er
 	}
 
 	context.TargetAccountId = accountId;
-	
-	char steamId2[MAX_AUTHID_LENGTH];
-	if (!AccountIDToSteamID2(accountId, steamId2, sizeof(steamId2))) {
-		CReplyToCommand(admin, "%t %t", "Tag", "InternalError", accountId);
-		delete context;
-		return;
-	}
-	context.SetTargetSteamId(steamId2);
 
 	switch (context.ContinuationType)
 	{
-		case CONTINUE_BAN_OFFLINE: {
+		case CONTINUE_BAN_OFFLINE:
 			Continue_BanOffline_Async(context);
-		}
-		case CONTINUE_UNBAN_OFFLINE: {
+		case CONTINUE_UNBAN_OFFLINE:
 			Continue_UnbanOffline_Async(context);
-		}
-		case CONTINUE_CHECK_OFFLINE: {
+		case CONTINUE_CHECK_OFFLINE:
 			Continue_CheckOffline_Async(context);
-		}
-		case CONTINUE_SQLITE_VERIFY: {
+		case CONTINUE_SQLITE_VERIFY:
 			Continue_SQLiteVerify_Async(context);
-		}
-		case CONTINUE_SQLITE_CHECK: {
+		case CONTINUE_SQLITE_CHECK:
 			Continue_SQLiteCheckOffline_Async(context);
-		}
-		case CONTINUE_SQLITE_REMOVE: {
+		case CONTINUE_SQLITE_REMOVE:
 			Continue_CacheRemoveOffline_Async(context);
-		}
-		case CONTINUE_STRINGMAP_CHECK: {
+		case CONTINUE_STRINGMAP_CHECK:
 			Continue_StringMapCheckOffline_Async(context);
-		}
-		case CONTINUE_STRINGMAP_REMOVE: {
+		case CONTINUE_STRINGMAP_REMOVE:
 			Continue_StringMapRemoveOffline_Async(context);
-		}
-		default: {
+		case CONTINUE_REFRESH_CACHE:
+			Continue_RefreshPlayerOffline_Async(context);
+		default:
+		{
 			LogError("Unknown continuation type: %d", context.ContinuationType);
 			delete context;
 		}
@@ -675,8 +826,12 @@ void Continue_BanOffline_Async(AsyncContext context)
 	context.GetReason(reason, sizeof(reason));
 	context.GetTargetSteamId(targetSteamId, sizeof(targetSteamId));
 
-	int reasonCode = GetBanReasonFromString_Enhanced(reason);
-	CVB_InsertBan(targetAccountId, banType, durationMinutes, adminAccountId, reasonCode);
+	char reasonCode[256];
+	CVB_GetBanReason(reason, reasonCode, sizeof(reasonCode));
+	CVB_InsertMysqlBan(targetAccountId, banType, durationMinutes, adminAccountId, reasonCode);
+	
+	char sBanTypes[64];
+	GetBanTypeString(banType, sBanTypes, sizeof(sBanTypes));
 	
 	char sDurationText[64];
 	if (durationMinutes == 0)
@@ -691,6 +846,24 @@ void Continue_BanOffline_Async(AsyncContext context)
 	CReplyToCommand(admin, "%t %t", "Tag", "BanApplied", targetSteamId, banType, sDurationText);
 	CVBLog.Debug("Admin %N[%s] baneó a %s (tipo: %d, duración: %s, razón: %s)", 
 			 admin, sAdminSteamId2, targetSteamId, banType, sDurationText, reason);
+	
+	// Check if target player is online and send console notification
+	int target = FindClientByAccountID(targetAccountId);
+	if (target > 0 && IsValidClient(target))
+	{
+		// Update cache for online player
+		int expiresTimestamp = (durationMinutes == 0) ? 0 : GetTime() + (durationMinutes * 60);
+		SetClientBanInfo(target, banType, durationMinutes, expiresTimestamp);
+		CVBLog.Debug("Cache updated for online player AccountID %d after offline ban", targetAccountId);
+		
+		SendBanNotification(target, NotifyType_Offline, 0, sAdminSteamId2, sBanTypes, sDurationText, durationMinutes);
+	}
+	else
+	{
+		// For offline players, force refresh cache entry to ensure consistency
+		ForceRefreshCacheEntry(targetAccountId);
+		CVBLog.Debug("Cache entry refreshed for offline AccountID %d after ban", targetAccountId);
+	}
 	
 	delete context;
 }
@@ -717,10 +890,23 @@ void Continue_UnbanOffline_Async(AsyncContext context)
 	char targetSteamId[MAX_AUTHID_LENGTH];
 	context.GetTargetSteamId(targetSteamId, sizeof(targetSteamId));
 
-	CVB_RemoveBan(targetAccountId, adminAccountId);
-	CReplyToCommand(admin, "%t %t", "Tag", "BanRemoved", targetSteamId);
-	CVBLog.Debug("Admin %N[%s] desbaneó a %s", admin, sAdminSteamId2, targetSteamId);
+	CVB_RemoveMysqlBan(targetAccountId, adminAccountId);
 	
+	// Check if target player is online and update their cache
+	int target = FindClientByAccountID(targetAccountId);
+	if (target > 0 && IsValidClient(target))
+	{
+		SetClientBanInfo(target, 0, 0, 0);
+		CVBLog.Debug("Cache updated for online player AccountID %d after offline unban", targetAccountId);
+	}
+	else
+	{
+		// For offline players, force refresh cache entry to ensure consistency
+		ForceRefreshCacheEntry(targetAccountId);
+		CVBLog.Debug("Cache entry refreshed for offline AccountID %d after unban", targetAccountId);
+	}
+	
+	CVBLog.Debug("Admin %N[%s] desbaneó a %s", admin, sAdminSteamId2, targetSteamId);
 	delete context;
 }
 
@@ -728,7 +914,7 @@ void Continue_CheckOffline_Async(AsyncContext context)
 {
 	int admin = GetClientOfUserId(context.AdminUserId);
 	if (admin <= 0) {
-		LogError("Admin disconnected during check operation");
+		LogError("Admin disconnected during offline check operation");
 		delete context;
 		return;
 	}
@@ -737,7 +923,28 @@ void Continue_CheckOffline_Async(AsyncContext context)
 	char targetSteamId[MAX_AUTHID_LENGTH];
 	context.GetTargetSteamId(targetSteamId, sizeof(targetSteamId));
 
-	CheckOfflinePlayerBan(admin, targetAccountId, targetSteamId);
+	if (targetAccountId <= 0)
+	{
+		char originalSteamId[64];
+		context.GetOriginalSteamId(originalSteamId, sizeof(originalSteamId));
+		CReplyToCommand(admin, "%t %t", "Tag", "InvalidSteamIDFormat", originalSteamId);
+		delete context;
+		return;
+	}
+
+	PlayerBanInfo playerInfo = new PlayerBanInfo(targetAccountId);
+	
+	CVB_GetCacheStringMap(playerInfo);
+	playerInfo.AdminAccountId = GetSteamAccountID(admin);
+	playerInfo.DbSource = SourceDB_MySQL;
+	playerInfo.CommandReplySource = GetCmdReplySource();
+	CVB_UpdateCacheStringMap(playerInfo);
+
+	CReplyToCommand(admin, "%t %t", "Tag", "BanStatusVerifying", targetSteamId);
+	CVBLog.Debug("Admin %N checking offline player %s (AccountID: %d)", admin, targetSteamId, targetAccountId);
+	
+	CVB_CheckMysqlFullBan(playerInfo);
+	delete playerInfo;
 	delete context;
 }
 
@@ -834,7 +1041,7 @@ public Action Command_CacheRemove(int client, int args)
 {
 	if (args < 1)
 	{
-		CReplyToCommand(client, "%t %t", "Tag", "UsageCacheRemove");
+		CReplyToCommand(client, "%t %t: sm_cvb_cache_remove <player>", "Tag", "Usage");
 		return Plugin_Handled;
 	}
 
@@ -842,7 +1049,7 @@ public Action Command_CacheRemove(int client, int args)
 	GetCmdArg(1, targetName, sizeof(targetName));
 
 	int target = FindTarget(client, targetName, true, false);
-	if (target == -1)
+	if (target == NO_INDEX)
 	{
 		return Plugin_Handled;
 	}
@@ -857,11 +1064,13 @@ public Action Command_CacheRemove(int client, int args)
 	char steamId2[MAX_AUTHID_LENGTH];
 	GetClientAuthId(target, AuthId_Steam2, steamId2, sizeof(steamId2));
 
-	// Remove from StringMap cache
+	// Remove from unified cache
 	char sAccountId[16];
 	IntToString(accountId, sAccountId, sizeof(sAccountId));
-	g_hCacheStringMap.Remove(sAccountId);
-	g_hPlayerBans.Remove(sAccountId);
+	if (g_smClientCache != null)
+	{
+		g_smClientCache.Remove(sAccountId);
+	}
 
 	// Remove from SQLite cache if available
 	if (g_hSQLiteDB != null)
@@ -888,7 +1097,7 @@ public Action Command_CacheRemoveOffline(int client, int args)
 {
 	if (args < 1)
 	{
-		CReplyToCommand(client, "%t %t", "Tag", "UsageCacheRemoveID");
+		CReplyToCommand(client, "%t %t: sm_cvb_cache_remove_id <steamid>", "Tag", "Usage");
 		return Plugin_Handled;
 	}
 
@@ -898,18 +1107,19 @@ public Action Command_CacheRemoveOffline(int client, int args)
 	AsyncContext context = new AsyncContext();
 	context.ContinuationType = CONTINUE_SQLITE_REMOVE;
 
-	if (!ValidateAndConvertSteamIDAsync(client, steamId, context))
+	SteamIDValidationResult validationResult = ValidateAndConvertSteamIDAsync(client, steamId, context);
+	if (validationResult == STEAMID_VALIDATION_ERROR)
 	{
-		// If validation fails immediately, clean up
-		if (context.IsValid())
-		{
-			delete context;
-		}
+		// Context has already been cleaned up by ValidateAndConvertSteamIDAsync
 		return Plugin_Handled;
 	}
+	else if (validationResult == STEAMID_VALIDATION_SUCCESS)
+	{
+		// Validation was successful, continue immediately
+		Continue_CacheRemoveOffline_Async(context);
+	}
+	// For STEAMID_VALIDATION_ASYNC, the callback will handle continuation
 
-	// If we reach here, validation was successful and we can proceed immediately
-	Continue_CacheRemoveOffline_Async(context);
 	return Plugin_Handled;
 }
 
@@ -930,11 +1140,13 @@ void Continue_CacheRemoveOffline_Async(AsyncContext context)
 	char steamId2[MAX_AUTHID_LENGTH];
 	context.GetTargetSteamId(steamId2, sizeof(steamId2));
 
-	// Remove from StringMap cache
+	// Remove from unified cache
 	char sAccountId[16];
 	IntToString(accountId, sAccountId, sizeof(sAccountId));
-	g_hCacheStringMap.Remove(sAccountId);
-	g_hPlayerBans.Remove(sAccountId);
+	if (g_smClientCache != null)
+	{
+		g_smClientCache.Remove(sAccountId);
+	}
 
 	// Remove from SQLite cache if available
 	if (g_hSQLiteDB != null)
@@ -949,4 +1161,158 @@ void Continue_CacheRemoveOffline_Async(AsyncContext context)
 		admin, steamId2, accountId);
 
 	delete context;
+}
+
+/**
+ * Command: sm_cvb_refresh
+ * Force refresh cache for online player
+ */
+public Action Command_RefreshPlayer(int admin, int args)
+{
+	if (!g_cvarEnable.BoolValue)
+	{
+		CReplyToCommand(admin, "%t %t", "Tag", "PluginDisabled");
+		return Plugin_Handled;
+	}
+
+	if (args < 1)
+	{
+		CReplyToCommand(admin, "%t Usage: sm_cvb_refresh <player>", "Tag");
+		return Plugin_Handled;
+	}
+
+	char sTarget[MAX_TARGET_LENGTH];
+	GetCmdArg(1, sTarget, sizeof(sTarget));
+
+	int target = FindTarget(admin, sTarget, true, false);
+	if (target == NO_INDEX)
+	{
+		return Plugin_Handled;
+	}
+
+	int accountId = GetSteamAccountID(target);
+	if (accountId == 0)
+	{
+		CReplyToCommand(admin, "%t Player has invalid AccountID", "Tag");
+		return Plugin_Handled;
+	}
+
+	char sTargetName[MAX_NAME_LENGTH];
+	GetClientName(target, sTargetName, sizeof(sTargetName));
+
+	ForceRefreshCacheEntry(accountId);
+
+	CReplyToCommand(admin, "%t Cache refreshed for player %s (AccountID: %d)", 
+		"Tag", sTargetName, accountId);
+	
+	CVBLog.Debug("Admin %N forced cache refresh for player %N (AccountID: %d)", 
+		admin, target, accountId);
+
+	return Plugin_Handled;
+}
+
+/**
+ * Command: sm_cvb_refreshid
+ * Force refresh cache by SteamID (any format)
+ */
+public Action Command_RefreshPlayerOffline(int admin, int args)
+{
+	if (!g_cvarEnable.BoolValue)
+	{
+		CReplyToCommand(admin, "%t %t", "Tag", "PluginDisabled");
+		return Plugin_Handled;
+	}
+
+	if (args < 1)
+	{
+		CReplyToCommand(admin, "%t Usage: sm_cvb_refreshid <steamid>", "Tag");
+		return Plugin_Handled;
+	}
+
+	char sSteamId[MAX_AUTHID_LENGTH];
+	GetCmdArg(1, sSteamId, sizeof(sSteamId));
+
+	// Create context for refresh operation (reuse check context as they're similar)
+	AsyncContext context = CreateAsyncContextForCheckOffline(admin);
+	if (context == null)
+	{
+		return Plugin_Handled;
+	}
+	
+	// Set the continuation type for refresh
+	context.ContinuationType = CONTINUE_REFRESH_CACHE;
+	
+	SteamIDValidationResult validationResult = ValidateAndConvertSteamIDAsync(admin, sSteamId, context);
+	if (validationResult == STEAMID_VALIDATION_ERROR)
+	{
+		// Context has already been cleaned up by ValidateAndConvertSteamIDAsync
+		return Plugin_Handled;
+	}
+	else if (validationResult == STEAMID_VALIDATION_SUCCESS)
+	{
+		// Validation was successful, continue immediately
+		Continue_RefreshPlayerOffline_Async(context);
+	}
+	// For STEAMID_VALIDATION_ASYNC, the callback will handle continuation
+
+	return Plugin_Handled;
+}
+
+/**
+ * Continuation function for cache refresh by SteamID
+ */
+void Continue_RefreshPlayerOffline_Async(AsyncContext context)
+{
+	int admin = GetClientOfUserId(context.AdminUserId);
+	if (admin <= 0)
+	{
+		LogError("Admin disconnected during cache refresh operation");
+		delete context;
+		return;
+	}
+
+	int accountId = context.TargetAccountId;
+	char steamId2[MAX_AUTHID_LENGTH];
+	context.GetTargetSteamId(steamId2, sizeof(steamId2));
+
+	ForceRefreshCacheEntry(accountId);
+
+	CReplyToCommand(admin, "%t Cache refreshed for SteamID %s (AccountID: %d)", 
+		"Tag", steamId2, accountId);
+	
+	CVBLog.Debug("Admin %N forced cache refresh for SteamID %s (AccountID: %d)", 
+		admin, steamId2, accountId);
+}
+
+/**
+ * Command to show StringPool usage statistics
+ * Useful for debugging memory optimization
+ */
+public Action Command_StringPoolStats(int client, int args)
+{
+	if (!g_cvarEnable.BoolValue)
+	{
+		CReplyToCommand(client, "%t %t", "Tag", "PluginDisabled");
+		return Plugin_Handled;
+	}
+
+	int used, total;
+	StringPool.GetStats(used, total);
+	
+	float usagePercent = total > 0 ? (float(used) / float(total)) * 100.0 : 0.0;
+	
+	CReplyToCommand(client, "%t === StringPool Statistics ===", "Tag");
+	CReplyToCommand(client, "%t Buffers in use: %d/%d (%.1f%%)", "Tag", used, total, usagePercent);
+	CReplyToCommand(client, "%t Buffer size: %d bytes each", "Tag", STRING_BUFFER_SIZE);
+	CReplyToCommand(client, "%t Total pool memory: %d bytes", "Tag", total * STRING_BUFFER_SIZE);
+	CReplyToCommand(client, "%t Used pool memory: %d bytes", "Tag", used * STRING_BUFFER_SIZE);
+	
+	if (usagePercent > 75.0)
+	{
+		CReplyToCommand(client, "%t Warning: Pool usage is high (%.1f%%). Consider increasing STRING_POOL_SIZE.", "Tag", usagePercent);
+	}
+	
+	CVBLog.Debug("Admin %N checked StringPool stats: %d/%d buffers used (%.1f%%)", client, used, total, usagePercent);
+	
+	return Plugin_Handled;
 }

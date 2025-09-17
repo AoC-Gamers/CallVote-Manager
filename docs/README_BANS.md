@@ -915,7 +915,7 @@ public Action Command_DetailedBanCheck(int client, int args)
         char targetName[64];
         GetCmdArg(1, targetName, sizeof(targetName));
         target = FindTarget(client, targetName, true);
-        if (target == -1) return Plugin_Handled;
+        if (target == NO_INDEX) return Plugin_Handled;
     }
     
     // Verificar estado de carga primero

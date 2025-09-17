@@ -163,7 +163,7 @@ Action Command_KickShow(int iClient, int sArgs)
 		return Plugin_Handled;
 	}
 
-	if (iClient == 0)
+	if (iClient == SERVER_INDEX)
 	{
 		CReplyToCommand(iClient, "%t %t", "Tag", "BlockUserConsole");
 		return Plugin_Handled;

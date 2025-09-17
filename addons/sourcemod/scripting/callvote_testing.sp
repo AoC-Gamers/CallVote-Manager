@@ -887,7 +887,7 @@ Action Cmd_TestMessageCode(int client, int args)
         CReplyToCommand(client, "%s Examples:", TAG);
         CReplyToCommand(client, "%s   sm_cvt_testmessage #ISBANNED", TAG);
         CReplyToCommand(client, "%s   sm_cvt_testmessage #BAN_INSERTED_SUCCESS:123", TAG);
-        CReplyToCommand(client, "%s   sm_cvt_testmessage #EXISTING_BAN_MORE_SEVERE:456", TAG);
+        CReplyToCommand(client, "%s   sm_cvt_testmessage #EXISTING_BAN_ACTIVE:456", TAG);
         return Plugin_Handled;
     }
     
@@ -1041,7 +1041,7 @@ public void TestCheckBan_Callback(Handle owner, Handle hndl, const char[] error,
     delete dp;
     
     int client = GetClientOfUserId(userId);
-    if (client == 0) return;
+    if (client == SERVER_INDEX) return;
     
     if (hndl == null) {
         CReplyToCommand(client, "%s {red}Error{default} in sp_CheckActiveBan: %s", TAG, error);
@@ -1068,8 +1068,8 @@ public void TestCheckBan_Results(Handle owner, Handle hndl, const char[] error, 
     delete dp;
     
     int client = GetClientOfUserId(userId);
-    if (client == 0) return;
-    
+    if (client == SERVER_INDEX) return;
+
     if (hndl == null || !SQL_FetchRow(hndl)) {
         CReplyToCommand(client, "%s {red}Error{default} getting results: %s", TAG, error);
         return;
@@ -1190,8 +1190,8 @@ public void TestInsertBan_Callback(Handle owner, Handle hndl, const char[] error
     delete dp;
     
     int client = GetClientOfUserId(userId);
-    if (client == 0) return;
-    
+    if (client == SERVER_INDEX) return;
+
     if (hndl == null) {
         CReplyToCommand(client, "%s {red}Error{default} in sp_InsertBanWithValidation: %s", TAG, error);
         return;
@@ -1215,8 +1215,8 @@ public void TestInsertBan_Results(Handle owner, Handle hndl, const char[] error,
     delete dp;
     
     int client = GetClientOfUserId(userId);
-    if (client == 0) return;
-    
+    if (client == SERVER_INDEX) return;
+
     if (hndl == null || !SQL_FetchRow(hndl)) {
         CReplyToCommand(client, "%s {red}Error{default} getting insert results: %s", TAG, error);
         return;
@@ -1241,7 +1241,7 @@ public void TestInsertBan_Results(Handle owner, Handle hndl, const char[] error,
     // Interpretar resultado
     switch (resultCode) {
         case 0: CReplyToCommand(client, "%s {green}SUCCESS{default}: Ban inserted successfully!", TAG);
-        case 1: CReplyToCommand(client, "%s {yellow}REJECTED{default}: Existing ban is more severe", TAG);
+        case 1: CReplyToCommand(client, "%s {yellow}REJECTED{default}: Player already has an active ban", TAG);
         case -1: CReplyToCommand(client, "%s {red}SQL ERROR{default}: Database error occurred", TAG);
         case -2: CReplyToCommand(client, "%s {red}VALIDATION ERROR{default}: Invalid Account ID", TAG);
         case -3: CReplyToCommand(client, "%s {red}VALIDATION ERROR{default}: Invalid ban type", TAG);
@@ -1294,8 +1294,8 @@ Action Cmd_TestTranslation(int client, int args)
     Format(paramTest, sizeof(paramTest), "%T", "BAN_INSERTED_SUCCESS", client, "123");
     CReplyToCommand(client, "%s BAN_INSERTED_SUCCESS(123): %s", TAG, paramTest);
     
-    Format(paramTest, sizeof(paramTest), "%T", "EXISTING_BAN_MORE_SEVERE", client, "456");
-    CReplyToCommand(client, "%s EXISTING_BAN_MORE_SEVERE(456): %s", TAG, paramTest);
+    Format(paramTest, sizeof(paramTest), "%T", "EXISTING_BAN_ACTIVE", client, "456");
+    CReplyToCommand(client, "%s EXISTING_BAN_ACTIVE(456): %s", TAG, paramTest);
     
     return Plugin_Handled;
 }
@@ -1354,8 +1354,8 @@ public void TestCleanExpired_Callback(Handle owner, Handle hndl, const char[] er
     delete dp;
     
     int client = GetClientOfUserId(userId);
-    if (client == 0) return;
-    
+    if (client == SERVER_INDEX) return;
+
     if (hndl == null) {
         CReplyToCommand(client, "%s {red}Error{default} in sp_CleanExpiredBans: %s", TAG, error);
         return;
@@ -1377,8 +1377,8 @@ public void TestCleanExpired_Results(Handle owner, Handle hndl, const char[] err
     delete dp;
     
     int client = GetClientOfUserId(userId);
-    if (client == 0) return;
-    
+    if (client == SERVER_INDEX) return;
+
     if (hndl == null || !SQL_FetchRow(hndl)) {
         CReplyToCommand(client, "%s {red}Error{default} getting cleanup results: %s", TAG, error);
         return;
@@ -1453,8 +1453,8 @@ public void TestBanStats_Callback(Handle owner, Handle hndl, const char[] error,
     delete dp;
     
     int client = GetClientOfUserId(userId);
-    if (client == 0) return;
-    
+    if (client == SERVER_INDEX) return;
+
     if (hndl == null) {
         CReplyToCommand(client, "%s {red}Error{default} in sp_GetBanStatistics: %s", TAG, error);
         return;
@@ -1479,8 +1479,8 @@ public void TestBanStats_Results(Handle owner, Handle hndl, const char[] error, 
     delete dp;
     
     int client = GetClientOfUserId(userId);
-    if (client == 0) return;
-    
+    if (client == SERVER_INDEX) return;
+
     if (hndl == null || !SQL_FetchRow(hndl)) {
         CReplyToCommand(client, "%s {red}Error{default} getting statistics: %s", TAG, error);
         return;

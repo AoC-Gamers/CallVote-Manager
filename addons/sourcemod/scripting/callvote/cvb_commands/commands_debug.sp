@@ -28,13 +28,11 @@ Action Command_DebugMySQL(int client, int args)
 			testAccountId = TEST_GABE_ACCOUNTID;
 		}
 		else
-		{
 			CReplyToCommand(client, "%t Using provided AccountID: %d", "Tag", testAccountId);
-		}
 	}
 	else
 	{
-		if (client == 0)
+		if (client == SERVER_INDEX)
 		{
 			testAccountId = TEST_GABE_ACCOUNTID;
 			CReplyToCommand(client, "%t Console execution - Using default test AccountID: %d", "Tag", testAccountId);
@@ -46,7 +44,6 @@ Action Command_DebugMySQL(int client, int args)
 		}
 	}
 	
-	// Phase 1: Test CheckActiveBan (should return 0 - no ban)
 	CReplyToCommand(client, "%t Phase 1: Testing sp_CheckActiveBan (should be no ban)", "Tag");
 	TestMySQLCheckActiveBan(client, testAccountId);
 	
@@ -62,7 +59,7 @@ void TestMySQLCheckActiveBan(int client, int accountId)
 	Format(query, sizeof(query), "CALL sp_CheckActiveBan(%d)", accountId);
 	
 	DataPack pack = new DataPack();
-	pack.WriteCell((client == 0) ? 0 : GetClientUserId(client));
+	pack.WriteCell((client == SERVER_INDEX) ? SERVER_INDEX : GetClientUserId(client));
 	pack.WriteCell(accountId);
 	pack.WriteCell(1);
 	
@@ -78,12 +75,10 @@ void TestMySQLInsertBan(int client, int accountId, int adminAccountId)
 	char query[1024];
 	char reason[256] = "Test ban from debug command";
 	
-	Format(query, sizeof(query), 
-		"CALL sp_InsertBanWithValidation(%d, 4, 60, %d, '%s')",
-		accountId, adminAccountId, reason);
+	Format(query, sizeof(query), "CALL sp_InsertBanWithValidation(%d, 4, 60, %d, '%s')", accountId, adminAccountId, reason);
 	
 	DataPack pack = new DataPack();
-	pack.WriteCell((client == 0) ? 0 : GetClientUserId(client));
+	pack.WriteCell((client == SERVER_INDEX) ? SERVER_INDEX : GetClientUserId(client));
 	pack.WriteCell(accountId);
 	pack.WriteCell(2);
 	
@@ -100,7 +95,7 @@ void TestMySQLCheckFullBan(int client, int accountId)
 	Format(query, sizeof(query), "CALL sp_CheckFullBan(%d)", accountId);
 	
 	DataPack pack = new DataPack();
-	pack.WriteCell((client == 0) ? 0 : GetClientUserId(client));
+	pack.WriteCell((client == SERVER_INDEX) ? SERVER_INDEX : GetClientUserId(client));
 	pack.WriteCell(accountId);
 	pack.WriteCell(3);
 	
@@ -117,9 +112,9 @@ void TestMySQLRemoveBan(int client, int accountId, int adminAccountId)
 	Format(query, sizeof(query), "CALL sp_RemoveBan(%d, %d)", accountId, adminAccountId);
 	
 	DataPack pack = new DataPack();
-	pack.WriteCell((client == 0) ? 0 : GetClientUserId(client));
+	pack.WriteCell((client == SERVER_INDEX) ? SERVER_INDEX : GetClientUserId(client));
 	pack.WriteCell(accountId);
-	pack.WriteCell(4); // Phase 4
+	pack.WriteCell(4);
 	
 	CVBLog.Debug("Executing MySQL query: %s", query);
 	g_hMySQLDB.Query(MySQL_TestCallback, query, pack);
@@ -134,9 +129,9 @@ void TestMySQLCleanExpiredBans(int client)
 	Format(query, sizeof(query), "CALL sp_CleanExpiredBans(100)");
 	
 	DataPack pack = new DataPack();
-	pack.WriteCell((client == 0) ? 0 : GetClientUserId(client));
-	pack.WriteCell(0); // No account ID needed
-	pack.WriteCell(5); // Phase 5
+	pack.WriteCell((client == SERVER_INDEX) ? SERVER_INDEX : GetClientUserId(client));
+	pack.WriteCell(0);
+	pack.WriteCell(5);
 	
 	CVBLog.Debug("Executing MySQL query: %s", query);
 	g_hMySQLDB.Query(MySQL_TestCallback, query, pack);
@@ -148,12 +143,12 @@ void TestMySQLCleanExpiredBans(int client)
 void TestMySQLGetStatistics(int client)
 {
 	char query[256];
-	Format(query, sizeof(query), "CALL sp_GetBanStatistics(30)"); // Last 30 days
+	Format(query, sizeof(query), "CALL sp_GetBanStatistics(30)");
 	
 	DataPack pack = new DataPack();
-	pack.WriteCell((client == 0) ? 0 : GetClientUserId(client));
-	pack.WriteCell(0); // No account ID needed
-	pack.WriteCell(6); // Phase 6
+	pack.WriteCell((client == SERVER_INDEX) ? SERVER_INDEX : GetClientUserId(client));
+	pack.WriteCell(0);
+	pack.WriteCell(6);
 	
 	CVBLog.Debug("Executing MySQL query: %s", query);
 	g_hMySQLDB.Query(MySQL_TestCallback, query, pack);
@@ -171,8 +166,8 @@ void MySQL_TestCallback(Database db, DBResultSet results, const char[] error, Da
 	delete pack;
 	
 	int client = GetClientOfUserId(userId);
-	// Special case: console has userId 0 and client 0, which is valid
-	if (client < 0 || (client == 0 && userId != 0))
+
+	if (client < 0 || (client == SERVER_INDEX && userId != 0))
 	{
 		LogError("Client disconnected during MySQL test (userId: %d)", userId);
 		return;
@@ -185,7 +180,6 @@ void MySQL_TestCallback(Database db, DBResultSet results, const char[] error, Da
 		return;
 	}
 	
-	// El error puede estar presente incluso con results válidos en casos de procedimientos
 	if (error[0])
 	{
 		CVBLog.Debug("MySQL phase %d warning: %s", phase, error);
@@ -193,20 +187,18 @@ void MySQL_TestCallback(Database db, DBResultSet results, const char[] error, Da
 	
 	switch (phase)
 	{
-		case 1: // sp_CheckActiveBan result
+		case 1:
 		{
 			if (results.FetchRow())
 			{
 				int banType = results.FetchInt(0);
-				CReplyToCommand(client, "%t ✅ Phase 1 completed - Ban Type: %d (0 = no ban)", "Tag", banType);
+				CReplyToCommand(client, "%t Phase 1 completed - Ban Type: %d (0 = no ban)", "Tag", banType);
 				CVBLog.Debug("Phase 1: sp_CheckActiveBan returned ban_type = %d", banType);
 				
-				// Continue to Phase 2: Insert ban
-				// Handle console (client == 0) case for admin account
 				int adminAccountId;
-				if (client == 0)
+				if (client == SERVER_INDEX)
 				{
-					adminAccountId = 76561198000000001; // Fixed admin AccountID for console
+					adminAccountId = 76561198000000001;
 				}
 				else
 				{
@@ -218,10 +210,10 @@ void MySQL_TestCallback(Database db, DBResultSet results, const char[] error, Da
 			}
 			else
 			{
-				CReplyToCommand(client, "%t ❌ Phase 1: No result from ban type check", "Tag");
+				CReplyToCommand(client, "%t Phase 1: No result from ban type check", "Tag");
 			}
 		}
-		case 2: // sp_InsertBanWithValidation result
+		case 2:
 		{
 			if (results.FetchRow())
 			{
@@ -230,20 +222,19 @@ void MySQL_TestCallback(Database db, DBResultSet results, const char[] error, Da
 				char message[256];
 				results.FetchString(2, message, sizeof(message));
 				
-				CReplyToCommand(client, "%t ✅ Phase 2 completed - Result: %d, Ban ID: %d", "Tag", resultCode, banId);
+				CReplyToCommand(client, "%t Phase 2 completed - Result: %d, Ban ID: %d", "Tag", resultCode, banId);
 				CReplyToCommand(client, "%t Message: %s", "Tag", message);
 				CVBLog.Debug("Phase 2: sp_InsertBanWithValidation - Code: %d, ID: %d, Message: %s", resultCode, banId, message);
 				
-				// Continue to Phase 3: Check full ban
 				CReplyToCommand(client, "%t Phase 3: Testing sp_CheckFullBan", "Tag");
 				TestMySQLCheckFullBan(client, accountId);
 			}
 			else
 			{
-				CReplyToCommand(client, "%t ❌ Phase 2: No result from insert ban", "Tag");
+				CReplyToCommand(client, "%t Phase 2: No result from insert ban", "Tag");
 			}
 		}
-		case 3: // sp_CheckFullBan result
+		case 3:
 		{
 			if (results.FetchRow())
 			{
@@ -252,21 +243,19 @@ void MySQL_TestCallback(Database db, DBResultSet results, const char[] error, Da
 				int expires = results.FetchInt(2);
 				int created = results.FetchInt(3);
 				int duration = results.FetchInt(4);
-				// Skip admin_id (position 5) - not needed for this test
+
 				char reason[256];
 				results.FetchString(6, reason, sizeof(reason));
 				int banId = results.FetchInt(7);
 				
-				CReplyToCommand(client, "%t ✅ Phase 3 completed - Has Ban: %d, Type: %d, ID: %d", "Tag", hasBan, banType, banId);
+				CReplyToCommand(client, "%t Phase 3 completed - Has Ban: %d, Type: %d, ID: %d", "Tag", hasBan, banType, banId);
 				CReplyToCommand(client, "%t Duration: %d mins, Created: %d, Expires: %d", "Tag", duration, created, expires);
 				CVBLog.Debug("Phase 3: sp_CheckFullBan - Has: %d, Type: %d, Duration: %d, Reason: %s", hasBan, banType, duration, reason);
 				
-				// Continue to Phase 4: Remove ban
-				// Handle console (client == 0) case for admin account
 				int adminAccountId;
-				if (client == 0)
+				if (client == SERVER_INDEX)
 				{
-					adminAccountId = 76561198000000001; // Fixed admin AccountID for console
+					adminAccountId = 76561198000000001;
 				}
 				else
 				{
@@ -278,10 +267,10 @@ void MySQL_TestCallback(Database db, DBResultSet results, const char[] error, Da
 			}
 			else
 			{
-				CReplyToCommand(client, "%t ❌ Phase 3: No result from check full ban", "Tag");
+				CReplyToCommand(client, "%t Phase 3: No result from check full ban", "Tag");
 			}
 		}
-		case 4: // sp_RemoveBan result
+		case 4:
 		{
 			if (results.FetchRow())
 			{
@@ -290,25 +279,21 @@ void MySQL_TestCallback(Database db, DBResultSet results, const char[] error, Da
 				results.FetchString(1, message, sizeof(message));
 				bool isNull = results.IsFieldNull(2);
 				int removedBanId = 0;
+
 				if (!isNull)
-				{
 					removedBanId = results.FetchInt(2);
-				}
 				
-				CReplyToCommand(client, "%t ✅ Phase 4 completed - Result: %d, Removed Ban ID: %d", "Tag", resultCode, removedBanId);
+				CReplyToCommand(client, "%t Phase 4 completed - Result: %d, Removed Ban ID: %d", "Tag", resultCode, removedBanId);
 				CReplyToCommand(client, "%t Message: %s", "Tag", message);
 				CVBLog.Debug("Phase 4: sp_RemoveBan - Code: %d, Removed ID: %d, Message: %s", resultCode, removedBanId, message);
 				
-				// Continue to Phase 5: Clean expired bans
 				CReplyToCommand(client, "%t Phase 5: Testing sp_CleanExpiredBans", "Tag");
 				TestMySQLCleanExpiredBans(client);
 			}
 			else
-			{
-				CReplyToCommand(client, "%t ❌ Phase 4: No result from remove ban", "Tag");
-			}
+				CReplyToCommand(client, "%t Phase 4: No result from remove ban", "Tag");
 		}
-		case 5: // sp_CleanExpiredBans result
+		case 5:
 		{
 			if (results.FetchRow())
 			{
@@ -317,22 +302,18 @@ void MySQL_TestCallback(Database db, DBResultSet results, const char[] error, Da
 				char message[256];
 				results.FetchString(2, message, sizeof(message));
 				
-				CReplyToCommand(client, "%t ✅ Phase 5 completed - Cleaned: %d bans, Result: %d", "Tag", cleanedCount, resultCode);
+				CReplyToCommand(client, "%t Phase 5 completed - Cleaned: %d bans, Result: %d", "Tag", cleanedCount, resultCode);
 				CReplyToCommand(client, "%t Message: %s", "Tag", message);
 				CVBLog.Debug("Phase 5: sp_CleanExpiredBans - Cleaned: %d, Code: %d, Message: %s", cleanedCount, resultCode, message);
 				
-				// Continue to Phase 6: Get statistics
 				CReplyToCommand(client, "%t Phase 6: Testing sp_GetBanStatistics", "Tag");
 				TestMySQLGetStatistics(client);
 			}
 			else
-			{
 				CReplyToCommand(client, "%t ❌ Phase 5: No result from clean expired bans", "Tag");
-			}
 		}
-		case 6: // sp_GetBanStatistics result - Multiple result sets
+		case 6:
 		{
-			// sp_GetBanStatistics devuelve múltiples SELECT, SourceMod solo maneja el primero
 			if (results.FetchRow())
 			{
 				int activeBans = results.FetchInt(0);
@@ -341,11 +322,9 @@ void MySQL_TestCallback(Database db, DBResultSet results, const char[] error, Da
 				int uniquePlayers = results.FetchInt(3);
 				int uniqueAdmins = results.FetchInt(4);
 				
-				CReplyToCommand(client, "%t ✅ Phase 6 completed - Statistics retrieved:", "Tag");
-				CReplyToCommand(client, "%t  Active: %d | Expired: %d | Recent: %d | Players: %d | Admins: %d", 
-					"Tag", activeBans, expiredBans, recentBans, uniquePlayers, uniqueAdmins);
-				CVBLog.Debug("Statistics: Active=%d, Expired=%d, Recent=%d, Players=%d, Admins=%d", 
-					activeBans, expiredBans, recentBans, uniquePlayers, uniqueAdmins);
+				CReplyToCommand(client, "%t Phase 6 completed - Statistics retrieved:", "Tag");
+				CReplyToCommand(client, "%t Active: %d | Expired: %d | Recent: %d | Players: %d | Admins: %d", "Tag", activeBans, expiredBans, recentBans, uniquePlayers, uniqueAdmins);
+				CVBLog.Debug("Statistics: Active=%d, Expired=%d, Recent=%d, Players=%d, Admins=%d", activeBans, expiredBans, recentBans, uniquePlayers, uniqueAdmins);
 			}
 			
 			CReplyToCommand(client, "%t 🎉 MySQL stored procedures test completed successfully!", "Tag");
@@ -370,12 +349,10 @@ Action Command_DebugSQLite(int client, int args)
 	CReplyToCommand(client, "%t Starting SQLite operations test...", "Tag");
 	CVBLog.Debug("Admin %N initiated SQLite operations test", client);
 
-	// Test data for debugging - Handle AccountID argument
 	int testAccountId;
 	
 	if (args >= 1)
 	{
-		// User provided an AccountID argument
 		char arg[32];
 		GetCmdArg(1, arg, sizeof(arg));
 		testAccountId = StringToInt(arg);
@@ -386,18 +363,15 @@ Action Command_DebugSQLite(int client, int args)
 			testAccountId = TEST_GABE_ACCOUNTID;
 		}
 		else
-		{
 			CReplyToCommand(client, "%t Using provided AccountID: %d", "Tag", testAccountId);
-		}
+
 	}
 	else
 	{
-		// No argument provided - use default
 		testAccountId = TEST_GABE_ACCOUNTID;
 		CReplyToCommand(client, "%t No AccountID provided - Using default test AccountID: %d", "Tag", testAccountId);
 	}
 	
-	// Phase 1: Test SQLite cache check (should return not found)
 	CReplyToCommand(client, "%t Phase 1: Testing SQLite cache lookup", "Tag");
 	TestSQLiteCacheCheck(client, testAccountId);
 	
@@ -417,9 +391,9 @@ void TestSQLiteCacheCheck(int client, int accountId)
 	iLen += Format(query[iLen], sizeof(query) - iLen, "AND (ttl_expires = 0 OR ttl_expires > %d) LIMIT 1;", GetTime());
 	
 	DataPack pack = new DataPack();
-	pack.WriteCell((client == 0) ? 0 : GetClientUserId(client));
+	pack.WriteCell((client == SERVER_INDEX) ? SERVER_INDEX : GetClientUserId(client));
 	pack.WriteCell(accountId);
-	pack.WriteCell(1); // Phase 1
+	pack.WriteCell(1);
 	
 	CVBLog.Debug("Executing SQLite query: %s", query);
 	g_hSQLiteDB.Query(SQLite_TestCallback, query, pack);
@@ -433,16 +407,16 @@ void TestSQLiteCacheInsert(int client, int accountId)
 	char query[512];
 	int iLen = 0;
 	int currentTime = GetTime();
-	int ttlExpires = currentTime + 86400; // 24 horas TTL
+	int ttlExpires = currentTime + 86400;
 	
 	iLen += Format(query[iLen], sizeof(query) - iLen, "INSERT OR REPLACE INTO callvote_bans_cache ");
 	iLen += Format(query[iLen], sizeof(query) - iLen, "(account_id, ban_type, cached_timestamp, ttl_expires) ");
 	iLen += Format(query[iLen], sizeof(query) - iLen, "VALUES (%d, 4, %d, %d);", accountId, currentTime, ttlExpires);
 	
 	DataPack pack = new DataPack();
-	pack.WriteCell((client == 0) ? 0 : GetClientUserId(client));
+	pack.WriteCell((client == SERVER_INDEX) ? SERVER_INDEX : GetClientUserId(client));
 	pack.WriteCell(accountId);
-	pack.WriteCell(2); // Phase 2
+	pack.WriteCell(2);
 	
 	CVBLog.Debug("Executing SQLite query: %s", query);
 	g_hSQLiteDB.Query(SQLite_TestCallback, query, pack);
@@ -461,9 +435,9 @@ void TestSQLiteCacheVerify(int client, int accountId)
 	iLen += Format(query[iLen], sizeof(query) - iLen, "AND (ttl_expires = 0 OR ttl_expires > %d) LIMIT 1;", GetTime());
 	
 	DataPack pack = new DataPack();
-	pack.WriteCell((client == 0) ? 0 : GetClientUserId(client));
+	pack.WriteCell((client == SERVER_INDEX) ? SERVER_INDEX : GetClientUserId(client));
 	pack.WriteCell(accountId);
-	pack.WriteCell(3); // Phase 3
+	pack.WriteCell(3);
 	
 	CVBLog.Debug("Executing SQLite query: %s", query);
 	g_hSQLiteDB.Query(SQLite_TestCallback, query, pack);
@@ -481,7 +455,7 @@ void TestSQLiteCacheRemove(int client, int accountId)
 	iLen += Format(query[iLen], sizeof(query) - iLen, "WHERE account_id = %d;", accountId);
 	
 	DataPack pack = new DataPack();
-	pack.WriteCell((client == 0) ? 0 : GetClientUserId(client));
+	pack.WriteCell((client == SERVER_INDEX) ? SERVER_INDEX : GetClientUserId(client));
 	pack.WriteCell(accountId);
 	pack.WriteCell(4); // Phase 4
 	
@@ -506,9 +480,9 @@ void TestSQLiteStatistics(int client)
 	iLen += Format(query[iLen], sizeof(query) - iLen, "FROM callvote_bans_cache;");
 	
 	DataPack pack = new DataPack();
-	pack.WriteCell((client == 0) ? 0 : GetClientUserId(client));
-	pack.WriteCell(0); // No account ID needed
-	pack.WriteCell(5); // Phase 5
+	pack.WriteCell((client == SERVER_INDEX) ? SERVER_INDEX : GetClientUserId(client));
+	pack.WriteCell(0);
+	pack.WriteCell(5);
 	
 	CVBLog.Debug("Executing SQLite query: %s", query);
 	g_hSQLiteDB.Query(SQLite_TestCallback, query, pack);
@@ -526,9 +500,9 @@ void TestSQLiteTTLCleanup(int client)
 	iLen += Format(query[iLen], sizeof(query) - iLen, "WHERE ttl_expires > 0 AND ttl_expires <= %d;", GetTime());
 	
 	DataPack pack = new DataPack();
-	pack.WriteCell((client == 0) ? 0 : GetClientUserId(client));
-	pack.WriteCell(0); // No account ID needed
-	pack.WriteCell(6); // Phase 6
+	pack.WriteCell((client == SERVER_INDEX) ? SERVER_INDEX : GetClientUserId(client));
+	pack.WriteCell(0);
+	pack.WriteCell(6);
 	
 	CVBLog.Debug("Executing SQLite query: %s", query);
 	g_hSQLiteDB.Query(SQLite_TestCallback, query, pack);
@@ -546,8 +520,8 @@ void SQLite_TestCallback(Database db, DBResultSet results, const char[] error, D
 	delete pack;
 	
 	int client = GetClientOfUserId(userId);
-	// Special case: console has userId 0 and client 0, which is valid
-	if (client < 0 || (client == 0 && userId != 0))
+	
+	if (client < 0 || (client == SERVER_INDEX && userId != 0))
 	{
 		LogError("Client disconnected during SQLite test (userId: %d)", userId);
 		return;
@@ -562,7 +536,7 @@ void SQLite_TestCallback(Database db, DBResultSet results, const char[] error, D
 	
 	switch (phase)
 	{
-		case 1: // SQLite cache lookup result
+		case 1:
 		{
 			if (results.FetchRow())
 			{
@@ -571,30 +545,26 @@ void SQLite_TestCallback(Database db, DBResultSet results, const char[] error, D
 				int cachedTime = results.FetchInt(2);
 				int ttlExpires = results.FetchInt(3);
 				
-				CReplyToCommand(client, "%t ❌ Phase 1: Found existing cache - Account: %d, Type: %d", 
+				CReplyToCommand(client, "%t Phase 1: Found existing cache - Account: %d, Type: %d", 
 					"Tag", foundAccountId, banType);
 				CReplyToCommand(client, "%t  Cached: %d, TTL Expires: %d", "Tag", cachedTime, ttlExpires);
 				CVBLog.Debug("Phase 1: Found cache - Account: %d, Type: %d, TTL: %d", foundAccountId, banType, ttlExpires);
 			}
 			else
-			{
-				CReplyToCommand(client, "%t ✅ Phase 1: No existing cache found (expected)", "Tag");
-			}
+				CReplyToCommand(client, "%t Phase 1: No existing cache found (expected)", "Tag");
 			
-			// Continue to Phase 2: Insert test cache entry
 			CReplyToCommand(client, "%t Phase 2: Testing SQLite cache insertion", "Tag");
 			TestSQLiteCacheInsert(client, accountId);
 		}
-		case 2: // SQLite cache insertion result
+		case 2:
 		{
-			CReplyToCommand(client, "%t ✅ Phase 2: Test cache entry inserted successfully", "Tag");
+			CReplyToCommand(client, "%t Phase 2: Test cache entry inserted successfully", "Tag");
 			CVBLog.Debug("Phase 2: SQLite test cache entry inserted for account %d", accountId);
 			
-			// Continue to Phase 3: Verify insertion
 			CReplyToCommand(client, "%t Phase 3: Testing SQLite cache verification", "Tag");
 			TestSQLiteCacheVerify(client, accountId);
 		}
-		case 3: // SQLite cache verification result
+		case 3:
 		{
 			if (results.FetchRow())
 			{
@@ -603,30 +573,25 @@ void SQLite_TestCallback(Database db, DBResultSet results, const char[] error, D
 				int cachedTime = results.FetchInt(2);
 				int ttlExpires = results.FetchInt(3);
 				
-				CReplyToCommand(client, "%t ✅ Phase 3: Cache verified - Account: %d, Type: %d", 
-					"Tag", foundAccountId, banType);
+				CReplyToCommand(client, "%t Phase 3: Cache verified - Account: %d, Type: %d", "Tag", foundAccountId, banType);
 				CReplyToCommand(client, "%t  Cached: %d, TTL Expires: %d", "Tag", cachedTime, ttlExpires);
 				CVBLog.Debug("Phase 3: SQLite cache verified - Account: %d, Type: %d, TTL: %d", foundAccountId, banType, ttlExpires);
 			}
 			else
-			{
-				CReplyToCommand(client, "%t ❌ Phase 3: Cache not found after insertion (unexpected)", "Tag");
-			}
+				CReplyToCommand(client, "%t Phase 3: Cache not found after insertion (unexpected)", "Tag");
 			
-			// Continue to Phase 4: Remove test cache entry
 			CReplyToCommand(client, "%t Phase 4: Testing SQLite cache removal", "Tag");
 			TestSQLiteCacheRemove(client, accountId);
 		}
-		case 4: // SQLite cache removal result
+		case 4:
 		{
-			CReplyToCommand(client, "%t ✅ Phase 4: Test cache entry removed successfully", "Tag");
+			CReplyToCommand(client, "%t Phase 4: Test cache entry removed successfully", "Tag");
 			CVBLog.Debug("Phase 4: SQLite test cache entry removed for account %d", accountId);
-			
-			// Continue to Phase 5: Get statistics
+
 			CReplyToCommand(client, "%t Phase 5: Testing SQLite statistics query", "Tag");
 			TestSQLiteStatistics(client);
 		}
-		case 5: // SQLite statistics result
+		case 5:
 		{
 			if (results.FetchRow())
 			{
@@ -635,23 +600,20 @@ void SQLite_TestCallback(Database db, DBResultSet results, const char[] error, D
 				int uniquePlayers = results.FetchInt(2);
 				int totalRecords = results.FetchInt(3);
 				
-				CReplyToCommand(client, "%t ✅ Phase 5: SQLite cache statistics retrieved:", "Tag");
-				CReplyToCommand(client, "%t  Active Cache: %d | Expired Cache: %d | Players: %d | Total: %d", 
-					"Tag", activeCache, expiredCache, uniquePlayers, totalRecords);
-				CVBLog.Debug("SQLite Cache Statistics: Active=%d, Expired=%d, Players=%d, Total=%d", 
-					activeCache, expiredCache, uniquePlayers, totalRecords);
+				CReplyToCommand(client, "%t Phase 5: SQLite cache statistics retrieved:", "Tag");
+				CReplyToCommand(client, "%t Active Cache: %d | Expired Cache: %d | Players: %d | Total: %d", "Tag", activeCache, expiredCache, uniquePlayers, totalRecords);
+				CVBLog.Debug("SQLite Cache Statistics: Active=%d, Expired=%d, Players=%d, Total=%d", activeCache, expiredCache, uniquePlayers, totalRecords);
 			}
 			
-			// Continue to Phase 6: Test TTL cleanup
 			CReplyToCommand(client, "%t Phase 6: Testing SQLite TTL cleanup", "Tag");
 			TestSQLiteTTLCleanup(client);
 		}
-		case 6: // SQLite TTL cleanup result
+		case 6:
 		{
-			CReplyToCommand(client, "%t ✅ Phase 6: TTL cleanup completed", "Tag");
+			CReplyToCommand(client, "%t Phase 6: TTL cleanup completed", "Tag");
 			CVBLog.Debug("Phase 6: SQLite TTL cleanup completed");
 			
-			CReplyToCommand(client, "%t 🎉 SQLite cache operations test completed successfully!", "Tag");
+			CReplyToCommand(client, "%t SQLite cache operations test completed successfully!", "Tag");
 			CVBLog.Debug("SQLite cache operations test completed for admin %N", client);
 		}
 	}
@@ -727,26 +689,21 @@ void DebugCheckFullBan_Callback(Database db, DBResultSet results, const char[] e
 		CVBLog.Debug("sp_CheckFullBan: No active ban for AccountID %d", accountId);
 		return;
 	}
-	
-	// Mostrar todos los campos que devuelve el procedimiento
+
 	int fieldCount = results.FieldCount;
 	CReplyToCommand(admin, "%t === RESULTADOS sp_CheckFullBan ===", "Tag");
 	CReplyToCommand(admin, "%t AccountID: %d", "Tag", accountId);
 	CReplyToCommand(admin, "%t Campos devueltos: %d", "Tag", fieldCount);
 	
-	// Mostrar cada campo
 	for (int i = 0; i < fieldCount; i++)
 	{
 		char fieldName[64];
 		results.FieldNumToName(i, fieldName, sizeof(fieldName));
 		
 		if (results.IsFieldNull(i))
-		{
 			CReplyToCommand(admin, "%t Campo %d (%s): NULL", "Tag", i, fieldName);
-		}
 		else
 		{
-			// Intentar como int primero
 			int intValue = results.FetchInt(i);
 			CReplyToCommand(admin, "%t Campo %d (%s): %d", "Tag", i, fieldName, intValue);
 		}
@@ -782,9 +739,7 @@ Action Command_DebugMySQLTable(int client, int args)
 	CReplyToCommand(client, "%t Verificando tabla MySQL para AccountID: %d", "Tag", accountId);
 	
 	char query[512];
-	FormatEx(query, sizeof(query), 
-		"SELECT id, ban_type, created_timestamp, duration_minutes, expires_timestamp, is_active, admin_account_id, reason FROM callvote_bans WHERE account_id = %d ORDER BY created_timestamp DESC LIMIT 5", 
-		accountId);
+	FormatEx(query, sizeof(query), "SELECT id, ban_type, created_timestamp, duration_minutes, expires_timestamp, is_active, admin_account_id, reason FROM callvote_bans WHERE account_id = %d ORDER BY created_timestamp DESC LIMIT 5", accountId);
 	
 	CVBLog.Debug("Admin %N executing table debug query: %s", client, query);
 	
@@ -844,14 +799,11 @@ void DebugMySQLTable_Callback(Database db, DBResultSet results, const char[] err
 		
 		char createdTime[64], expiresTime[64];
 		FormatTime(createdTime, sizeof(createdTime), "%Y-%m-%d %H:%M:%S", createdTimestamp);
+
 		if (expiresTimestamp > 0)
-		{
 			FormatTime(expiresTime, sizeof(expiresTime), "%Y-%m-%d %H:%M:%S", expiresTimestamp);
-		}
 		else
-		{
 			strcopy(expiresTime, sizeof(expiresTime), "Permanente");
-		}
 		
 		CReplyToCommand(admin, "%t --- Ban #%d ---", "Tag", rowCount);
 		CReplyToCommand(admin, "%t BanID: %d | BanType: %d (%s)", "Tag", banId, banType, banTypeStr);
@@ -861,13 +813,9 @@ void DebugMySQLTable_Callback(Database db, DBResultSet results, const char[] err
 	}
 	
 	if (rowCount == 0)
-	{
 		CReplyToCommand(admin, "%t No se encontraron bans para este AccountID", "Tag");
-	}
 	else
-	{
 		CReplyToCommand(admin, "%t Total de bans encontrados: %d", "Tag", rowCount);
-	}
 	
 	CReplyToCommand(admin, "%t === FIN DATOS TABLA ===", "Tag");
 }

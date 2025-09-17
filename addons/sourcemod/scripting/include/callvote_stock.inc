@@ -60,6 +60,14 @@ enum TypeVotes
 	TypeVotes_Size	 = 7
 };
 
+enum SourceDB
+{
+	SourceDB_Unknown = 0,	// Desconocido
+	SourceDB_SQLite  = 1,	// SQLite
+	SourceDB_MySQL   = 2,	// MySQL
+	SourceDB_StringMap = 3  // StringMap
+};
+
 /**
  * Check if the translation file exists
  *

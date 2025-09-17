@@ -329,7 +329,7 @@ Action Command_CleanupDB(int iClient, int iArgs)
 	}
 
 	DataPack pack = new DataPack();
-	pack.WriteCell(iClient == 0 ? 0 : GetClientUserId(iClient));
+	pack.WriteCell(iClient == SERVER_INDEX ? SERVER_INDEX : GetClientUserId(iClient));
 	pack.WriteCell(days);
 
 	g_db.Query(CleanupDB_Callback, sQuery, pack);
@@ -391,7 +391,7 @@ Action Command_TruncateDB(int iClient, int iArgs)
 	}
 
 	DataPack pack = new DataPack();
-	pack.WriteCell(iClient == 0 ? 0 : GetClientUserId(iClient));
+	pack.WriteCell(iClient == SERVER_INDEX ? SERVER_INDEX : GetClientUserId(iClient));
 
 	g_db.Query(TruncateDB_Callback, sQuery, pack);
 	CReplyToCommand(iClient, "%t %t", "Tag", "TruncatingTable");
@@ -441,7 +441,7 @@ Action Command_DBStats(int iClient, int iArgs)
 	}
 
 	DataPack pack = new DataPack();
-	pack.WriteCell(iClient == 0 ? 0 : GetClientUserId(iClient)); // Handle server console
+	pack.WriteCell(iClient == SERVER_INDEX ? SERVER_INDEX : GetClientUserId(iClient)); // Handle server console
 
 	g_db.Query(DBStats_Callback, sQuery, pack);
 
@@ -701,7 +701,7 @@ public void CleanupDB_Callback(Database db, DBResultSet results, const char[] er
 
 	if (results == null)
 	{
-		if (client == 0)
+		if (client == SERVER_INDEX)
 			LogError("[CleanupDB_Callback] Database cleanup failed: %s", error);
 		else
 			CReplyToCommand(client, "%t Database cleanup failed: %s", "Tag", error);
@@ -710,7 +710,7 @@ public void CleanupDB_Callback(Database db, DBResultSet results, const char[] er
 	}
 
 	int affectedRows = results.AffectedRows;
-	if (client == 0)
+	if (client == SERVER_INDEX)
 		PrintToServer("[CallVote] Database cleanup completed: %d records older than %d days removed.", affectedRows, days);
 	else
 		CReplyToCommand(client, "%t Database cleanup completed: %d records older than %d days removed.", "Tag", affectedRows, days);
@@ -736,7 +736,7 @@ public void TruncateDB_Callback(Database db, DBResultSet results, const char[] e
 
 	if (results == null)
 	{
-		if (client == 0)
+		if (client == SERVER_INDEX)
 			LogError("[TruncateDB_Callback] Database truncate failed: %s", error);
 		else
 			CReplyToCommand(client, "%t Database truncate failed: %s", "Tag", error);
@@ -744,7 +744,7 @@ public void TruncateDB_Callback(Database db, DBResultSet results, const char[] e
 		return;
 	}
 
-	if (client == 0)
+	if (client == SERVER_INDEX)
 		PrintToServer("[CallVote] Database table truncated successfully. All vote records removed.");
 	else
 		CReplyToCommand(client, "%t Database table truncated successfully. All vote records removed.", "Tag");
@@ -770,7 +770,7 @@ public void DBStats_Callback(Database db, DBResultSet results, const char[] erro
 
 	if (results == null)
 	{
-		if (client == 0)
+		if (client == SERVER_INDEX)
 			LogError("[DBStats_Callback] Database stats query failed: %s", error);
 		else
 			CReplyToCommand(client, "%t Database stats query failed: %s", "Tag", error);
@@ -780,7 +780,7 @@ public void DBStats_Callback(Database db, DBResultSet results, const char[] erro
 
 	if (!results.FetchRow())
 	{
-		if (client == 0)
+		if (client == SERVER_INDEX)
 			PrintToServer("[CallVote] No data found in database.");
 		else
 			CReplyToCommand(client, "%t No data found in database.", "Tag");
@@ -796,7 +796,7 @@ public void DBStats_Callback(Database db, DBResultSet results, const char[] erro
 	int chapter = results.FetchInt(6);
 	int alltalk = results.FetchInt(7);
 
-	if (client == 0)
+	if (client == SERVER_INDEX)
 	{
 		// Print to server console
 		PrintToServer("[CallVote] === Database Statistics ===");
@@ -1163,8 +1163,8 @@ void GetLastCleanupInfo(int client)
 		g_sControlTable);
 
 	DataPack pack = new DataPack();
-	pack.WriteCell(client == 0 ? 0 : GetClientUserId(client));
-	
+	pack.WriteCell(client == SERVER_INDEX ? SERVER_INDEX : GetClientUserId(client));
+
 	g_db.Query(LastCleanupInfoCallback, sQuery, pack);
 }
 
@@ -1187,7 +1187,7 @@ public void LastCleanupInfoCallback(Database db, DBResultSet results, const char
 
 	if (results == null)
 	{
-		if (client == 0)
+		if (client == SERVER_INDEX)
 			PrintToServer("[CallVote] Error getting cleanup info: %s", error);
 		else
 			CReplyToCommand(client, "%t Error getting cleanup info: %s", "Tag", error);
@@ -1205,7 +1205,7 @@ public void LastCleanupInfoCallback(Database db, DBResultSet results, const char
 			int hours = timeSince / 3600;
 			int minutes = (timeSince % 3600) / 60;
 
-			if (client == 0)
+			if (client == SERVER_INDEX)
 			{
 				PrintToServer("[CallVote] Last Cleanup: %d hours, %d minutes ago", hours, minutes);
 				PrintToServer("[CallVote] Total Cleanups: %d", cleanupCount);
@@ -1218,7 +1218,7 @@ public void LastCleanupInfoCallback(Database db, DBResultSet results, const char
 		}
 		else
 		{
-			if (client == 0)
+			if (client == SERVER_INDEX)
 				PrintToServer("[CallVote] No cleanup has been performed yet");
 			else
 				CReplyToCommand(client, "%t No cleanup has been performed yet", "Tag");
@@ -1226,7 +1226,7 @@ public void LastCleanupInfoCallback(Database db, DBResultSet results, const char
 	}
 	else
 	{
-		if (client == 0)
+		if (client == SERVER_INDEX)
 			PrintToServer("[CallVote] Control table not initialized");
 		else
 			CReplyToCommand(client, "%t Control table not initialized", "Tag");

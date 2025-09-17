@@ -23,26 +23,14 @@ forward void CVB_OnVoteBlocked(int client, int voteType, int target, int banType
 /**
  * Se ejecuta cuando un jugador es baneado
  *
- * @param targetAccountId   AccountID del jugador baneado
- * @param targetSteamId2    SteamID2 del jugador baneado
+ * @param target            Índice del cliente baneado
  * @param banType           Tipos de ban aplicados (máscara de bits)
  * @param durationMinutes   Duración en minutos (0 = permanente)
- * @param adminAccountId    AccountID del admin (0 = CONSOLE)
- * @param adminSteamId2     SteamID2 del admin ("CONSOLE" para consola)
+ * @param admin             Índice del cliente admin (0 = CONSOLE)
  * @param reason            Razón del ban
  * @noreturn
  */
-forward void CVB_OnPlayerBanned(int targetAccountId, const char[] targetSteamId2, int banType, 
-                               int durationMinutes, int adminAccountId, const char[] adminSteamId2, 
-                               const char[] reason);
-
-/**
- * Se ejecuta cuando se cargan las razones de ban del archivo de configuración
- *
- * @param reasonCount   Número de razones cargadas exitosamente
- * @noreturn
- */
-forward void CVB_OnBanReasonsLoaded(int reasonCount);
+forward void CVB_OnPlayerBanned(int target, int banType, int durationMinutes, int admin, const char[] reason);
 
 /*****************************************************************
                     N A T I V E S
@@ -52,11 +40,10 @@ forward void CVB_OnBanReasonsLoaded(int reasonCount);
  * Verifica si un jugador está baneado para un tipo específico de voto
  *
  * @param client        Índice del cliente
- * @param voteType      Tipo de voto a verificar (usa enum TypeVotes de CallVoteManager)
  * @return              true si está baneado, false si no
  * @error               Cliente inválido
  */
-native bool CVB_IsPlayerBanned(int client, int voteType);
+native bool CVB_IsPlayerBanned(int client);
 
 /**
  * Obtiene el tipo de ban de un jugador (máscara de bits)
@@ -68,41 +55,26 @@ native bool CVB_IsPlayerBanned(int client, int voteType);
 native int CVB_GetPlayerBanType(int client);
 
 /**
- * Obtiene el timestamp de expiración del ban de un jugador
+ * Banea a un jugador usando índices de cliente
  *
- * @param client        Índice del cliente
- * @return              Timestamp de expiración (0 = permanente)
- * @error               Cliente inválido
- */
-native int CVB_GetPlayerBanExpiration(int client);
-
-/**
- * Banea a un jugador de tipos específicos de votación
- *
- * @param targetAccountId   AccountID del jugador objetivo
- * @param targetSteamId2    SteamID2 del jugador objetivo
+ * @param target            Índice del cliente objetivo
  * @param banType           Tipos de ban (máscara de bits)
- * @param durationMinutes   Duración en minutos (0 = permanente)
- * @param adminAccountId    AccountID del admin (0 = CONSOLE)
- * @param adminSteamId2     SteamID2 del admin ("CONSOLE" para consola)
+ * @param duration          Duración en minutos (0 = permanente)
+ * @param admin             Índice del cliente admin (0 = CONSOLE)
  * @param reason            Razón del ban
  * @return                  true si se ejecutó correctamente
+ * @error                   Cliente objetivo inválido
  */
-native bool CVB_BanPlayer(int targetAccountId, const char[] targetSteamId2, int banType, 
-                         int durationMinutes, int adminAccountId, const char[] adminSteamId2, 
-                         const char[] reason);
+native bool CVB_BanPlayer(int target, int banType, int duration, int admin, const char[] reason);
 
 /**
  * Remueve el ban de un jugador
  *
- * @param targetAccountId   AccountID del jugador objetivo
- * @param targetSteamId2    SteamID2 del jugador objetivo
- * @param adminAccountId    AccountID del admin (0 = CONSOLE)
- * @param adminSteamId2     SteamID2 del admin ("CONSOLE" para consola)
+ * @param target            Índice del cliente objetivo
+ * @param admin             Índice del cliente admin (0 = CONSOLE)
  * @return                  true si se ejecutó correctamente
  */
-native bool CVB_UnbanPlayer(int targetAccountId, const char[] targetSteamId2, 
-                           int adminAccountId, const char[] adminSteamId2);
+native bool CVB_UnbanPlayer(int target, int admin);
 
 /**
  * Obtiene información completa del ban de un jugador
@@ -118,70 +90,7 @@ native bool CVB_UnbanPlayer(int targetAccountId, const char[] targetSteamId2,
  * @return                  true si la información está disponible
  * @error                   Cliente inválido
  */
-native bool CVB_GetBanInfo(int client, int &banType, int &expiration, int &createdTime, 
-                          char[] reason, int reasonMaxLen, char[] adminSteamId, int adminMaxLen);
-
-/**
- * Verifica si la información de ban del cliente está cargada
- *
- * @param client        Índice del cliente
- * @return              true si está cargada, false si aún está cargando
- * @error               Cliente inválido
- */
-native bool CVB_IsClientLoaded(int client);
-
-/**
- * Banea a un jugador usando índices de cliente (versión simplificada)
- *
- * @param targetClient      Índice del cliente objetivo
- * @param banType           Tipos de ban (máscara de bits)
- * @param durationMinutes   Duración en minutos (0 = permanente)
- * @param adminClient       Índice del cliente admin (0 = CONSOLE)
- * @param reason            Razón del ban
- * @return                  true si se ejecutó correctamente
- * @error                   Cliente objetivo inválido
- */
-native bool CVB_BanPlayerByClient(int targetClient, int banType, int durationMinutes, 
-                                 int adminClient, const char[] reason);
-
-/**
- * Limpia el cache del sistema
- *
- * @param accountId     AccountID específico a limpiar (0 = limpiar todo el cache)
- * @return              true si se ejecutó correctamente
- */
-native bool CVB_ClearCache(int accountId = 0);
-
-/*****************************************************************
-                    R E A S O N   S Y S T E M   N A T I V E S
-*****************************************************************/
-
-/**
- * Obtiene la cadena traducida para un código de razón de ban
- *
- * @param reasonCode    Código de la razón
- * @param client        Cliente para usar su idioma (0 = idioma del servidor)
- * @param buffer        Buffer para almacenar la cadena traducida
- * @param maxlen        Tamaño máximo del buffer
- * @return              true si se encontró la razón, false si no
- */
-native bool CVB_GetBanReasonString(int reasonCode, int client, char[] buffer, int maxlen);
-
-/**
- * Obtiene el ID de código de razón a partir de texto
- *
- * @param reasonText    Texto de la razón a buscar
- * @return              Código de la razón (0 si no se encuentra)
- */
-native int CVB_GetReasonIdFromText(const char[] reasonText);
-
-/**
- * Verifica si un código de razón es válido
- *
- * @param reasonCode    Código a verificar
- * @return              true si es válido, false si no
- */
-native bool CVB_IsValidReasonCode(int reasonCode);
+native bool CVB_GetBanInfo(int client, int &banType, int &expiration, int &createdTime,char[] reason, int reasonMaxLen, char[] adminSteamId, int adminMaxLen);
 
 public SharedPlugin __pl_callvote_bans =
 {
@@ -199,19 +108,8 @@ public void __pl_callvote_bans_SetNTVOptional()
 {
     MarkNativeAsOptional("CVB_IsPlayerBanned");
     MarkNativeAsOptional("CVB_GetPlayerBanType");
-    MarkNativeAsOptional("CVB_GetPlayerBanExpiration");
     MarkNativeAsOptional("CVB_BanPlayer");
     MarkNativeAsOptional("CVB_UnbanPlayer");
-    
-    // Nuevos natives mejorados
     MarkNativeAsOptional("CVB_GetBanInfo");
-    MarkNativeAsOptional("CVB_IsClientLoaded");
-    MarkNativeAsOptional("CVB_BanPlayerByClient");
-    MarkNativeAsOptional("CVB_ClearCache");
-    
-    // Natives del sistema de razones
-    MarkNativeAsOptional("CVB_GetBanReasonString");
-    MarkNativeAsOptional("CVB_GetReasonIdFromText");
-    MarkNativeAsOptional("CVB_IsValidReasonCode");
 }
 #endif

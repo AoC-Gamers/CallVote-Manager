@@ -105,36 +105,36 @@ Action Command_CreateSQL(int iClient, int iArgs)
 		}
 		default:
 		{
-			CVBLog.Debug("[Command_CreateSQL] Unknown SQL driver: %d", view_as<int>(g_SQLDriver));
+			CVLog.Debug("[Command_CreateSQL] Unknown SQL driver: %d", view_as<int>(g_SQLDriver));
 			CReplyToCommand(iClient, "%t %t", "Tag", "DBUnknownDriver");
 			return Plugin_Handled;
 		}
 	}
 
-	CVBLog.SQL("[Command_CreateSQL] Executing Table Query: %s", sQueryTable);
+	CVLog.Query("[Command_CreateSQL] Executing table creation query: %s", sQueryTable);
 	if (!SQL_FastQuery(g_db, sQueryTable))
 	{
 		char sSQLError[250];
 		SQL_GetError(g_db, sSQLError, sizeof(sSQLError));
-		CVBLog.SQL("[Command_CreateSQL] SQL_FastQuery failed for table creation. Error: %s", sSQLError);
+		CVLog.Query("[Command_CreateSQL] SQL_FastQuery failed for table creation. Error: %s", sSQLError);
 		CReplyToCommand(iClient, "%t %t", "Tag", "DBQueryErrorTable");
 		return Plugin_Handled;
 	}
 
 	CReplyToCommand(iClient, "%t %t", "Tag", "DBTableCreated", g_sTable);
-	CVBLog.Debug("[Command_CreateSQL] Table `%s` created successfully or already existed.", g_sTable);
+	CVLog.Debug("[Command_CreateSQL] Table `%s` created successfully or already existed.", g_sTable);
 
 	// Create control table for cleanup management
 	CreateCleanupControlTable();
 
 	if (bIsMySQL && sQueryTrigger[0] != '\0')
 	{
-		CVBLog.Debug("[Command_CreateSQL] Executing Trigger Query: %s", sQueryTrigger);
+		CVLog.Query("[Command_CreateSQL] Executing trigger creation query: %s", sQueryTrigger);
 		if (!SQL_FastQuery(g_db, sQueryTrigger))
 		{
 			char sSQLError[250];
 			SQL_GetError(g_db, sSQLError, sizeof(sSQLError));
-			CVBLog.SQL("[Command_CreateSQL] SQL_FastQuery for trigger creation might have failed (or trigger already exists). Error: %s.", sSQLError);
+			CVLog.Query("[Command_CreateSQL] SQL_FastQuery for trigger creation might have failed (or trigger already exists). Error: %s.", sSQLError);
 			CReplyToCommand(iClient, "%t %t", "Tag", "DBTriggerIssue", g_sTable);
 		}
 	}
@@ -151,7 +151,7 @@ public void OnPluginEnd_SQL()
 		return;
 
 	delete g_db;
-	CVBLog.Debug("[OnPluginEnd] Database connection closed.");
+	CVLog.Debug("[OnPluginEnd] Database connection closed.");
 }
 
 void OnConfigsExecuted_SQL()
@@ -161,7 +161,7 @@ void OnConfigsExecuted_SQL()
 
 	if (g_db != null)
 		return;
-	CVBLog.Debug("[OnConfigsExecuted_SQL] Connecting to the database...");
+	CVLog.Debug("[OnConfigsExecuted_SQL] Connecting to the database...");
 	ConnectDB("callvote");
 }
 
@@ -211,7 +211,7 @@ void RegSQLVote(TypeVotes type, int iClient, int iTarget = SERVER_INDEX)
     
     if (!GetClientAuthId(iClient, AuthId_Steam2, sAuthID_Client, sizeof(sAuthID_Client)))
     {
-        CVBLog.Debug("[RegSQLVote] Failed to get AuthID for client %d", iClient);
+        CVLog.Debug("[RegSQLVote] Failed to get AuthID for client %d", iClient);
         return;
     }
 
@@ -261,15 +261,39 @@ void RegSQLVote(TypeVotes type, int iClient, int iTarget = SERVER_INDEX)
         }
         default:
         {
-            CVBLog.Debug("Unknown SQL driver in RegSQLVote.");
+            CVLog.Debug("Unknown SQL driver in RegSQLVote.");
             return;
         }
     }
 
-	CVBLog.Debug("Driver: %s | Query: %s", g_SQLDriver == SQL_MySQL ? "MySQL" : "SQLite", sQuery);
+	CVLog.Debug("Driver: %s | Query: %s", g_SQLDriver == SQL_MySQL ? "MySQL" : "SQLite", sQuery);
+	
+	// Log SQL queries with unified logging system
+	CVLog.Query("[RegSQLVote] Executing %s INSERT query: %s", g_SQLDriver == SQL_MySQL ? "MySQL" : "SQLite", sQuery);
 	
 	// Execute query directly for essential logging
 	g_db.Query(CallBack_logSQL, sQuery);
+}
+
+/**
+ * Callback for SQL vote logging queries
+ * Handles success/error reporting for vote logging operations
+ */
+public void CallBack_logSQL(Database db, DBResultSet results, const char[] error, any data)
+{
+	if (db == null)
+	{
+		CVLog.Query("[CallBack_logSQL] Database handle is null");
+		return;
+	}
+
+	if (error[0] != '\0')
+	{
+		CVLog.Query("[CallBack_logSQL] SQL Error: %s", error);
+		return;
+	}
+
+	CVLog.Query("[CallBack_logSQL] Vote record inserted successfully");
 }
 
 /**
@@ -332,6 +356,7 @@ Action Command_CleanupDB(int iClient, int iArgs)
 	pack.WriteCell(iClient == SERVER_INDEX ? SERVER_INDEX : GetClientUserId(iClient));
 	pack.WriteCell(days);
 
+	CVLog.Query("[Command_CleanupDB] Executing cleanup DELETE query: %s", sQuery);
 	g_db.Query(CleanupDB_Callback, sQuery, pack);
 	CReplyToCommand(iClient, "%t %t", "Tag", "CleaningUpRecords", days);
 
@@ -393,6 +418,7 @@ Action Command_TruncateDB(int iClient, int iArgs)
 	DataPack pack = new DataPack();
 	pack.WriteCell(iClient == SERVER_INDEX ? SERVER_INDEX : GetClientUserId(iClient));
 
+	CVLog.Query("[Command_TruncateDB] Executing table truncate query: %s", sQuery);
 	g_db.Query(TruncateDB_Callback, sQuery, pack);
 	CReplyToCommand(iClient, "%t %t", "Tag", "TruncatingTable");
 
@@ -443,6 +469,7 @@ Action Command_DBStats(int iClient, int iArgs)
 	DataPack pack = new DataPack();
 	pack.WriteCell(iClient == SERVER_INDEX ? SERVER_INDEX : GetClientUserId(iClient)); // Handle server console
 
+	CVLog.Query("[Command_DBStats] Executing statistics SELECT query: %s", sQuery);
 	g_db.Query(DBStats_Callback, sQuery, pack);
 
 	return Plugin_Handled;
@@ -563,20 +590,21 @@ void CreateCleanupControlTable()
 		}
 		default:
 		{
-			CVBLog.Debug("[CreateCleanupControlTable] Unknown SQL driver");
+			CVLog.Debug("[CreateCleanupControlTable] Unknown SQL driver");
 			return;
 		}
 	}
 
+	CVLog.Query("[CreateCleanupControlTable] Executing control table creation query: %s", sQuery);
 	if (!SQL_FastQuery(g_db, sQuery))
 	{
 		char sSQLError[250];
 		SQL_GetError(g_db, sSQLError, sizeof(sSQLError));
-		CVBLog.Debug("[CreateCleanupControlTable] Failed to create control table: %s", sSQLError);
+		CVLog.Debug("[CreateCleanupControlTable] Failed to create control table: %s", sSQLError);
 		return;
 	}
 
-	CVBLog.Debug("[CreateCleanupControlTable] Control table `%s` created successfully", g_sControlTable);
+	CVLog.Debug("[CreateCleanupControlTable] Control table `%s` created successfully", g_sControlTable);
 	
 	// Initialize the table with default values if it's empty
 	InitializeControlTable();
@@ -607,11 +635,12 @@ void CheckCleanupControlTable()
 		}
 		default:
 		{
-			CVBLog.Debug("[CheckCleanupControlTable] Unknown SQL driver");
+			CVLog.Debug("[CheckCleanupControlTable] Unknown SQL driver");
 			return;
 		}
 	}
 
+	CVLog.Query("[CheckCleanupControlTable] Executing table existence check query: %s", sQuery);
 	g_db.Query(CheckControlTableCallback, sQuery);
 }
 
@@ -622,19 +651,19 @@ public void CheckControlTableCallback(Database database, DBResultSet results, co
 {
 	if (results == null)
 	{
-		CVBLog.Debug("[CheckControlTableCallback] Error checking control table: %s", error);
+		CVLog.Debug("[CheckControlTableCallback] Error checking control table: %s", error);
 		return;
 	}
 
 	bool tableExists = results.FetchRow();
 	if (!tableExists)
 	{
-		CVBLog.Debug("[CheckControlTableCallback] Control table doesn't exist, creating it");
+		CVLog.Debug("[CheckControlTableCallback] Control table doesn't exist, creating it");
 		CreateCleanupControlTable();
 	}
 	else
 	{
-		CVBLog.Debug("[CheckControlTableCallback] Control table exists");
+		CVLog.Debug("[CheckControlTableCallback] Control table exists");
 	}
 }
 
@@ -660,11 +689,12 @@ void InitializeControlTable()
 		}
 		default:
 		{
-			CVBLog.Debug("[InitializeControlTable] Unknown SQL driver");
+			CVLog.Debug("[InitializeControlTable] Unknown SQL driver");
 			return;
 		}
 	}
 
+	CVLog.Query("[InitializeControlTable] Executing control table initialization query: %s", sQuery);
 	g_db.Query(InitControlTableCallback, sQuery);
 }
 
@@ -675,10 +705,10 @@ public void InitControlTableCallback(Database database, DBResultSet results, con
 {
 	if (results == null)
 	{
-		CVBLog.Debug("[InitControlTableCallback] Error initializing control table: %s", error);
+		CVLog.Debug("[InitControlTableCallback] Error initializing control table: %s", error);
 		return;
 	}
-	CVBLog.Debug("[InitControlTableCallback] Control table initialized successfully");
+	CVLog.Debug("[InitControlTableCallback] Control table initialized successfully");
 }
 
 /**
@@ -705,7 +735,7 @@ public void CleanupDB_Callback(Database db, DBResultSet results, const char[] er
 			LogError("[CleanupDB_Callback] Database cleanup failed: %s", error);
 		else
 			CReplyToCommand(client, "%t Database cleanup failed: %s", "Tag", error);
-		CVBLog.Debug("[CleanupDB_Callback] Error: %s", error);
+		CVLog.Debug("[CleanupDB_Callback] Error: %s", error);
 		return;
 	}
 
@@ -714,7 +744,7 @@ public void CleanupDB_Callback(Database db, DBResultSet results, const char[] er
 		PrintToServer("[CallVote] Database cleanup completed: %d records older than %d days removed.", affectedRows, days);
 	else
 		CReplyToCommand(client, "%t Database cleanup completed: %d records older than %d days removed.", "Tag", affectedRows, days);
-	CVBLog.Debug("[CleanupDB_Callback] Cleanup completed: %d rows affected", affectedRows);
+	CVLog.Debug("[CleanupDB_Callback] Cleanup completed: %d rows affected", affectedRows);
 }
 
 /**
@@ -740,7 +770,7 @@ public void TruncateDB_Callback(Database db, DBResultSet results, const char[] e
 			LogError("[TruncateDB_Callback] Database truncate failed: %s", error);
 		else
 			CReplyToCommand(client, "%t Database truncate failed: %s", "Tag", error);
-		CVBLog.Debug("[TruncateDB_Callback] Error: %s", error);
+		CVLog.Debug("[TruncateDB_Callback] Error: %s", error);
 		return;
 	}
 
@@ -748,7 +778,7 @@ public void TruncateDB_Callback(Database db, DBResultSet results, const char[] e
 		PrintToServer("[CallVote] Database table truncated successfully. All vote records removed.");
 	else
 		CReplyToCommand(client, "%t Database table truncated successfully. All vote records removed.", "Tag");
-	CVBLog.Debug("[TruncateDB_Callback] Table truncated successfully");
+	CVLog.Debug("[TruncateDB_Callback] Table truncated successfully");
 }
 
 /**
@@ -774,7 +804,7 @@ public void DBStats_Callback(Database db, DBResultSet results, const char[] erro
 			LogError("[DBStats_Callback] Database stats query failed: %s", error);
 		else
 			CReplyToCommand(client, "%t Database stats query failed: %s", "Tag", error);
-		CVBLog.Debug("[DBStats_Callback] Error: %s", error);
+		CVLog.Debug("[DBStats_Callback] Error: %s", error);
 		return;
 	}
 
@@ -840,11 +870,11 @@ void ConnectDB(char[] sConfigName)
 	
 	if (!SQL_CheckConfig(sConfigName))
 	{
-		CVBLog.Debug("[ConnectDB] Database failure: could not find database config: %s", sConfigName);
+		CVLog.Debug("[ConnectDB] Database failure: could not find database config: %s", sConfigName);
 		return;
 	}
 
-	CVBLog.Debug("[ConnectDB] Attempting to connect to database config: %s", sConfigName);
+	CVLog.Debug("[ConnectDB] Attempting to connect to database config: %s", sConfigName);
 	Database.Connect(ConnectCallback, sConfigName);
 }
 
@@ -867,39 +897,39 @@ void ConnectCallback(Database database, const char[] error, any data)
 
 	if (database == null)
 	{
-		CVBLog.Debug("[ConnectCallback] Could not connect to database: %s", error);
+		CVLog.Debug("[ConnectCallback] Could not connect to database: %s", error);
 		return;
 	}
 	
 	if (error[0] != '\0')
 	{
-		CVBLog.Debug("[ConnectCallback] Error to connect to database: %s", error);
+		CVLog.Debug("[ConnectCallback] Error to connect to database: %s", error);
 		return;
 	}
 
 	g_db = database;
 	g_bSQLConnected = true;
-	CVBLog.Debug("[ConnectCallback] Successfully connected to database.");
+	CVLog.Debug("[ConnectCallback] Successfully connected to database.");
 
 	DBDriver driver = database.Driver;
 	if (driver == null)
 	{
-		CVBLog.Debug("[ConnectCallback] Failed to get database driver.");
+		CVLog.Debug("[ConnectCallback] Failed to get database driver.");
 		g_bSQLConnected = false;
 		return;
 	}
 
 	char sSQLDriverName[64];
 	driver.GetIdentifier(sSQLDriverName, sizeof(sSQLDriverName));
-	CVBLog.Debug("[ConnectCallback] Driver: %s", sSQLDriverName);
+	CVLog.Debug("[ConnectCallback] Driver: %s", sSQLDriverName);
 
 	if (StrEqual(sSQLDriverName, "mysql", false))
 	{
 		g_SQLDriver = SQL_MySQL;
 		if (database.SetCharset("utf8"))
-			CVBLog.Debug("[ConnectCallback] Database charset set to UTF-8.");
+			CVLog.Debug("[ConnectCallback] Database charset set to UTF-8.");
 		else
-			CVBLog.Debug("[ConnectCallback] Failed to set database charset.");
+			CVLog.Debug("[ConnectCallback] Failed to set database charset.");
 	}
 	else if (StrEqual(sSQLDriverName, "sqlite", false))
 	{
@@ -907,7 +937,7 @@ void ConnectCallback(Database database, const char[] error, any data)
 	}
 	else
 	{
-		CVBLog.Debug("[ConnectCallback] Unknown database driver: %s", sSQLDriverName);
+		CVLog.Debug("[ConnectCallback] Unknown database driver: %s", sSQLDriverName);
 		g_bSQLConnected = false;
 		return;
 	}
@@ -930,7 +960,7 @@ void CheckTableExists()
 {
 	if (!g_bSQLConnected || g_db == null)
 	{
-		CVBLog.Debug("[CheckTableExists] Not connected to database.");
+		CVLog.Debug("[CheckTableExists] Not connected to database.");
 		g_bSQLTableExists = false;
 		return;
 	}
@@ -952,12 +982,13 @@ void CheckTableExists()
 		}
 		default:
 		{
-			CVBLog.Debug("[CheckTableExists] Unknown SQL driver.");
+			CVLog.Debug("[CheckTableExists] Unknown SQL driver.");
 			g_bSQLTableExists = false;
 			return;
 		}
 	}
 
+	CVLog.Query("[CheckTableExists] Executing table existence verification query: %s", sQuery);
 	g_db.Query(CheckTableCallback, sQuery);
 }
 
@@ -977,13 +1008,13 @@ void CheckTableCallback(Database database, DBResultSet results, const char[] err
 {
 	if (results == null)
 	{
-		CVBLog.Debug("[CheckTableCallback] Error checking table existence: %s", error);
+		CVLog.Debug("[CheckTableCallback] Error checking table existence: %s", error);
 		g_bSQLTableExists = false;
 		return;
 	}
 
 	g_bSQLTableExists = results.FetchRow();
-	CVBLog.Debug("[CheckTableCallback] Table '%s' exists: %s", g_sTable, g_bSQLTableExists ? "true" : "false");
+	CVLog.Debug("[CheckTableCallback] Table '%s' exists: %s", g_sTable, g_bSQLTableExists ? "true" : "false");
 }
 
 /**
@@ -999,6 +1030,7 @@ void CheckLastCleanupTime(int days)
 	DataPack pack = new DataPack();
 	pack.WriteCell(days);
 	
+	CVLog.Query("[CheckLastCleanupTime] Executing last cleanup time check query: %s", sQuery);
 	g_db.Query(CheckLastCleanupCallback, sQuery, pack);
 }
 
@@ -1013,7 +1045,7 @@ public void CheckLastCleanupCallback(Database db, DBResultSet results, const cha
 
 	if (results == null)
 	{
-		CVBLog.Debug("[CheckLastCleanupCallback] Error checking last cleanup: %s", error);
+		CVLog.Debug("[CheckLastCleanupCallback] Error checking last cleanup: %s", error);
 		return;
 	}
 
@@ -1028,12 +1060,12 @@ public void CheckLastCleanupCallback(Database db, DBResultSet results, const cha
 	int timeSinceLastCleanup = currentTime - lastCleanup;
 	if (timeSinceLastCleanup < 86400 && lastCleanup > 0)
 	{
-		CVBLog.Debug("[CheckLastCleanupCallback] Cleanup already performed recently (%d seconds ago)", timeSinceLastCleanup);
+		CVLog.Debug("[CheckLastCleanupCallback] Cleanup already performed recently (%d seconds ago)", timeSinceLastCleanup);
 		return;
 	}
 
-	CVBLog.Debug("[CheckLastCleanupCallback] Starting automatic cleanup (records older than %d days)", days);
-	CVBLog.Debug("[CheckLastCleanupCallback] Last cleanup: %d seconds ago", timeSinceLastCleanup);
+	CVLog.Debug("[CheckLastCleanupCallback] Starting automatic cleanup (records older than %d days)", days);
+	CVLog.Debug("[CheckLastCleanupCallback] Last cleanup: %d seconds ago", timeSinceLastCleanup);
 	
 	PerformAutomaticCleanupSimple(days);
 }
@@ -1062,7 +1094,7 @@ void PerformAutomaticCleanupSimple(int days)
 		}
 		default:
 		{
-			CVBLog.Debug("[PerformAutomaticCleanupSimple] Unknown SQL driver, aborting cleanup");
+			CVLog.Debug("[PerformAutomaticCleanupSimple] Unknown SQL driver, aborting cleanup");
 			return;
 		}
 	}
@@ -1073,8 +1105,9 @@ void PerformAutomaticCleanupSimple(int days)
 	pack.WriteCell(days);
 	pack.WriteCell(1);
 
+	CVLog.Query("[PerformAutomaticCleanupSimple] Executing automatic cleanup query: %s", sQuery);
 	g_db.Query(AutoCleanupSimple_Callback, sQuery, pack);
-	CVBLog.Debug("[PerformAutomaticCleanupSimple] Automatic cleanup query executed");
+	CVLog.Debug("[PerformAutomaticCleanupSimple] Automatic cleanup query executed");
 }
 
 /**
@@ -1102,7 +1135,7 @@ public void AutoCleanupSimple_Callback(Database db, DBResultSet results, const c
 		
 		PrintToServer("[CallVote] Automatic database cleanup completed: %d records older than %d days removed", 
 			affectedRows, days);
-		CVBLog.Debug("[AutoCleanupSimple_Callback] Automatic cleanup completed: %d rows affected", affectedRows);
+		CVLog.Debug("[AutoCleanupSimple_Callback] Automatic cleanup completed: %d rows affected", affectedRows);
 	}
 }
 
@@ -1130,12 +1163,13 @@ void UpdateCleanupControlTableSimple(int affectedRows)
 		}
 		default:
 		{
-			CVBLog.Debug("[UpdateCleanupControlTableSimple] Unknown SQL driver");
+			CVLog.Debug("[UpdateCleanupControlTableSimple] Unknown SQL driver");
 			return;
 		}
 	}
 
-	CVBLog.Debug("[UpdateCleanupControlTableSimple] Updating control table: %d rows affected", affectedRows);
+	CVLog.Debug("[UpdateCleanupControlTableSimple] Updating control table: %d rows affected", affectedRows);
+	CVLog.Query("[UpdateCleanupControlTableSimple] Executing control table update query: %s", sQuery);
 	g_db.Query(UpdateControlTableCallback, sQuery);
 }
 
@@ -1146,10 +1180,10 @@ public void UpdateControlTableCallback(Database db, DBResultSet results, const c
 {
 	if (results == null)
 	{
-		CVBLog.Debug("[UpdateControlTableCallback] Error updating control table: %s", error);
+		CVLog.Debug("[UpdateControlTableCallback] Error updating control table: %s", error);
 		return;
 	}
-	CVBLog.Debug("[UpdateControlTableCallback] Control table updated successfully");
+	CVLog.Debug("[UpdateControlTableCallback] Control table updated successfully");
 }
 
 /**
@@ -1165,6 +1199,7 @@ void GetLastCleanupInfo(int client)
 	DataPack pack = new DataPack();
 	pack.WriteCell(client == SERVER_INDEX ? SERVER_INDEX : GetClientUserId(client));
 
+	CVLog.Query("[GetLastCleanupInfo] Executing cleanup info retrieval query: %s", sQuery);
 	g_db.Query(LastCleanupInfoCallback, sQuery, pack);
 }
 
@@ -1241,7 +1276,7 @@ public Action Timer_CheckCleanupConditions(Handle timer)
 	// Only check cleanup conditions if this is the master server
 	if (!g_cvarIsMasterServer.BoolValue)
 	{
-		CVBLog.Debug("[Timer_CheckCleanupConditions] Not master server, cleanup disabled");
+		CVLog.Debug("[Timer_CheckCleanupConditions] Not master server, cleanup disabled");
 		return Plugin_Stop;
 	}
 
@@ -1257,14 +1292,14 @@ void CheckCleanupConditions()
 	// Check all conditions for automatic cleanup
 	if (!ShouldRunAutomaticCleanup())
 	{
-		CVBLog.Debug("[CheckCleanupConditions] Conditions not met for automatic cleanup");
+		CVLog.Debug("[CheckCleanupConditions] Conditions not met for automatic cleanup");
 		return;
 	}
 
 	int days = g_cvarCleanupDays.IntValue;
 	if (days <= 0)
 	{
-		CVBLog.Debug("[CheckCleanupConditions] Invalid cleanup days value: %d", days);
+		CVLog.Debug("[CheckCleanupConditions] Invalid cleanup days value: %d", days);
 		return;
 	}
 
@@ -1280,14 +1315,14 @@ bool ShouldRunAutomaticCleanup()
 	// Basic plugin and SQL conditions
 	if (!g_cvarRegLogSQL.IntValue || !g_cvarIsMasterServer.BoolValue)
 	{
-		CVBLog.Debug("[ShouldRunAutomaticCleanup] Basic conditions not met");
+		CVLog.Debug("[ShouldRunAutomaticCleanup] Basic conditions not met");
 		return false;
 	}
 
 	// Database must be connected
 	if (!g_bSQLConnected || !g_bSQLTableExists)
 	{
-		CVBLog.Debug("[ShouldRunAutomaticCleanup] Database not available");
+		CVLog.Debug("[ShouldRunAutomaticCleanup] Database not available");
 		return false;
 	}
 
@@ -1303,7 +1338,7 @@ bool ShouldRunAutomaticCleanup()
 
 	if (humanCount > 0)
 	{
-		CVBLog.Debug("[ShouldRunAutomaticCleanup] Server has %d human players, skipping cleanup", humanCount);
+		CVLog.Debug("[ShouldRunAutomaticCleanup] Server has %d human players, skipping cleanup", humanCount);
 		return false;
 	}
 
@@ -1312,11 +1347,11 @@ bool ShouldRunAutomaticCleanup()
 	{
 		if (LGO_IsMatchModeLoaded())
 		{
-			CVBLog.Debug("[ShouldRunAutomaticCleanup] Confogl match mode is active, skipping cleanup");
+			CVLog.Debug("[ShouldRunAutomaticCleanup] Confogl match mode is active, skipping cleanup");
 			return false;
 		}
 	}
 
-	CVBLog.Debug("[ShouldRunAutomaticCleanup] All conditions met for automatic cleanup");
+	CVLog.Debug("[ShouldRunAutomaticCleanup] All conditions met for automatic cleanup");
 	return true;
 }

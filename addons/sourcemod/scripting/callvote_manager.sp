@@ -1,12 +1,12 @@
 #pragma semicolon 1
 #pragma newdecls required
 
-#include <sourcemod>
-#include <colors>
-#include <left4dhooks>
+#include <sourcemod> // C:\Users\israe\sourcemodAPI\addons\sourcemod\scripting
+#include <colors> // C:\GitHub\L4D2-Competitive-Rework
+#include <left4dhooks> // C:\GitHub\L4D2-Competitive-Rework
 #include <callvote_stock>
-#include <language_manager>
-#include <campaign_manager>
+#include <language_manager> // C:\GitHub\L4D2-Translation-Localizer
+#include <campaign_manager> // C:\GitHub\L4D2-Translation-Localizer
 
 
 #undef REQUIRE_EXTENSIONS
@@ -20,8 +20,9 @@
 
 #define PLUGIN_VERSION "2.0.0"
 
-#define DEBUG		   0
-#define DEBUG_SQL	   0
+#define DEBUG			1	// General debug information
+#define DEBUG_SQL		1	// SQL statements
+#define DEBUG_SQL_QUERY	1	// SQL database queries
 
 enum VoteRestrictionType
 {
@@ -97,6 +98,110 @@ GlobalForward
 
 Localizer
 	g_loc;
+
+/**
+ * Enumeration for different log categories
+ */
+enum CVLogCategory
+{
+	CVLog_Debug 	= 0,	// General debug information  
+	CVLog_SQL   	= 1,	// SQL operations and database queries
+	CVLog_SQL_Query = 2,	// Detailed SQL query information
+}
+
+/**
+ * Modern logging system using methodmap
+ * Maintains the same macro-based optimization philosophy
+ */
+methodmap CVLog
+{
+	/**
+	 * Internal method to format and write log message
+	 *
+	 * @param category    Log category for prefix formatting
+	 * @param message     Format string for the message
+	 * @param args        Variable arguments for formatting
+	 */
+	public 	static void WriteLog(CVLogCategory category, const char[] message, any...)
+	{
+		static char sFormat[1024];
+		static char sPrefix[32];
+
+		VFormat(sFormat, sizeof(sFormat), message, 3);
+
+		switch (category)
+		{
+			case CVLog_Debug: strcopy(sPrefix, sizeof(sPrefix), "[CV][Debug]");
+			case CVLog_SQL: strcopy(sPrefix, sizeof(sPrefix), "[CV][SQL]");
+			case CVLog_SQL_Query: strcopy(sPrefix, sizeof(sPrefix), "[CV][SQL-Query]");
+			default: strcopy(sPrefix, sizeof(sPrefix), "[CV][Unknown]");
+		}
+
+		LogToFileEx(g_sLogPath, "%s %s", sPrefix, sFormat);
+	}
+
+	/**
+	 * Logs debug information with timestamp
+	 * Only compiled when DEBUG macro is enabled
+	 *
+	 * @param message    Format string for the debug message
+	 * @param ...        Additional arguments for formatting
+	 */
+	#if DEBUG
+
+		public 	static void Debug(const char[] message, any...)
+		{
+			static char sFormat[1024];
+			VFormat(sFormat, sizeof(sFormat), message, 2);
+			CVLog.WriteLog(CVLog_Debug, sFormat);
+		}
+	#else
+
+	public 	static void Debug(const char[] message, any...) {}
+	#endif
+
+	/**
+	 * Logs SQL-related information
+	 * Only compiled when DEBUG_SQL macro is enabled
+	 *
+	 * @param message    Format string for the SQL message
+	 * @param ...        Additional arguments for formatting
+	 */
+	#if DEBUG && DEBUG_SQL
+
+		public 	static void SQL(const char[] message, any...)
+		{
+			static char sFormat[1024];
+			VFormat(sFormat, sizeof(sFormat), message, 2);
+			CVLog.WriteLog(CVLog_SQL, sFormat);
+		}
+	#else
+
+	public 	static void SQL(const char[] message, any...) {
+		#pragma unused message
+	}
+	#endif
+
+	/**
+	 * Logs database query information
+	 * Only compiled when DEBUG_SQL_QUERY macro is enabled
+	 *
+	 * @param message    Format string for the query message
+	 * @param ...        Additional arguments for formatting
+	 */
+	#if DEBUG && DEBUG_SQL_QUERY
+
+		public 	static void Query(const char[] message, any...)
+		{
+			static char sFormat[1024];
+			VFormat(sFormat, sizeof(sFormat), message, 2);
+			CVLog.WriteLog(CVLog_SQL_Query, sFormat);
+		}
+	#else
+
+	public 	static void Query(const char[] message, any...) {}
+	#endif
+}
 
 /*****************************************************************
 			L I B R A R Y   I N C L U D E S
@@ -264,7 +369,7 @@ Action ProcessVoteCommon(int iClient, TypeVotes type, int iTarget = SERVER_INDEX
 
 	if (preStartResult >= Plugin_Handled)
 	{
-		LogDebug("[ProcessVoteCommon] Vote blocked by PreStart forward for client %d", iClient);
+		CVLog.Debug("[ProcessVoteCommon] Vote blocked by PreStart forward for client %d", iClient);
 		return Plugin_Handled;
 	}
 
@@ -299,7 +404,7 @@ Action ProcessVoteCommon(int iClient, TypeVotes type, int iTarget = SERVER_INDEX
 
 	if (preExecuteResult >= Plugin_Handled)
 	{
-		LogDebug("[ProcessVoteCommon] Vote blocked by PreExecute forward for client %d", iClient);
+		CVLog.Debug("[ProcessVoteCommon] Vote blocked by PreExecute forward for client %d", iClient);
 		return Plugin_Handled;
 	}
 
@@ -375,7 +480,7 @@ Action Listener_CallVote(int iClient, const char[] sCommand, int iArgs)
 
 	char sFullArgs[128];
 	GetCmdArgString(sFullArgs, sizeof(sFullArgs));
-	LogDebug("[Listener_CallVote] Full argument string: %s", sFullArgs);
+	CVLog.Debug("[Listener_CallVote] Full argument string: %s", sFullArgs);
 
 	if (GetCmdArgs() == 0)
 	{
@@ -470,7 +575,7 @@ Action Listener_CallVote(int iClient, const char[] sCommand, int iArgs)
 			if (result == Plugin_Handled)
 				return Plugin_Handled;
 
-			LogDebug("[Listener_CallVote] Forwarded ChangeMission vote for client %N [%s]", iClient, sVoteArgument);
+			CVLog.Debug("[Listener_CallVote] Forwarded ChangeMission vote for client %N [%s]", iClient, sVoteArgument);
 			PrintLocalizedMissionName(sVoteArgument, iClient);
 		}
 		case ReturnToLobby:
@@ -493,7 +598,7 @@ Action Listener_CallVote(int iClient, const char[] sCommand, int iArgs)
 			if (result == Plugin_Handled)
 				return Plugin_Handled;
 
-			LogDebug("[Listener_CallVote] Forwarded ChangeChapter vote for client %N [%s]", iClient, sVoteArgument);
+			CVLog.Debug("[Listener_CallVote] Forwarded ChangeChapter vote for client %N [%s]", iClient, sVoteArgument);
 			PrintLocalizedChapterName(sVoteArgument, iClient);
 		}
 		case ChangeAllTalk:
@@ -872,7 +977,7 @@ void RegVote(TypeVotes type, int iClient, int iTarget = SERVER_INDEX)
 		char sAuthID_Target[MAX_AUTHID_LENGTH];
 		if (!GetClientAuthId(iTarget, AuthId_Steam2, sAuthID_Target, sizeof(sAuthID_Target)))
 		{
-			LogDebug("[RegVote] Failed to get AuthID for target %d", iTarget);
+			CVLog.Debug("[RegVote] Failed to get AuthID for target %d", iTarget);
 			return;
 		}
 
@@ -949,7 +1054,7 @@ bool HasAdminFlags(int client, int flags = 0)
  */
 bool IsAdmin(int client)
 {
-	LogDebug("[IsAdmin] Checking %N for admin immunity flags: %d", client, g_iFlagsAdmin);
+	CVLog.Debug("[IsAdmin] Checking %N for admin immunity flags: %d", client, g_iFlagsAdmin);
 	return HasAdminFlags(client, g_iFlagsAdmin);
 }
 
@@ -985,7 +1090,7 @@ Action ForwardCallVotePreStart(int iClient, TypeVotes voteType, int target = 0)
 	Call_PushCell(target);
 	Call_Finish(result);
 	
-	LogDebug("[ForwardCallVotePreStart] Forward called for client %d, vote type %d, target %d. Result: %d", 
+	CVLog.Debug("[ForwardCallVotePreStart] Forward called for client %d, vote type %d, target %d. Result: %d", 
 		iClient, view_as<int>(voteType), target, view_as<int>(result));
 	
 	return result;
@@ -1002,7 +1107,7 @@ void ForwardCallVoteStart(int iClient, TypeVotes voteType, int target = 0)
 	Call_PushCell(target);
 	Call_Finish();
 	
-	LogDebug("[ForwardCallVoteStart] Vote started by client %d, vote type %d, target %d", 
+	CVLog.Debug("[ForwardCallVoteStart] Vote started by client %d, vote type %d, target %d", 
 		iClient, view_as<int>(voteType), target);
 }
 
@@ -1019,7 +1124,7 @@ Action ForwardCallVotePreExecute(int iClient, TypeVotes voteType, int target = 0
 	Call_PushCell(target);
 	Call_Finish(result);
 	
-	LogDebug("[ForwardCallVotePreExecute] Forward called for client %d, vote type %d, target %d. Result: %d", 
+	CVLog.Debug("[ForwardCallVotePreExecute] Forward called for client %d, vote type %d, target %d. Result: %d", 
 		iClient, view_as<int>(voteType), target, view_as<int>(result));
 	
 	return result;
@@ -1037,7 +1142,7 @@ void ForwardCallVoteBlocked(int iClient, TypeVotes voteType, VoteRestrictionType
 	Call_PushCell(target);
 	Call_Finish();
 	
-	LogDebug("[ForwardCallVoteBlocked] Vote blocked for client %d, vote type %d, restriction %d, target %d", 
+	CVLog.Debug("[ForwardCallVoteBlocked] Vote blocked for client %d, vote type %d, restriction %d, target %d", 
 		iClient, view_as<int>(voteType), view_as<int>(restriction), target);
 }
 
@@ -1094,43 +1199,3 @@ void ClearClientAdminFlagsCache(int client)
 		g_iClientFlagsCache[client] = 0;
 	}
 }
-
-#if DEBUG
-
-/**
- * Logs a debug message to a specified log file.
- *
- * @param sMessage   The format string for the debug message.
- * @param ...        Additional arguments to format into the message.
- */
-void LogDebug(const char[] sMessage, any...)
-{
-	static char sFormat[1024];
-	VFormat(sFormat, sizeof(sFormat), sMessage, 2);
-	LogToFileEx(g_sLogPath, "[Manager][Debug] %s", sFormat);
-}
-
-	#if DEBUG_SQL
-/**
- * Logs a formatted SQL-related message to a log file.
- *
- * @param sMessage   The format string for the message to log.
- * @param ...        Additional arguments to format into the message.
- */
-void LogSQL(const char[] sMessage, any...)
-{
-	static char sFormat[1024];
-	VFormat(sFormat, sizeof(sFormat), sMessage, 2);
-	LogToFileEx(g_sLogPath, "[Manager][SQL] %s", sFormat);
-}
-	#else
-
-public void LogSQL(const char[] sMessage, any...) {}
-	#endif
-
-#else
-
-public void LogDebug(const char[] sMessage, any...) {}
-
-public void LogSQL(const char[] sMessage, any...) {}
-#endif

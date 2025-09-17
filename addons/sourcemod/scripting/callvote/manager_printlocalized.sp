@@ -21,7 +21,7 @@ void PrintLocalizedMissionName(const char[] sMissionCode, int iAnnouncer)
 	Format(sKey, sizeof(sKey), "#L4D360UI_CampaignName_%s", sChapter);
 
 	bool bFound = false;
-	CVBLog.Debug("[PrintLocalizedMissionName] Mission: %s | Chapter: %s | Key: %s", sMissionCode, sChapter, sKey);
+	CVLog.Debug("[PrintLocalizedMissionName] Mission: %s | Chapter: %s | Key: %s", sMissionCode, sChapter, sKey);
 
 	if (g_loc != null && g_loc.IsReady())
 	{
@@ -36,22 +36,22 @@ void PrintLocalizedMissionName(const char[] sMissionCode, int iAnnouncer)
 			{
 				CPrintToChat(i, "%t %t", "Tag", "ChangeMission", iAnnouncer, sTranslation);
 				bFound = true;
-				CVBLog.Debug("[PrintLocalizedMissionName] Sent localized message to %N: %s", i, sTranslation);
+				CVLog.Debug("[PrintLocalizedMissionName] Sent localized message to %N: %s", i, sTranslation);
 			}
 			else
 			{
-				CVBLog.Debug("[PrintLocalizedMissionName] No translation found for %s for client %N", sKey, i);
+				CVLog.Debug("[PrintLocalizedMissionName] No translation found for %s for client %N", sKey, i);
 			}
 		}
 	}
 	else
 	{
-		CVBLog.Debug("[PrintLocalizedMissionName] Localizer not ready or null");
+		CVLog.Debug("[PrintLocalizedMissionName] Localizer not ready or null");
 	}
 
 	if (!bFound)
 	{
-		CVBLog.Debug("[PrintLocalizedMissionName] Using fallback mission name: %s", sMissionCode);
+		CVLog.Debug("[PrintLocalizedMissionName] Using fallback mission name: %s", sMissionCode);
 		CPrintToChatAll("%t %t", "Tag", "ChangeMission", iAnnouncer, sMissionCode);
 	}
 }
@@ -71,7 +71,7 @@ void PrintLocalizedChapterName(const char[] sMapName, int iAnnouncer)
 	char sMapCode[16];
 	if (!Campaign_ExtractMapCode(sMapName, sMapCode, sizeof(sMapCode)))
 	{
-		CVBLog.Debug("[PrintLocalizedChapterName] Could not extract map code from: %s", sMapName);
+		CVLog.Debug("[PrintLocalizedChapterName] Could not extract map code from: %s", sMapName);
 		CPrintToChatAll("%t %t", "Tag", "ChangeChapter", iAnnouncer, sMapName);
 		return;
 	}
@@ -82,7 +82,7 @@ void PrintLocalizedChapterName(const char[] sMapName, int iAnnouncer)
 	strcopy(sModeString, sizeof(sModeString), Campaign_GetGameModeString(gameMode));
 
 	bool bFound = false;
-	CVBLog.Debug("[PrintLocalizedChapterName] Map: %s | Code: %s | Mode: %s (%d)", sMapName, sMapCode, sModeString, gameMode);
+	CVLog.Debug("[PrintLocalizedChapterName] Map: %s | Code: %s | Mode: %s (%d)", sMapName, sMapCode, sModeString, gameMode);
 
 	if (g_loc != null && g_loc.IsReady())
 	{
@@ -111,22 +111,22 @@ void PrintLocalizedChapterName(const char[] sMapName, int iAnnouncer)
 
 				CPrintToChat(i, "%t %t", "Tag", "ChangeChapter", iAnnouncer, sFullName);
 				bFound = true;
-				CVBLog.Debug("[PrintLocalizedChapterName] Sent localized message to %N: %s", i, sFullName);
+				CVLog.Debug("[PrintLocalizedChapterName] Sent localized message to %N: %s", i, sFullName);
 			}
 			else
 			{
-				CVBLog.Debug("[PrintLocalizedChapterName] No translation found for %s for client %N", sMapCode, i);
+				CVLog.Debug("[PrintLocalizedChapterName] No translation found for %s for client %N", sMapCode, i);
 			}
 		}
 	}
 	else
 	{
-		CVBLog.Debug("[PrintLocalizedChapterName] Localizer not ready or null");
+		CVLog.Debug("[PrintLocalizedChapterName] Localizer not ready or null");
 	}
 
 	if (!bFound)
 	{
-		CVBLog.Debug("[PrintLocalizedChapterName] Using fallback chapter name: %s", sMapName);
+		CVLog.Debug("[PrintLocalizedChapterName] Using fallback chapter name: %s", sMapName);
 		CPrintToChatAll("%t %t", "Tag", "ChangeChapter", iAnnouncer, sMapName);
 	}
 }
@@ -152,7 +152,7 @@ void PrintLocalizedAllTalk(int iAnnouncer)
 	bool bNewState = !bCurrentAllTalk;
 
 	bool bFound	   = false;
-	CVBLog.Debug("[PrintLocalizedAllTalk] Current AllTalk: %s | New State: %s",
+	CVLog.Debug("[PrintLocalizedAllTalk] Current AllTalk: %s | New State: %s",
 			 bCurrentAllTalk ? "true" : "false", bNewState ? "true" : "false");
 
 	if (g_loc != null && g_loc.IsReady())
@@ -183,18 +183,18 @@ void PrintLocalizedAllTalk(int iAnnouncer)
 
 			char clientLang[32];
 			Lang_GetSafeClientLanguage(i, clientLang, sizeof(clientLang));
-			CVBLog.Debug("[PrintLocalizedAllTalk] Sent localized message to %N (%s): %s -> %s",
+			CVLog.Debug("[PrintLocalizedAllTalk] Sent localized message to %N (%s): %s -> %s",
 					 i, clientLang, sAllTalkTranslation, sStateTranslation);
 		}
 	}
 	else
 	{
-		CVBLog.Debug("[PrintLocalizedAllTalk] Localizer not ready or null");
+		CVLog.Debug("[PrintLocalizedAllTalk] Localizer not ready or null");
 	}
 
 	if (!bFound)
 	{
-		CVBLog.Debug("[PrintLocalizedAllTalk] Using fallback AllTalk message");
+		CVLog.Debug("[PrintLocalizedAllTalk] Using fallback AllTalk message");
 		CPrintToChatAll("%t %t", "Tag", "ChangeAllTalk", iAnnouncer, "change AllTalk", bNewState ? "Enabled" : "Disabled");
 	}
 }
@@ -222,12 +222,12 @@ void PrintLocalizedDifficulty(const char[] sDifficultyArg, int iAnnouncer)
 		strcopy(sKey, sizeof(sKey), "#L4D_DifficultyImpossible");
 	else
 	{
-		CVBLog.Debug("[PrintLocalizedDifficulty] Unknown difficulty argument: %s", sDifficultyArg);
+		CVLog.Debug("[PrintLocalizedDifficulty] Unknown difficulty argument: %s", sDifficultyArg);
 		return;
 	}
 
 	bool bFound = false;
-	CVBLog.Debug("[PrintLocalizedDifficulty] Difficulty: %s | Key: %s", sDifficultyArg, sKey);
+	CVLog.Debug("[PrintLocalizedDifficulty] Difficulty: %s | Key: %s", sDifficultyArg, sKey);
 
 	if (g_loc != null && g_loc.IsReady())
 	{
@@ -248,18 +248,18 @@ void PrintLocalizedDifficulty(const char[] sDifficultyArg, int iAnnouncer)
 
 			char clientLang[32];
 			Lang_GetSafeClientLanguage(i, clientLang, sizeof(clientLang));
-			CVBLog.Debug("[PrintLocalizedDifficulty] Sent localized message to %N (%s): %s",
+			CVLog.Debug("[PrintLocalizedDifficulty] Sent localized message to %N (%s): %s",
 					 i, clientLang, sDifficultyTranslation);
 		}
 	}
 	else
 	{
-		CVBLog.Debug("[PrintLocalizedDifficulty] Localizer not ready or null");
+		CVLog.Debug("[PrintLocalizedDifficulty] Localizer not ready or null");
 	}
 
 	if (!bFound)
 	{
-		CVBLog.Debug("[PrintLocalizedDifficulty] Using fallback difficulty message");
+		CVLog.Debug("[PrintLocalizedDifficulty] Using fallback difficulty message");
 		CPrintToChatAll("%t %t", "Tag", "ChangeDifficulty", iAnnouncer, sDifficultyArg);
 	}
 }
@@ -277,7 +277,7 @@ void PrintLocalizedKick(int iAnnouncer, int iTarget)
 		return;
 
 	bool bFound = false;
-	CVBLog.Debug("[PrintLocalizedKick] Announcer: %N | Target: %N", iAnnouncer, iTarget);
+	CVLog.Debug("[PrintLocalizedKick] Announcer: %N | Target: %N", iAnnouncer, iTarget);
 
 	if (g_loc != null && g_loc.IsReady())
 	{
@@ -299,18 +299,18 @@ void PrintLocalizedKick(int iAnnouncer, int iTarget)
 
 			char clientLang[32];
 			Lang_GetSafeClientLanguage(i, clientLang, sizeof(clientLang));
-			CVBLog.Debug("[PrintLocalizedKick] Sent localized message to %N (%s): %s",
+			CVLog.Debug("[PrintLocalizedKick] Sent localized message to %N (%s): %s",
 					 i, clientLang, sKickTranslation);
 		}
 	}
 	else
 	{
-		CVBLog.Debug("[PrintLocalizedKick] Localizer not ready or null");
+		CVLog.Debug("[PrintLocalizedKick] Localizer not ready or null");
 	}
 
 	if (!bFound)
 	{
-		CVBLog.Debug("[PrintLocalizedKick] Using fallback kick message");
+		CVLog.Debug("[PrintLocalizedKick] Using fallback kick message");
 		CPrintToChatAll("%t {green}%N{default} called vote to {olive}kick{default} {red}%N{default}",
 						"Tag", iAnnouncer, iTarget);
 	}
@@ -356,7 +356,7 @@ void PrintLocalizedRestartGame(int iAnnouncer)
 	}
 
 	bool bFound = false;
-	CVBLog.Debug("[PrintLocalizedRestartGame] Announcer: %N | GameMode: %d | Key: %s",
+	CVLog.Debug("[PrintLocalizedRestartGame] Announcer: %N | GameMode: %d | Key: %s",
 			 iAnnouncer, gameMode, sKey);
 
 	if (g_loc != null && g_loc.IsReady())
@@ -379,18 +379,18 @@ void PrintLocalizedRestartGame(int iAnnouncer)
 
 			char clientLang[32];
 			Lang_GetSafeClientLanguage(i, clientLang, sizeof(clientLang));
-			CVBLog.Debug("[PrintLocalizedRestartGame] Sent localized message to %N (%s): %s",
+			CVLog.Debug("[PrintLocalizedRestartGame] Sent localized message to %N (%s): %s",
 					 i, clientLang, sRestartTranslation);
 		}
 	}
 	else
 	{
-		CVBLog.Debug("[PrintLocalizedRestartGame] Localizer not ready or null");
+		CVLog.Debug("[PrintLocalizedRestartGame] Localizer not ready or null");
 	}
 
 	if (!bFound)
 	{
-		CVBLog.Debug("[PrintLocalizedRestartGame] Using fallback restart message");
+		CVLog.Debug("[PrintLocalizedRestartGame] Using fallback restart message");
 		CPrintToChatAll("%t {green}%N{default} called vote for {olive}%s{default}",
 						"Tag", iAnnouncer, sFallbackText);
 	}
@@ -408,7 +408,7 @@ void PrintLocalizedReturnToLobby(int iAnnouncer)
 		return;
 
 	bool bFound = false;
-	CVBLog.Debug("[PrintLocalizedReturnToLobby] Announcer: %N", iAnnouncer);
+	CVLog.Debug("[PrintLocalizedReturnToLobby] Announcer: %N", iAnnouncer);
 
 	if (g_loc != null && g_loc.IsReady())
 	{
@@ -430,18 +430,18 @@ void PrintLocalizedReturnToLobby(int iAnnouncer)
 
 			char clientLang[32];
 			Lang_GetSafeClientLanguage(i, clientLang, sizeof(clientLang));
-			CVBLog.Debug("[PrintLocalizedReturnToLobby] Sent localized message to %N (%s): %s",
+			CVLog.Debug("[PrintLocalizedReturnToLobby] Sent localized message to %N (%s): %s",
 					 i, clientLang, sLobbyTranslation);
 		}
 	}
 	else
 	{
-		CVBLog.Debug("[PrintLocalizedReturnToLobby] Localizer not ready or null");
+		CVLog.Debug("[PrintLocalizedReturnToLobby] Localizer not ready or null");
 	}
 
 	if (!bFound)
 	{
-		CVBLog.Debug("[PrintLocalizedReturnToLobby] Using fallback lobby message");
+		CVLog.Debug("[PrintLocalizedReturnToLobby] Using fallback lobby message");
 		CPrintToChatAll("%t {green}%N{default} called vote to {olive}return to lobby{default}",
 						"Tag", iAnnouncer);
 	}

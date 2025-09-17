@@ -8,10 +8,6 @@
 	{
 		"en"		"Plugin {red}disabled{default}."
 	}
-	"DBQueryError"
-	{
-		"en"		"Database query {red}error{default}"
-	}
 	"DBTableCreated"
 	{
 		"en"		"Table created {green}successfully{default}."
@@ -47,25 +43,10 @@
 		"#format"	"{1:N},{2:s}"
 		"en"		"{green}{1}{default} called vote for {olive}change difficulty{default}: {blue}{2}{default}"
 	}
-	"RestartGame"
-	{
-		"#format"	"{1:N}"
-		"en"		"{green}{1}{default} called vote for {olive}restart campaign{default}"
-	}
-	"Kick"
-	{
-		"#format"	"{1:N},{2:N}"
-		"en"		"{green}{1}{default} called vote to {olive}kick{default} {red}{2}{default}"
-	}
 	"ChangeMission"
 	{
 		"#format"	"{1:N},{2:s}"
 		"en"		"{green}{1}{default} called vote for {olive}change campaign{default}: {blue}{2}{default}"
-	}
-	"ReturnToLobby"
-	{
-		"#format"	"{1:N}"
-		"en"		"{green}{1}{default} called vote to {olive}return lobby{default}"
 	}
 	"ChangeChapter"
 	{
@@ -131,5 +112,37 @@
 	"VoteNotAllowedInGameMode"
 	{
 		"en"		"This type of vote is not enabled in this game mode"
+	}
+	"CleaningUpRecords"
+	{
+		"en"		"Cleaning up old records from the database..."
+	}
+	"InvalidDaysValue"
+	{
+		"en"		"Invalid number of days. Please provide a positive integer."
+	}
+	"MustTypeConfirm"
+	{
+		"en"		"You must type 'confirm' to proceed with this action."
+	}
+	"TruncatingTable"
+	{
+		"en"		"Truncating table data..."
+	}
+	"UsageTruncateConfirm"
+	{
+		"en"		"Usage: sm_callvote_truncate confirm - This will delete ALL records!"
+	}
+	"WarningDeleteAllRecords"
+	{
+		"en"		"WARNING: This will permanently delete ALL voting records!"
+	}
+	"Yes"
+	{
+		"en"		"Yes"
+	}
+	"No"
+	{
+		"en"		"No"
 	}
 }

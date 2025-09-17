@@ -8,10 +8,6 @@
 	{
 		"es"		"Plugin {red}desactivado{default}."
 	}
-	"DBQueryError"
-	{
-		"es"		"{red}Error{default} en la consulta a la base de datos"
-	}
 	"DBTableCreated"
 	{
 		"es"		"Tabla creada {green}correctamente{default}."
@@ -47,25 +43,10 @@
 		"#format"	"{1:N},{2:s}"
 		"es"		"{green}{1}{default} llamó votación para {olive}cambiar la dificultad{default}: {blue}{2}{default}"
 	}
-	"RestartGame"
-	{
-		"#format"	"{1:N}"
-		"es"		"{green}{1}{default} llamó votación para {olive}reiniciar la campaña{default}"
-	}
-	"Kick"
-	{
-		"#format"	"{1:N},{2:N}"
-		"es"		"{green}{1}{default} llamó votación para {olive}expulsar{default} a {red}{2}{default}"
-	}
 	"ChangeMission"
 	{
 		"#format"	"{1:N},{2:s}"
 		"es"		"{green}{1}{default} llamó votación para {olive}cambiar la campaña{default}: {blue}{2}{default}"
-	}
-	"ReturnToLobby"
-	{
-		"#format"	"{1:N}"
-		"es"		"{green}{1}{default} llamó votación para {olive}volver a la sala de espera{default}"
 	}
 	"ChangeChapter"
 	{
@@ -131,5 +112,37 @@
 	"VoteNotAllowedInGameMode"
 	{
 		"es"		"Este tipo de votación no está habilitado en este modo de juego"
+	}
+	"CleaningUpRecords"
+	{
+		"es"		"Limpiando registros antiguos de la base de datos..."
+	}
+	"InvalidDaysValue"
+	{
+		"es"		"Número de días inválido. Por favor proporciona un número entero positivo."
+	}
+	"MustTypeConfirm"
+	{
+		"es"		"Debes escribir 'confirm' para proceder con esta acción."
+	}
+	"TruncatingTable"
+	{
+		"es"		"Truncando datos de la tabla..."
+	}
+	"UsageTruncateConfirm"
+	{
+		"es"		"Uso: sm_callvote_truncate confirm - ¡Esto eliminará TODOS los registros!"
+	}
+	"WarningDeleteAllRecords"
+	{
+		"es"		"ADVERTENCIA: ¡Esto eliminará permanentemente TODOS los registros de votación!"
+	}
+	"Yes"
+	{
+		"es"		"Sí"
+	}
+	"No"
+	{
+		"es"		"No"
 	}
 }

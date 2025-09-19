@@ -1,73 +1,191 @@
-# 🎯 Call Vote Manager - Documentación Completa
+# 🎯 CallVote Manager - API Principal
 
-[![License](https://img.shields.io/badge/license-GPL%20v3-blue.svg)](LICENSE)
+[![License](https://img.shields.io/badge/license-GPL%20v3-blue.svg)](../LICENSE)
 [![SourceMod](https://img.shields.io/badge/SourceMod-1.11%2B-orange.svg)](https://www.sourcemod.net/)
 [![Game](https://img.shields.io/badge/game-Left%204%20Dead%202-red.svg)](https://store.steampowered.com/app/550/Left_4_Dead_2/)
 
-**Plugin principal del CallVote Manager Suite - Control avanzado y completo del sistema de votaciones de Left 4 Dead 2.**
+**El núcleo central del CallVote Manager Suite - API y sistema de control avanzado de votaciones**
 
-[🏠 Volver al índice principal](README.md) | [🚫 CallVote Kick Limit](README_KICKLIMIT.md) | [🔒 CallVote Bans](README_BANS.md)
-
----
-
-## 📖 **Índice**
-
-- [📋 Descripción General](#-descripción-general)
-- [✨ Características](#-características)
-- [📥 Instalación](#-instalación)
-- [⚙️ Configuración](#-configuración)
-- [🎮 Comandos](#-comandos)
-- [🔗 API para Desarrolladores](#-api-para-desarrolladores)
-- [🗃️ Base de Datos](#-base-de-datos)
-- [🛠️ Solución de Problemas](#-solución-de-problemas)
-- [📊 Estadísticas y Logs](#-estadísticas-y-logs)
+[🏠 Volver al índice principal](../README.md) | [🚫 CallVote Kick Limit](README_KICKLIMIT.md) | [🔒 CallVote Bans](README_BANS.md)
 
 ---
 
-## 📋 **Descripción General**
+## � **Descripción General**
 
-CallVote Manager es el **núcleo central** del sistema de votaciones avanzado para Left 4 Dead 2. Proporciona control granular sobre todos los tipos de votaciones del juego, desde la validación hasta el registro completo.
+CallVote Manager es el **corazón del sistema** que actúa como API central para toda la gestión de votaciones en Left 4 Dead 2. Intercepta todas las votaciones antes de que lleguen al motor del juego, las valida a través de múltiples capas de restricciones, y proporciona una interfaz unificada para que otros plugins del ecosistema puedan integrar sus propias reglas de validación.
 
 ### **¿Qué hace exactamente?**
 
-El plugin **intercepta todas las votaciones** antes de que lleguen al motor del juego, las valida según múltiples criterios (inmunidades, restricciones de modo de juego, CVARs), y decide si permitirlas o bloquearlas. También registra toda la actividad para análisis posterior.
+El plugin funciona como un **middleware inteligente** que:
+- **Intercepta** todas las llamadas de votación (`callvote`) 
+- **Valida** permisos, inmunidades y restricciones
+- **Decide** si permitir o bloquear la votación
+- **Registra** toda la actividad para análisis
+- **Proporciona API** para que otros plugins extiendan la funcionalidad
 
 ---
 
-## ✨ **Características**
+## 🔄 **Flujo de Procesamiento**
 
-### 🎯 **Gestión Avanzada de Votaciones**
-- **Interceptación completa** de todas las votaciones antes de procesamiento
-- **Validación multinivel** con 6 tipos diferentes de restricciones
-- **Aprobación/denegación automática** basada en reglas configurables
-- **Soporte nativo** para todos los tipos de votación de L4D2
+```mermaid
+graph TD
+    A[👤 Jugador ejecuta callvote] --> B[🎯 CallVote Manager]
+    B --> C{🔍 Validaciones Básicas}
+    
+    C -->|❌ Fallo| D[� Bloqueo Inmediato]
+    C -->|✅ Pasa| E[📋 Identificar Tipo de Voto]
+    
+    E --> F{🛡️ Sistema de Validación Multicapa}
+    
+    F --> G[⚙️ Validación ConVar]
+    F --> H[🎮 Validación GameMode]  
+    F --> I[🔒 Validación Inmunidades]
+    F --> J[🎯 Validación Objetivo]
+    F --> K[� Validación Equipo]
+    F --> L[📊 Validación Estado]
+    
+    G --> M{🤔 ¿Resultado Final?}
+    H --> M
+    I --> M
+    J --> M
+    K --> M
+    L --> M
+    
+    M -->|✅ Permitir| N[🎉 Forward: CallVote_PreExecute]
+    M -->|❌ Denegar| O[📢 Forward: CallVote_Blocked]
+    
+    N --> P{🔄 ¿Plugin Bloquea?}
+    P -->|No| Q[🚀 Ejecutar Votación]
+    P -->|Sí| R[⛔ Cancelar Ejecución]
+    
+    O --> S[💬 Enviar Feedback al Cliente]
+    Q --> T[📊 Forward: CallVote_Start]
+    R --> S
+    
+    T --> U[📝 Logging & Analytics]
+    S --> U
+    
+    U --> V[🔗 API Disponible para Otros Plugins]
+    
+    style B fill:#4CAF50,stroke:#2E7D32,color:#fff
+    style F fill:#FF9800,stroke:#F57C00,color:#fff
+    style M fill:#2196F3,stroke:#1976D2,color:#fff
+    style Q fill:#8BC34A,stroke:#689F38,color:#fff
+    style S fill:#F44336,stroke:#D32F2F,color:#fff
+```
 
-### 🛡️ **Sistema de Inmunidades**
-- **Inmunidad administrativa** configurable por flags
-- **Inmunidad VIP** independiente para usuarios especiales
-- **Inmunidad a auto-kick** para prevenir expulsiones accidentales
-- **Inmunidad para bots** y SourceTV
-- **Configuración granular** por tipo de votación
+---
 
-### 📊 **Registro y Análisis**
-- **Logging local** con archivos rotativos por fecha
-- **Logging SQL** para análisis avanzado y persistencia
-- **Flags configurables** para registrar solo tipos específicos
-- **Integración con bases de datos** MySQL/SQLite
-- **Estadísticas detalladas** de actividad de votaciones
+## ✨ **Características Principales**
 
-### 🌍 **Soporte Multi-idioma**
-- **Traducciones completas** para todos los mensajes
-- **Integración con Language Manager** para traducciones dinámicas
-- **Soporte para localización** de nombres de campañas
-- **Anuncios configurables** en múltiples idiomas
+### 🎯 **Gestión Centralizada**
+CallVote Manager actúa como el **punto único de control** para todas las votaciones del servidor, proporcionando consistencia y control granular sin fragmentar la lógica entre múltiples plugins.
 
-### 🔧 **Integración y Compatibilidad**
-- **API nativa completa** para integración con otros plugins
-- **Forwards avanzados** para eventos de votaciones
-- **Compatibilidad con BuiltinVotes** para mejor experiencia
-- **Integración con Confogl** para entornos competitivos
-- **Soporte para Mission Manager** con nombres localizados
+### 🔧 **API Robusta para Desarrolladores**
+Proporciona **forwards y natives** que permiten a otros plugins:
+- Interceptar votaciones antes del procesamiento
+- Añadir validaciones personalizadas
+- Reaccionar a eventos de votación
+- Consultar permisos y restricciones
+
+### 🛡️ **Sistema de Inmunidades Inteligente**
+- **Cache optimizado** de permisos administrativos
+- **Inmunidades configurables** por tipo de votación
+- **Soporte para múltiples flags** de administrador
+- **Protección contra auto-kicks** accidentales
+
+### 📊 **Logging y Analytics Avanzados**
+- **Doble sistema** de logging (archivos + SQL)
+- **Flags configurables** para registrar eventos específicos  
+- **Estadísticas detalladas** con breakdown por tipo
+- **Cleanup automático** de registros antiguos
+
+### 🌍 **Localización Dinámica**
+- **Integración con Language Manager** para traducciones en tiempo real
+- **Nombres localizados** de campañas y capítulos
+- **Soporte multiidioma** per-cliente
+- **Fallbacks inteligentes** cuando faltan traducciones
+
+---
+
+## 🏗️ **Arquitectura del Sistema**
+
+### **Capas de Validación**
+
+1. **Capa de Entrada**: Interceptación de comandos callvote
+2. **Capa de Parseo**: Identificación y clasificación del tipo de voto
+3. **Capa de Validación**: Sistema multicapa de restricciones
+4. **Capa de Ejecución**: Forwards para intervención de terceros  
+5. **Capa de Logging**: Registro y analytics
+6. **Capa de Integración**: API para otros plugins
+
+### **Tipos de Restricciones**
+
+| Tipo | Descripción | Ejemplo |
+|------|-------------|---------|
+| **ConVar** | Configuración del servidor | `sv_vote_issue_kick_allowed 0` |
+| **GameMode** | Restricciones por modo de juego | Kick no permitido en Survival |
+| **Immunity** | Protecciones especiales | Admin inmune a votekick |
+| **SameState** | Evitar redundancia | AllTalk ya está enabled |
+| **Team** | Restricciones de equipo | Solo Survivors pueden votar |
+| **Target** | Validación de objetivo | Target no válido para kick |
+
+### **Sistema de Forwards**
+
+```sourcepawn
+// Flujo completo de eventos para desarrolladores
+CallVote_PreStart()    → Bloqueo preventivo antes de validación
+CallVote_Start()       → Notificación de voto iniciado exitosamente  
+CallVote_PreExecute()  → Última oportunidad de intervención
+CallVote_Blocked()     → Información sobre bloqueos para analytics
+```
+
+---
+
+## 🔗 **Integración con Otros Plugins**
+
+CallVote Manager está diseñado para ser el **núcleo central** que otros plugins de la suite extienden:
+
+### **CallVote Bans**
+```sourcepawn
+// Usa los forwards para aplicar bans de votación
+public Action CallVote_PreStart(int client, TypeVotes voteType, int target) {
+    if (IsClientBannedFromVoteType(client, voteType)) {
+        return Plugin_Handled; // Bloquear
+    }
+    return Plugin_Continue;
+}
+```
+
+### **CallVote Kick Limit** 
+```sourcepawn
+// Intercepta kicks para aplicar límites
+public Action CallVote_PreStart(int client, TypeVotes voteType, int target) {
+    if (voteType == Kick && HasExceededKickLimit(client)) {
+        return Plugin_Handled; // Bloquear por límite
+    }
+    return Plugin_Continue;
+}
+```
+
+---
+
+## 🎮 **Casos de Uso**
+
+### **Servidores Competitivos**
+- Control estricto de votaciones durante matches
+- Inmunidades para jugadores de equipos
+- Logging detallado para análisis post-partida
+
+### **Servidores Casuales**
+- Prevención de griefing con votaciones
+- Límites de kick para evitar abuso
+- Anuncios localizados para mejor experiencia
+
+### **Servidores de Comunidad**
+- Restricciones personalizadas por roles
+- Integración con sistemas VIP
+- Analytics para moderar comportamiento
 
 ---
 

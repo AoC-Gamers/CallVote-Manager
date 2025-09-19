@@ -403,218 +403,7 @@ sm_cv_sql_auto help
 
 ---
 
-## 🔗 **API para Desarrolladores**
-
-### **Natives Disponibles**
-
-#### **Verificación de Permisos**
-```sourcepawn
-/**
- * Verifica si un tipo de votación está permitido por CVARs
- *
- * @param voteType  Tipo de votación a verificar
- * @return          true si está permitido, false si no
- */
-native bool CallVoteManager_IsVoteAllowedByConVar(TypeVotes voteType);
-
-/**
- * Verifica si un tipo de votación está permitido en el modo de juego actual
- *
- * @param voteType  Tipo de votación a verificar  
- * @return          true si está permitido, false si no
- */
-native bool CallVoteManager_IsVoteAllowedByGameMode(TypeVotes voteType);
-```
-
-### **Forwards Disponibles**
-
-#### **CallVote_PreStart**
-```sourcepawn
-/**
- * Se llama antes de que comience una votación (antes de validación)
- *
- * @param client    Cliente que inicia la votación
- * @param voteType  Tipo de votación
- * @param target    Cliente objetivo (solo para kick)
- * @return          Plugin_Continue para permitir, Plugin_Handled para bloquear
- */
-forward Action CallVote_PreStart(int client, TypeVotes voteType, int target);
-```
-
-#### **CallVote_Start**
-```sourcepawn
-/**
- * Se llama cuando una votación inicia exitosamente
- *
- * @param client    Cliente que inició la votación
- * @param voteType  Tipo de votación
- * @param target    Cliente objetivo (solo para kick)
- */
-forward void CallVote_Start(int client, TypeVotes voteType, int target);
-```
-
-#### **CallVote_PreExecute**
-```sourcepawn
-/**
- * Se llama después de validación pero antes de ejecutar la votación
- *
- * @param client    Cliente que inició la votación
- * @param voteType  Tipo de votación
- * @param target    Cliente objetivo (solo para kick)
- * @return          Plugin_Continue para permitir, Plugin_Handled para bloquear
- */
-forward Action CallVote_PreExecute(int client, TypeVotes voteType, int target);
-```
-
-#### **CallVote_Blocked**
-```sourcepawn
-/**
- * Se llama cuando una votación es bloqueada
- *
- * @param client        Cliente que intentó la votación
- * @param voteType      Tipo de votación bloqueada
- * @param restriction   Tipo de restricción que bloqueó la votación
- * @param target        Cliente objetivo (solo para kick)
- */
-forward void CallVote_Blocked(int client, TypeVotes voteType, VoteRestrictionType restriction, int target);
-```
-
-### **Enums de Referencia**
-
-#### **TypeVotes**
-```sourcepawn
-enum TypeVotes
-{
-    TypeVotes_ChangeDifficulty = 0,
-    TypeVotes_RestartGame,
-    TypeVotes_Kick,
-    TypeVotes_ChangeMission,
-    TypeVotes_ReturnToLobby,
-    TypeVotes_ChangeChapter,
-    TypeVotes_ChangeAllTalk,
-    TypeVotes_Size
-}
-```
-
-#### **VoteRestrictionType**
-```sourcepawn
-enum VoteRestrictionType
-{
-    VoteRestriction_None = 0,      // Sin restricción
-    VoteRestriction_ConVar,        // Bloqueado por CVAR
-    VoteRestriction_GameMode,      // No permitido en este modo de juego
-    VoteRestriction_SameState,     // Ya está en el estado solicitado
-    VoteRestriction_Immunity,      // Objetivo tiene inmunidad
-    VoteRestriction_Team,          // Restricción de equipo
-    VoteRestriction_Target         // Problema con el objetivo
-}
-```
-
-### **Ejemplos de Integración**
-
-#### **Ejemplo 1: Bloquear Votaciones en Eventos**
-```sourcepawn
-#include <callvotemanager>
-
-bool g_bEventActive = false;
-
-public Action CallVote_PreStart(int client, TypeVotes voteType, int target)
-{
-    // Bloquear todas las votaciones durante eventos especiales
-    if (g_bEventActive)
-    {
-        PrintToChat(client, "Las votaciones están deshabilitadas durante el evento");
-        return Plugin_Handled;
-    }
-    
-    return Plugin_Continue;
-}
-
-public void OnEventStart()
-{
-    g_bEventActive = true;
-    PrintToChatAll("Evento iniciado - Votaciones temporalmente deshabilitadas");
-}
-```
-
-#### **Ejemplo 2: Sistema de Logs Personalizado**
-```sourcepawn
-#include <callvotemanager>
-
-public void CallVote_Start(int client, TypeVotes voteType, int target)
-{
-    char clientName[MAX_NAME_LENGTH];
-    char targetName[MAX_NAME_LENGTH] = "N/A";
-    
-    GetClientName(client, clientName, sizeof(clientName));
-    
-    if (target > 0 && IsClientInGame(target))
-        GetClientName(target, targetName, sizeof(targetName));
-    
-    // Log personalizado a archivo especial
-    LogToFile("logs/custom_votes.log", "[VOTE] %s initiated %s vote (target: %s)", 
-              clientName, GetVoteTypeName(voteType), targetName);
-}
-```
-
-#### **Ejemplo 3: Verificación de Permisos Avanzada**
-```sourcepawn
-#include <callvotemanager>
-
-public Action Command_CheckVotePermissions(int client, int args)
-{
-    PrintToChat(client, "=== Estado de Permisos de Votación ===");
-    
-    for (int voteType = 0; voteType < view_as<int>(TypeVotes_Size); voteType++)
-    {
-        bool cvarAllowed = CallVoteManager_IsVoteAllowedByConVar(view_as<TypeVotes>(voteType));
-        bool gamemodeAllowed = CallVoteManager_IsVoteAllowedByGameMode(view_as<TypeVotes>(voteType));
-        
-        char status[32];
-        if (cvarAllowed && gamemodeAllowed)
-            strcopy(status, sizeof(status), "✅ Permitido");
-        else if (!cvarAllowed)
-            strcopy(status, sizeof(status), "❌ CVAR bloqueado");
-        else
-            strcopy(status, sizeof(status), "❌ Modo de juego");
-            
-        PrintToChat(client, "%s: %s", GetVoteTypeName(view_as<TypeVotes>(voteType)), status);
-    }
-    
-    return Plugin_Handled;
-}
-```
-
-#### **Ejemplo 4: Sistema de Cooldown Personalizado**
-```sourcepawn
-#include <callvotemanager>
-
-float g_fLastVoteTime[MAXPLAYERS + 1];
-#define VOTE_COOLDOWN 30.0  // 30 segundos
-
-public Action CallVote_PreStart(int client, TypeVotes voteType, int target)
-{
-    float currentTime = GetGameTime();
-    
-    if (currentTime - g_fLastVoteTime[client] < VOTE_COOLDOWN)
-    {
-        float remaining = VOTE_COOLDOWN - (currentTime - g_fLastVoteTime[client]);
-        PrintToChat(client, "Debes esperar %.1f segundos antes de otra votación", remaining);
-        return Plugin_Handled;
-    }
-    
-    return Plugin_Continue;
-}
-
-public void CallVote_Start(int client, TypeVotes voteType, int target)
-{
-    g_fLastVoteTime[client] = GetGameTime();
-}
-```
-
----
-
-## 🗃️ **Base de Datos**
+## ️ **Base de Datos**
 
 ### **Estructura de Tablas**
 
@@ -832,7 +621,33 @@ mysql> SELECT table_name,
 
 ---
 
-## 📊 **Estadísticas y Logs**
+## � **Para Desarrolladores**
+
+La API completa de CallVote Manager está documentada en los archivos include:
+
+- **[callvotemanager.inc](../addons/sourcemod/scripting/include/callvotemanager.inc)** - Forwards y natives principales
+- **[callvote_stock.inc](../addons/sourcemod/scripting/include/callvote_stock.inc)** - Enums y funciones utility
+
+### **API Básica**
+```sourcepawn
+#include <callvotemanager>
+
+// Verificar permisos de votación
+bool CallVoteManager_IsVoteAllowedByConVar(TypeVotes voteType);
+bool CallVoteManager_IsVoteAllowedByGameMode(TypeVotes voteType);
+
+// Forwards para interceptar eventos
+forward Action CallVote_PreStart(int client, TypeVotes voteType, int target);
+forward void CallVote_Start(int client, TypeVotes voteType, int target);
+forward Action CallVote_PreExecute(int client, TypeVotes voteType, int target);
+forward void CallVote_Blocked(int client, TypeVotes voteType, VoteRestrictionType restriction, int target);
+```
+
+**[📖 Ver documentación completa en include files →](../addons/sourcemod/scripting/include/)**
+
+---
+
+## �📊 **Estadísticas y Logs**
 
 ### **Formato de Logs Locales**
 

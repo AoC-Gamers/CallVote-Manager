@@ -109,7 +109,8 @@ public Action Command_BanOffline(int client, int args)
     
 	char
 		sSteamId[MAX_AUTHID_LENGTH],
-		sReason[256] = "Admin ban";
+		sReason[256] = "Admin ban",
+		processedReason[256];
 	GetCmdArg(1, sSteamId, sizeof(sSteamId));
 	int
 		banType = GetCmdArgInt(2),
@@ -117,6 +118,8 @@ public Action Command_BanOffline(int client, int args)
 
 	if (args >= 4)
 		GetCmdArgString(sReason, sizeof(sReason));
+
+	CVB_GetBanReason(sReason, processedReason, sizeof(processedReason));
 
 	if (banType <= 0 || banType > view_as<int>(VOTE_ALL))
 	{
@@ -130,7 +133,7 @@ public Action Command_BanOffline(int client, int args)
 		return Plugin_Handled;
 	}
 
-	AsyncContext context = CreateAsyncContextForBanOffline(GetClientUserId(client), banType, durationMinutes, sReason);
+	AsyncContext context = CreateAsyncContextForBanOffline(GetClientUserId(client), banType, durationMinutes, processedReason);
 
 	SteamIDValidationResult validationResult = ValidateAndConvertSteamIDAsync(client, sSteamId, context);
 	if (validationResult == STEAMID_VALIDATION_SUCCESS)

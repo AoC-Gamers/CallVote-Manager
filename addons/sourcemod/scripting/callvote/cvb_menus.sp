@@ -589,8 +589,6 @@ public int MenuHandler_BanConfirmationWithReason(Menu hMenu, MenuAction action, 
 					}
 				}
 			}
-			
-			ShowMainBanPanel(client);
 		}
 		case MenuAction_Cancel:
 		{
@@ -731,9 +729,11 @@ void ProcessBan(int admin, int target, int banType, int durationMinutes, const c
 
 	int adminAccountId = (admin == SERVER_INDEX) ? SERVER_INDEX : GetSteamAccountID(admin);
 
-	char reasonCode[256];
-	CVB_GetBanReason(reason, reasonCode, sizeof(reasonCode));
-	CVB_InsertMysqlBan(targetAccountId, banType, durationMinutes, adminAccountId, reasonCode);
+	// Use the already processed reason directly (no need to process again)
+	CVB_InsertMysqlBan(targetAccountId, banType, durationMinutes, adminAccountId, reason);
+	
+	// Fire the OnPlayerBanned event for consistency with API
+	FireOnPlayerBanned(target, banType, durationMinutes, admin, reason);
 	
 	int expiresTimestamp = (durationMinutes == 0) ? 0 : GetTime() + (durationMinutes * 60);
 	SetClientBanInfo(target, banType, durationMinutes, expiresTimestamp);
@@ -819,7 +819,7 @@ public int MenuHandler_UnbanConfirmation(Menu hMenu, MenuAction action, int clie
 				}
 			}
 			
-			ShowMainUnbanPanel(client);
+			// Menu closes automatically after unban is processed
 		}
 		case MenuAction_Cancel:
 		{

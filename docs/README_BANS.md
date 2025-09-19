@@ -1,53 +1,449 @@
-# 🔒 Call Vote Bans - Documentación Completa v2.0
+# 🔒 CallVote Bans - Sistema de Restricciones de Votaciones
 
-[![License](https://img.shields.io/badge/license-GPL%20v3-blue.svg)](LICENSE)
+[![License](https://img.shields.io/badge/license-GPL%20v3-blue.svg)](../LICENSE)
 [![SourceMod](https://img.shields.io/badge/SourceMod-1.11%2B-orange.svg)](https://www.sourcemod.net/)
-[![API](https://img.shields.io/badge/API-Enhanced--v2.0-brightgreen.svg)](#api-para-desarrolladores)
 [![Game](https://img.shields.io/badge/game-Left%204%20Dead%202-red.svg)](https://store.steampowered.com/app/550/Left_4_Dead_2/)
 
-**Sistema avanzado de restricciones de votaciones por jugador con API v2.0 mejorada, cache multinivel y procedimientos almacenados.**
+**Sistema avanzado para restringir jugadores de tipos específicos de votaciones con almacenamiento triple y API extendida**
 
-[🏠 Volver al índice principal](README.md) | [🎯 CallVote Manager](README_MANAGER.md) | [🚫 CallVote Kick Limit](README_KICKLIMIT.md)
-
----
-
-## 📖 **Índice**
-
-- [🆕 Novedades v2.0](#-novedades-v20)
-- [📋 Descripción General](#-descripción-general)
-- [✨ Características](#-características)
-- [📥 Instalación](#-instalación)
-- [⚙️ Configuración](#-configuración)
-- [🎮 Comandos](#-comandos)
-- [🔗 API para Desarrolladores](#-api-para-desarrolladores)
-- [🗃️ Base de Datos](#-base-de-datos)
-- [🛠️ Solución de Problemas](#-solución-de-problemas)
-- [📊 Estadísticas y Monitoreo](#-estadísticas-y-monitoreo)
+[🏠 Volver al índice principal](../README.md) | [🎯 CallVote Manager](README_MANAGER.md) | [🚫 CallVote Kick Limit](README_KICKLIMIT.md)
 
 ---
 
-## 🆕 **Novedades v2.0**
+## 🎯 **¿Qué resuelve CallVote Bans?**
 
-### **API Expandida** ⭐
-- **4 nuevos natives** para mayor flexibilidad de integración
-- **Forwards automáticos** que notifican eventos de ban/unban en tiempo real
-- **Verificación de estado** `CVB_IsClientLoaded` previene errores de timing
-- **Información completa** `CVB_GetBanInfo` obtiene todos los datos de una vez
-- **Gestión simplificada** `CVB_BanPlayerByClient` para uso directo
+CallVote Bans soluciona el problema de **jugadores problemáticos que abusan del sistema de votaciones**. En lugar de banear completamente a un jugador del servidor, permite **restricciones granulares** que bloquean solo ciertos tipos de votaciones específicas.
 
-### **Mejoras Técnicas**
-- **Cache multinivel** optimizado (StringMap + SQLite + MySQL)
-- **Sistema maestro-esclavo** para limpieza automática en entornos multi-servidor
-- **Limpieza por umbral** configurable para prevenir crecimiento descontrolado del cache
-- **Limpieza programada** por hora específica para mantenimiento automático
-- **Procedimientos almacenados** para operaciones complejas
-- **Compilación sin warnings** - código completamente limpio
-- **Documentación completa** de toda la API en archivos .inc
-- **Compatibilidad total** con plugins existentes
+### **Problemas que Resuelve**
 
-### **Casos de Uso Nuevos**
-- **Plugins de notificaciones** (Discord, Slack) con forwards automáticos
-- **Sistemas de estadísticas** avanzadas con información completa
+🚫 **Griefers que spamean votekicks** → Ban solo de votaciones Kick  
+🚫 **Jugadores que cambian mapas constantemente** → Ban de ChangeMission/ChangeChapter  
+🚫 **Abuso de restart en partidas competitivas** → Ban de RestartGame  
+🚫 **Trolls con dificultad** → Ban de ChangeDifficulty  
+
+### **Ventajas sobre Bans Tradicionales**
+
+✅ **Granularidad**: Ban por tipo específico de votación  
+✅ **Flexibilidad**: Duraciones desde minutos hasta permanente  
+✅ **Integración**: API completa para otros plugins  
+✅ **Performance**: Sistema de cache triple optimizado  
+✅ **Escalabilidad**: Soporte multi-servidor con sincronización  
+
+---
+
+## 🏗️ **Arquitectura del Sistema**
+
+CallVote Bans utiliza una **arquitectura modular** con separación clara de responsabilidades:
+
+```mermaid
+graph TD
+    A[🎮 Jugador intenta votación] --> B[🎯 CallVote Manager API]
+    B --> C[🔒 CallVote Bans - Validación]
+    
+    C --> D{📊 Cache StringMap}
+    D -->|HIT| E[✅ Resultado inmediato]
+    D -->|MISS| F{💾 Cache SQLite}
+    
+    F -->|HIT| G[✅ Resultado rápido]
+    F -->|MISS| H{🗄️ Base MySQL}
+    
+    H --> I[� Actualizar caches]
+    I --> J[✅ Resultado autoritativo]
+    
+    E --> K{🚫 ¿Baneado?}
+    G --> K
+    J --> K
+    
+    K -->|Sí| L[❌ Bloquear votación]
+    K -->|No| M[✅ Permitir votación]
+    
+    style C fill:#FF5722,stroke:#D84315,color:#fff
+    style D fill:#4CAF50,stroke:#388E3C,color:#fff
+    style F fill:#FF9800,stroke:#F57C00,color:#fff
+    style H fill:#2196F3,stroke:#1976D2,color:#fff
+```
+
+### **Componentes del Sistema**
+
+| Componente | Archivo | Responsabilidad |
+|------------|---------|-----------------|
+| **🎯 API Core** | `cvb_api.sp` | Natives y forwards centralizados |
+| **⚙️ Configuration** | `cvb_reason_config.sp` | Carga de razones desde KeyValues |
+| **🗄️ Database Layer** | `cvb_database.sp` | MySQL + SQLite + procedimientos almacenados |
+| **📊 Cache Layer** | `cvb_cache.sp` | StringMap en memoria + gestión de estado |
+| **🎮 Command Layer** | `cvb_commands.sp` | Comandos admin + validación async |
+| **🖥️ UI Layer** | `cvb_menus.sp` | Menús in-game para administradores |
+| **📢 Notification** | `cvb_notification.sp` | Sistema unificado de notificaciones |
+
+---
+
+## 💾 **Sistema de Almacenamiento Triple**
+
+CallVote Bans implementa **tres niveles de almacenamiento** optimizados para diferentes escenarios:
+
+### **🚀 Nivel 1: StringMap Cache (Memoria)**
+```
+⚡ Ultra-rápido (< 1ms)
+🎯 Propósito: Consultas frecuentes en tiempo real
+🔄 Persistencia: Solo durante sesión del servidor
+📊 Contenido: Jugadores activos + consultas recientes
+```
+
+**Cuándo se usa:**
+- Validación de votaciones en tiempo real
+- Jugadores conectados al servidor
+- Consultas repetidas del mismo usuario
+
+### **🏃 Nivel 2: SQLite Cache (Disco Local)**
+```
+⚡ Rápido (< 10ms)
+🎯 Propósito: Cache persistente local
+🔄 Persistencia: Permanente hasta limpieza
+📊 Contenido: Bans frecuentemente consultados
+```
+
+**Cuándo se usa:**
+- Backup del cache de memoria
+- Bans permanentes o de larga duración
+- Cuando MySQL no está disponible temporalmente
+
+### **🗄️ Nivel 3: MySQL Database (Autoritativo)**
+```
+⚡ Estándar (< 50ms)
+🎯 Propósito: Fuente de verdad autoritativa
+🔄 Persistencia: Permanente y sincronizada
+📊 Contenido: Todos los bans del sistema
+```
+
+**Cuándo se usa:**
+- Fuente de verdad para todos los bans
+- Sincronización entre múltiples servidores
+- Auditoría y reportes administrativos
+- Operaciones de gestión (crear/editar/eliminar bans)
+
+### **🔄 Flujo de Consulta Inteligente**
+
+```sourcepawn
+bool IsPlayerBanned(client) {
+    // 1. Buscar en StringMap (< 1ms)
+    if (StringMapCache.HasData(client))
+        return StringMapCache.GetBanStatus(client);
+    
+    // 2. Buscar en SQLite (< 10ms)
+    if (SQLiteCache.HasData(client)) {
+        result = SQLiteCache.GetBanStatus(client);
+        StringMapCache.Update(client, result);  // Sincronizar hacia arriba
+        return result;
+    }
+    
+    // 3. Consultar MySQL (< 50ms)
+    result = MySQL.GetBanStatus(client);
+    SQLiteCache.Update(client, result);     // Sincronizar hacia SQLite
+    StringMapCache.Update(client, result);  // Sincronizar hacia StringMap
+    return result;
+}
+```
+
+---
+
+## ⚙️ **Configuración del Sistema**
+
+### **Configuración de Razones (KeyValues)**
+
+El archivo `configs/callvote_ban_reasons.cfg` utiliza el formato **KeyValues** nativo de Source con estructura numérica:
+
+```keyvalues
+"BanReasons"
+{
+    "ReasonsSize" "11"
+    "Reasons"
+    {
+        "0"
+        {
+            "code"          "REASON_NONE"
+            "keywords"      "none;sin;without"
+        }
+        
+        "1"
+        {
+            "code"          "REASON_SPAM_VOTES"
+            "keywords"      "spam;flood;repetir;repeat"
+        }
+        
+        "2"
+        {
+            "code"          "REASON_ABUSE_KICK"
+            "keywords"      "kick;echar;expulsar"
+        }
+        
+        "5"
+        {
+            "code"          "REASON_GRIEFING"
+            "keywords"      "grief;griefing;trolling;troll;molestar"
+        }
+        
+        "8"
+        {
+            "code"          "REASON_ADMIN_DECISION"
+            "keywords"      "admin;administrative;decision"
+        }
+        
+        "10"
+        {
+            "code"          "REASON_CUSTOM"
+            "keywords"      "custom;personalizada;other;otro"
+        }
+    }
+}
+```
+
+**Características del Sistema de Razones:**
+- ✅ **11 razones predefinidas** (índices 0-10)
+- ✅ **Keywords multiidioma** (inglés/español automático)
+- ✅ **Búsqueda inteligente** por keywords
+- ✅ **Fallback automático** a `REASON_ADMIN_DECISION`
+
+**Razones Disponibles:**
+| Código | Keywords | Uso |
+|--------|----------|-----|
+| `REASON_SPAM_VOTES` | `spam, flood, repetir` | Spam de votaciones |
+| `REASON_ABUSE_KICK` | `kick, echar, expulsar` | Abuso de votekick |
+| `REASON_ABUSE_CHANGELEVEL` | `changelevel, map, mapa` | Abuso cambio mapa |
+| `REASON_GRIEFING` | `grief, trolling, troll` | Griefing general |
+| `REASON_HARASSMENT` | `harass, acoso, abuse` | Acoso/hostigamiento |
+
+### **Configuración de Base de Datos**
+
+#### **MySQL (Recomendado para Producción)**
+```ini
+# databases.cfg
+"callvote_bans"
+{
+    "driver"        "mysql"
+    "host"          "localhost"
+    "database"      "l4d2_bans"
+    "user"          "callvote_user"
+    "pass"          "secure_password"
+    "port"          "3306"
+    "timeout"       "20"
+    "encoding"      "utf8mb4"
+}
+```
+
+#### **SQLite (Automático - No requiere configuración)**
+Se crea automáticamente en `data/callvote_bans_cache.sq3`
+
+### **Configuración de Cache**
+
+```ini
+# CallVote Bans Configuration (archivo callvote_bans.cfg)
+sm_cvb_enable "1"                    // Habilitar CallVote Bans
+sm_cvb_log "0"                       // Logging de actividades (0=off)
+sm_cvb_announcer "1"                 // Anunciar bans aplicados
+sm_cvb_stringmap_cache "1"           // Habilitar cache StringMap en memoria
+```
+
+**Sistema de Razones Inteligente:**
+```bash
+# Los admins pueden usar cualquier keyword en cualquier idioma:
+sm_cvb_ban PlayerName 4 1440 "kick"         # Usa keyword "kick"
+sm_cvb_ban PlayerName 4 1440 "echar"        # Usa keyword español "echar"  
+sm_cvb_ban PlayerName 8 0 "griefing"        # Usa keyword "griefing"
+sm_cvb_ban PlayerName 1 360 "spam"          # Usa keyword "spam"
+
+# El sistema automáticamente convierte a códigos internos:
+# "kick" → "#REASON_ABUSE_KICK"
+# "griefing" → "#REASON_GRIEFING"
+# "spam" → "#REASON_SPAM_VOTES"
+```
+
+---
+
+## 🎮 **Operaciones Diarias**
+
+### **Banear Jugadores por Tipo de Votación**
+
+#### **Bans Selectivos con Razones Inteligentes**
+```bash
+# El sistema acepta keywords en inglés o español automáticamente:
+
+# Ban de votekick por abuso (usa keyword "kick")
+sm_cvb_ban PlayerName 4 1440 "kick"
+# Tipo 4 = Kick, 1440 minutos = 24 horas
+
+# Ban de cambios de misión (usa keyword "griefing")  
+sm_cvb_ban PlayerName 8 0 "griefing"
+# Tipo 8 = ChangeMission, 0 = permanente
+
+# Ban múltiple con razón de spam
+sm_cvb_ban PlayerName 6 720 "spam" 
+# Tipo 6 = 4+2 (Kick+RestartGame), 720 minutos = 12 horas
+
+# Ejemplos con keywords en español:
+sm_cvb_ban PlayerName 4 360 "echar"      # keyword español para kick
+sm_cvb_ban PlayerName 8 1440 "mapa"      # keyword español para changelevel
+sm_cvb_ban PlayerName 1 180 "repetir"    # keyword español para spam
+```
+
+#### **Tipos de Ban Disponibles**
+```
+1   = ChangeDifficulty    (cambio de dificultad)
+2   = RestartGame         (reiniciar partida)
+4   = Kick                (expulsar jugadores)
+8   = ChangeMission       (cambio de campaña)
+16  = ReturnToLobby       (volver al lobby)
+32  = ChangeChapter       (cambio de capítulo)
+64  = ChangeAllTalk       (cambio de alltalk)
+127 = ALL                 (todos los tipos)
+```
+
+#### **Combinaciones Comunes con Keywords Inteligentes**
+```bash
+# Griefer completo - usa keyword "griefing"
+sm_cvb_ban PlayerName 14 0 "griefing"        # 4+2+8 = 14 (Kick+Restart+Mission)
+
+# Troll de mapas - usa keyword "mapa" (español)
+sm_cvb_ban PlayerName 56 2880 "mapa"         # 8+16+32 = 56 (Mission+Lobby+Chapter)
+
+# Spammer - usa keyword "spam"
+sm_cvb_ban PlayerName 65 360 "spam"          # 1+64 = 65 (Difficulty+AllTalk)
+
+# Decisión administrativa - usa keyword "admin"
+sm_cvb_ban PlayerName 127 1440 "admin"       # 127 = Todos los tipos
+
+# Keywords disponibles más comunes:
+# "kick", "echar", "expulsar"          → REASON_ABUSE_KICK
+# "spam", "flood", "repetir"           → REASON_SPAM_VOTES  
+# "griefing", "grief", "troll"         → REASON_GRIEFING
+# "mapa", "map", "changelevel"         → REASON_ABUSE_CHANGELEVEL
+# "restart", "reiniciar", "reset"      → REASON_ABUSE_RESTART
+# "admin", "administrative"            → REASON_ADMIN_DECISION
+```
+
+### **Gestión de Bans Existentes**
+
+#### **Verificar Estado de Ban**
+```bash
+# Jugador conectado
+sm_cvb_check PlayerName
+
+# Jugador offline (por SteamID)
+sm_cvb_checkid STEAM_0:1:12345
+sm_cvb_checkid [U:1:12345]        # Formato SteamID3
+sm_cvb_checkid 76561198012345678  # Formato SteamID64
+```
+
+#### **Remover Bans**
+```bash
+# Jugador conectado
+sm_cvb_unban PlayerName
+
+# Jugador offline
+sm_cvb_unbanid STEAM_0:1:12345
+```
+
+#### **Bans Offline (SteamID) con Keywords**
+```bash
+# Ban offline por SteamID2 con keyword
+sm_cvb_banid STEAM_0:1:12345 4 1440 "kick"
+
+# Ban offline por SteamID3 con keyword español
+sm_cvb_banid [U:1:12345] 127 0 "griefing"
+
+# Ban offline por SteamID64 con keyword
+sm_cvb_banid 76561198012345678 8 720 "mapa"
+
+# Formatos de SteamID soportados:
+# STEAM_0:1:12345      (SteamID2 - formato clásico)
+# [U:1:12345]          (SteamID3 - formato moderno)  
+# 76561198012345678    (SteamID64 - formato numérico)
+```
+
+### **Comandos de Cache y Diagnóstico**
+
+#### **Gestión de Cache StringMap (Memoria)**
+```bash
+# Verificar cache de jugador conectado
+sm_cvb_stringmap_check PlayerName
+
+# Verificar cache offline por SteamID  
+sm_cvb_stringmap_checkid STEAM_0:1:12345
+
+# Limpiar cache específico
+sm_cvb_stringmap_remove PlayerName
+sm_cvb_stringmap_removeid STEAM_0:1:12345
+
+# Estadísticas generales
+sm_cvb_stringpool_stats
+```
+
+#### **Gestión de Cache SQLite (Disco)**
+```bash
+# Verificar SQLite local
+sm_cvb_sqlite_check PlayerName
+sm_cvb_sqlite_checkid STEAM_0:1:12345
+
+# Limpiar cache SQLite
+sm_cvb_sqlite_remove PlayerName  
+sm_cvb_sqlite_removeid STEAM_0:1:12345
+```
+
+#### **Operaciones de Base de Datos MySQL**
+```bash
+# Instalar/actualizar estructuras (ADMFLAG_ROOT)
+sm_cvb_install           # Instalar/actualizar todo el sistema
+
+# Comandos de gestión del cache
+sm_cvb_cache_remove PlayerName           # Remover de cache
+sm_cvb_cache_remove_offline SteamID      # Remover offline del cache  
+sm_cvb_refresh_player PlayerName         # Refrescar datos del jugador
+sm_cvb_refresh_player_offline SteamID    # Refrescar datos offline
+```
+
+---
+
+## 📚 **Para Desarrolladores**
+
+CallVote Bans proporciona una **API robusta** para integración con otros plugins. La documentación completa está en los archivos include:
+
+### **API Básica**
+```sourcepawn
+#include <callvote_bans>
+
+// Verificar si un jugador está baneado
+bool CVB_IsClientBanned(int client, int voteType);
+
+// Obtener información completa del ban
+bool CVB_GetBanInfo(int client, int &banType, int &duration, int &expires, char[] reason);
+
+// Banear jugador desde plugin
+bool CVB_BanPlayerByClient(int admin, int target, int banType, int duration, const char[] reason);
+
+// Verificar si los datos están cargados
+bool CVB_IsClientLoaded(int client);
+```
+
+### **Forwards Disponibles**
+```sourcepawn
+// Se llama cuando un jugador es baneado
+forward void CVB_OnPlayerBanned(int target, int admin, int banType, int duration, const char[] reason);
+
+// Se llama cuando un ban es removido
+forward void CVB_OnPlayerUnbanned(int target, int admin);
+
+// Se llama cuando se carga información de ban
+forward void CVB_OnBanInfoLoaded(int client, bool isBanned, int banType);
+```
+
+**[📖 Ver documentación completa de API →](../addons/sourcemod/scripting/include/callvote_bans.inc)**
+
+---
+
+**[🏠 Volver al índice principal](../README.md) | [🎯 Siguiente: CallVote Manager →](README_MANAGER.md)**
+
+---
+
+*Plugin desarrollado por **lechuga16** - Parte del CallVote Manager Suite*
 - **Gestión web** con API robusta y verificación de estado
 - **Auto-moderación** con detección de eventos y limpieza automática
 

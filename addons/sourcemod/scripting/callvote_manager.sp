@@ -20,6 +20,8 @@
 *****************************************************************/
 
 #define PLUGIN_VERSION "2.0.0"
+#define CVM_LOG_TAG "CVM"
+#define CVM_LOG_FILE "callvote_manager.log"
 
 enum CallVoteSessionStatus
 {
@@ -480,7 +482,7 @@ public void OnPluginStart()
 	LoadTranslation("callvote_common.phrases");
 	g_cvarLogMode							= CallVoteEnsureLogModeConVar();
 	g_cvarDebugMask						= CreateConVar("sm_cvm_debug_mask", "0", "Debug mask for callvote_manager. Core=1 SQL=2 Cache=4 Commands=8 Identity=16 Forwards=32 Session=64 Localization=128 All=2147483647.", FCVAR_NONE, true, 0.0, true, 2147483647.0);
-	g_Log									= new CallVoteLogger("CVM", "callvote_manager.log", g_cvarLogMode, g_cvarDebugMask);
+	g_Log									= new CallVoteLogger(CVM_LOG_TAG, CVM_LOG_FILE, g_cvarLogMode, g_cvarDebugMask);
 	g_cvarEnable							= CreateConVar("sm_cvm_enable", "1", "Enable plugin", FCVAR_NOTIFY, true, 0.0, true, 1.0);
 	g_cvarRegLog							= CreateConVar("sm_cvm_log_flags", "0", "logging flags <dificulty:1, restartgame:2, kick:4, changemission:8, lobby:16, chapter:32, alltalk:64, ALL:127>", FCVAR_NOTIFY, true, 0.0, true, 127.0);
 	g_cvarBuiltinVote						= CreateConVar("sm_cvm_builtin_vote", "1", "<builtinvotes> support", FCVAR_NOTIFY, true, 0.0, true, 1.0);

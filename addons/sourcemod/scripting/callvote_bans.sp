@@ -11,6 +11,8 @@
 #define REQUIRE_PLUGIN
 
 #define PLUGIN_VERSION	 "2.0.0"
+#define CVB_LOG_TAG "CVB"
+#define CVB_LOG_FILE "callvote_bans.log"
 
 #define MAX_QUERY_LENGTH 2048
 
@@ -239,7 +241,7 @@ public void OnPluginStart()
 	g_cvarAnnounceJoin			 = CreateConVar("sm_cvb_announce_join", "1", "0=off, 1=admins, 2=everyone", FCVAR_NOTIFY, true, 0.0, true, 2.0);
 	g_cvarLogMode				 = CallVoteEnsureLogModeConVar();
 	g_cvarDebugMask			 = CreateConVar("sm_cvb_debug_mask", "0", "Debug mask for callvote_bans. Core=1 SQL=2 Cache=4 Commands=8 Identity=16 All=2147483647.", FCVAR_NONE, true, 0.0, true, 2147483647.0);
-	g_Log						 = new CallVoteLogger("CVB", "callvote_bans.log", g_cvarLogMode, g_cvarDebugMask);
+	g_Log						 = new CallVoteLogger(CVB_LOG_TAG, CVB_LOG_FILE, g_cvarLogMode, g_cvarDebugMask);
 
 	CallVoteAutoExecConfig(false, "callvote_bans");
 

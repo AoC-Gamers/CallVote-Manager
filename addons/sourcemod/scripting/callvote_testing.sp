@@ -25,6 +25,8 @@
 
 #define PLUGIN_VERSION	"2.0"
 #define TAG				"[{olive}CallVote Debug{default}]"
+#define CVT_LOG_TAG "CVT"
+#define CVT_LOG_FILE "callvote_testing.log"
 
 ConVar
 	g_cvarDebug,
@@ -126,7 +128,7 @@ public void OnPluginStart()
 	g_cvarEnable		   = CreateConVar("sm_cvt_enable", "1", "Enable plugin", FCVAR_NOTIFY, true, 0.0, true, 1.0);
 	g_cvarLogMode		   = CallVoteEnsureLogModeConVar();
 	g_cvarDebugMask		   = CreateConVar("sm_cvt_debug_mask", "0", "Debug mask for callvote_testing. Core=1 SQL=2 Cache=4 Commands=8 Identity=16 Forwards=32 Session=64 Localization=128 All=2147483647.", FCVAR_NONE, true, 0.0, true, 2147483647.0);
-	g_Log				   = new CallVoteLogger("CVT", "callvote_testing.log", g_cvarLogMode, g_cvarDebugMask);
+	g_Log				   = new CallVoteLogger(CVT_LOG_TAG, CVT_LOG_FILE, g_cvarLogMode, g_cvarDebugMask);
 	g_cvarForwardManager   = CreateConVar("sm_cvt_forwardmanager", "1", "Enable manager forwards", FCVAR_NONE, true, 0.0, true, 1.0);
 
 	g_cvarVoteStarted	   = CreateConVar("sm_cvt_votestarted", "1", "Enable vote_started event", FCVAR_NONE, true, 0.0, true, 1.0);

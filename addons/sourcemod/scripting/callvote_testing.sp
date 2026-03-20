@@ -29,7 +29,8 @@
 ConVar
 	g_cvarDebug,
 	g_cvarEnable,
-	g_cvarLog,
+	g_cvarLogMode,
+	g_cvarDebugMask,
 	g_cvarForwardManager,
 	g_cvarVoteStarted,
 	g_cvarVoteEnded,
@@ -58,9 +59,6 @@ ConVar
 #endif
 	;
 
-char
-	g_sLogPath[PLATFORM_MAX_PATH];
-
 bool
 	g_bSQLConnected;
 
@@ -75,6 +73,8 @@ enum SQLDriver
 
 SQLDriver
 	g_SQLDriver;
+
+CallVoteLogger g_Log = null;
 
 #define MAX_STEAM_ID_LENGTH 32
 
@@ -122,11 +122,11 @@ public Plugin myinfo =
  */
 public void OnPluginStart()
 {
-	CreateConVar("sm_cvt_version", PLUGIN_VERSION, "Plugin version", FCVAR_REPLICATED | FCVAR_NOTIFY | FCVAR_SPONLY | FCVAR_DONTRECORD);
-
 	g_cvarDebug			   = CreateConVar("sm_cvt_debug", "1", "Enable debug", FCVAR_NONE, true, 0.0, true, 1.0);
 	g_cvarEnable		   = CreateConVar("sm_cvt_enable", "1", "Enable plugin", FCVAR_NOTIFY, true, 0.0, true, 1.0);
-	g_cvarLog			   = CreateConVar("sm_cvt_logs", "1", "Enable logging", FCVAR_NONE, true, 0.0, true, 1.0);
+	g_cvarLogMode		   = CallVoteEnsureLogModeConVar();
+	g_cvarDebugMask		   = CreateConVar("sm_cvt_debug_mask", "0", "Debug mask for callvote_testing. Core=1 SQL=2 Cache=4 Commands=8 Identity=16 Forwards=32 Session=64 Localization=128 All=2147483647.", FCVAR_NONE, true, 0.0, true, 2147483647.0);
+	g_Log				   = new CallVoteLogger("CVT", "callvote_testing.log", g_cvarLogMode, g_cvarDebugMask);
 	g_cvarForwardManager   = CreateConVar("sm_cvt_forwardmanager", "1", "Enable manager forwards", FCVAR_NONE, true, 0.0, true, 1.0);
 
 	g_cvarVoteStarted	   = CreateConVar("sm_cvt_votestarted", "1", "Enable vote_started event", FCVAR_NONE, true, 0.0, true, 1.0);
@@ -174,9 +174,6 @@ public void OnPluginStart()
 
 	AddCommandListener(Listener_Vote, "Vote");
 	AddCommandListener(Listener_CallVote, "callvote");
-
-	// Build log path
-	BuildPath(Path_SM, g_sLogPath, sizeof(g_sLogPath), DIR_CALLVOTE);
 
 	RegConsoleCmd("sm_cvt_connected", Cmd_Connected, "Check if the database is connected");
 	RegConsoleCmd("sm_cvt_testconvar", Cmd_TestConVar, "Test ConVar vote allowance");
@@ -602,7 +599,7 @@ Action Timer_CallVote_Fail(Handle timer, DataPack datapack)
 /*
  * CallVoteFailed
  *    - Byte		Team index voting
- *   - Short		Failure reason code
+ *   - Short		Failure reason
  */
 public Action Message_CallVoteFailed(UserMsg hMsg_id, BfRead hBf, const int[] iPlayers, int iPlayersNum, bool bReliable, bool bInit)
 {
@@ -829,16 +826,16 @@ void GetRestrictionName(VoteRestrictionType restriction, char[] buffer, int maxl
  */
 void log(bool error, const char[] format, any ...)
 {
-	if (!g_cvarLog.BoolValue)
+	if (g_Log == null)
 		return;
-
+	
 	char message[512];
 	VFormat(message, sizeof(message), format, 3);
 	
 	if (error)
 		LogError("%s", message);
 	
-	LogToFileEx(g_sLogPath, "%s", message);
+	g_Log.Debug(CVLogMask_Core, "Core", "%s", message);
 	
 	// Debug adicional si está habilitado
 	if (g_cvarDebug.BoolValue && error)
@@ -852,7 +849,7 @@ bool isTableExists(const char[] tableName)
 {
 	// Implementación simplificada para testing
 	// En una implementación real se haría una consulta SQL
-	LogToFileEx(g_sLogPath, "[isTableExists] Checking table: %s", tableName);
+	log(false, "[isTableExists] Checking table: %s", tableName);
 	return g_bSQLConnected;
 }
 
@@ -861,7 +858,7 @@ bool isTableExists(const char[] tableName)
  */
 void ConnectDB(const char[] name)
 {
-	LogToFileEx(g_sLogPath, "[ConnectDB] Connecting to database: %s", name);
+	log(false, "[ConnectDB] Connecting to database: %s", name);
 	g_bSQLConnected = true;
 	g_SQLDriver = SQL_SQLite;
 }
@@ -1595,3 +1592,8 @@ bool IsMessageCode(const char[] message)
 }
 
 #endif // CALLVOTE_BANS
+public void OnPluginEnd()
+{
+	if (g_Log != null)
+		delete g_Log;
+}

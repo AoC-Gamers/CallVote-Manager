@@ -5,29 +5,32 @@
 
 #include <callvote_stock>
 
+#define CALLVOTE_BANS_LIBRARY "callvote_bans"
+#define CALLVOTE_BANS_PLUGIN "callvote_bans.smx"
+
 /*****************************************************************
                     F O R W A R D S
 *****************************************************************/
 
 /**
- * Se ejecuta cuando un voto es bloqueado por el sistema de bans
+ * Fired when a vote is blocked by callvote_bans.
  *
- * @param client        Cliente que intentó iniciar el voto
- * @param voteType      Tipo de voto que fue bloqueado
- * @param target        Objetivo del voto (si aplica)
- * @param banType       Tipo de ban que causó el bloqueo
+ * @param client        Client index that attempted to start the vote
+ * @param voteType      Vote type that was blocked
+ * @param target        Vote target client index, if any
+ * @param banType       Active ban mask that caused the block
  * @noreturn
  */
 forward void CVB_OnVoteBlocked(int client, int voteType, int target, int banType);
 
 /**
- * Se ejecuta cuando un jugador es baneado
+ * Fired after a ban has been persisted and applied.
  *
- * @param target            Índice del cliente baneado
- * @param banType           Tipos de ban aplicados (máscara de bits)
- * @param durationMinutes   Duración en minutos (0 = permanente)
- * @param admin             Índice del cliente admin (0 = CONSOLE)
- * @param reason            Razón del ban
+ * @param target            Target client index
+ * @param banType           Applied ban mask
+ * @param durationMinutes   Duration in minutes (0 = permanent)
+ * @param admin             Admin client index (0 = console)
+ * @param reason            Stored reason text
  * @noreturn
  */
 forward void CVB_OnPlayerBanned(int target, int banType, int durationMinutes, int admin, const char[] reason);
@@ -37,65 +40,71 @@ forward void CVB_OnPlayerBanned(int target, int banType, int durationMinutes, in
 *****************************************************************/
 
 /**
- * Verifica si un jugador está baneado para un tipo específico de voto
+ * Checks whether a connected player currently has any active callvote ban.
  *
- * @param client        Índice del cliente
- * @return              true si está baneado, false si no
- * @error               Cliente inválido
+ * @param client        Client index
+ * @return              true if an active ban exists, false otherwise
+ * @error               Invalid client index
  */
 native bool CVB_IsPlayerBanned(int client);
 
 /**
- * Obtiene el tipo de ban de un jugador (máscara de bits)
+ * Returns the active ban mask for a connected player.
  *
- * @param client        Índice del cliente
- * @return              Máscara de bits con los tipos de ban activos
- * @error               Cliente inválido
+ * @param client        Client index
+ * @return              Active ban mask, or 0 when no active ban exists
+ * @error               Invalid client index
  */
 native int CVB_GetPlayerBanType(int client);
 
 /**
- * Banea a un jugador usando índices de cliente
+ * Queues a ban for a connected player.
  *
- * @param target            Índice del cliente objetivo
- * @param banType           Tipos de ban (máscara de bits)
- * @param duration          Duración en minutos (0 = permanente)
- * @param admin             Índice del cliente admin (0 = CONSOLE)
- * @param reason            Razón del ban
- * @return                  true si se ejecutó correctamente
- * @error                   Cliente objetivo inválido
+ * This native confirms that the request was accepted by the plugin.
+ * Persistence may complete synchronously on SQLite or asynchronously on MySQL.
+ *
+ * @param target            Target client index
+ * @param banType           Ban mask to apply
+ * @param duration          Duration in minutes (0 = permanent)
+ * @param admin             Admin client index (0 = console)
+ * @param reason            Reason text
+ * @return                  true if the request was accepted/queued
+ * @error                   Invalid target client index
  */
 native bool CVB_BanPlayer(int target, int banType, int duration, int admin, const char[] reason);
 
 /**
- * Remueve el ban de un jugador
+ * Queues removal of the active ban for a connected player.
  *
- * @param target            Índice del cliente objetivo
- * @param admin             Índice del cliente admin (0 = CONSOLE)
- * @return                  true si se ejecutó correctamente
+ * This native confirms that the request was accepted by the plugin.
+ * Persistence may complete synchronously on SQLite or asynchronously on MySQL.
+ *
+ * @param target            Target client index
+ * @param admin             Admin client index (0 = console)
+ * @return                  true if the request was accepted/queued
  */
 native bool CVB_UnbanPlayer(int target, int admin);
 
 /**
- * Obtiene información completa del ban de un jugador
+ * Loads information about the active ban of a connected player.
  *
- * @param client            Índice del cliente
- * @param banType           Variable para almacenar el tipo de ban
- * @param expiration        Variable para almacenar timestamp de expiración
- * @param createdTime       Variable para almacenar timestamp de creación
- * @param reason            Buffer para almacenar la razón
- * @param reasonMaxLen      Tamaño máximo del buffer de razón
- * @param adminSteamId      Buffer para almacenar SteamID del admin
- * @param adminMaxLen       Tamaño máximo del buffer de admin
- * @return                  true si la información está disponible
- * @error                   Cliente inválido
+ * @param client            Client index
+ * @param banType           Receives the active ban mask
+ * @param expiration        Receives the expiration timestamp
+ * @param createdTime       Receives the creation timestamp
+ * @param reason            Receives the stored reason text
+ * @param reasonMaxLen      Size of the reason buffer
+ * @param adminSteamId      Receives the admin SteamID2 string when available
+ * @param adminMaxLen       Size of the admin SteamID2 buffer
+ * @return                  true only when an active ban exists and was loaded
+ * @error                   Invalid client index
  */
-native bool CVB_GetBanInfo(int client, int &banType, int &expiration, int &createdTime,char[] reason, int reasonMaxLen, char[] adminSteamId, int adminMaxLen);
+native bool CVB_GetBanInfo(int client, int &banType, int &expiration, int &createdTime, char[] reason, int reasonMaxLen, char[] adminSteamId, int adminMaxLen);
 
 public SharedPlugin __pl_callvote_bans =
 {
-    name = "callvote_bans",
-    file = "callvote_bans.smx",
+    name = CALLVOTE_BANS_LIBRARY,
+    file = CALLVOTE_BANS_PLUGIN,
 #if defined REQUIRE_PLUGIN
     required = 1,
 #else

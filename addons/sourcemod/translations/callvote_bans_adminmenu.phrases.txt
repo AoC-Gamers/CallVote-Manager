@@ -1,0 +1,77 @@
+"Phrases"
+{
+	"CVBAdminMenuCategory"
+	{
+		"en"		"CallVote Bans"
+		"es"		"CallVote Bans"
+	}
+
+	"CVBAdminMenuBan"
+	{
+		"en"		"Ban player"
+		"es"		"Banear jugador"
+	}
+
+	"CVBAdminMenuUnban"
+	{
+		"en"		"Unban player"
+		"es"		"Desbanear jugador"
+	}
+
+	"CVBAdminMenuCheck"
+	{
+		"en"		"Check ban status"
+		"es"		"Revisar estado del ban"
+	}
+
+	"CVBAdminMenuModuleUnavailable"
+	{
+		"en"		"CallVote Bans is not available"
+		"es"		"CallVote Bans no esta disponible"
+	}
+
+	"CVBAdminMenuReasonPrompt"
+	{
+		"#format"	"{1:s}"
+		"en"		"Type the ban reason for {1} in chat. Use !cancel to abort."
+		"es"		"Escribe en chat la razon del baneo para {1}. Usa !cancel para cancelar."
+	}
+
+	"CVBAdminMenuReasonRequired"
+	{
+		"en"		"Reason cannot be empty"
+		"es"		"La razon no puede estar vacia"
+	}
+
+	"CVBAdminMenuCancelled"
+	{
+		"en"		"Panel action cancelled"
+		"es"		"Accion del panel cancelada"
+	}
+
+	"CVBAdminMenuBanApplied"
+	{
+		"#format"	"{1:s}"
+		"en"		"Ban applied to {1}"
+		"es"		"Baneo aplicado a {1}"
+	}
+
+	"CVBAdminMenuUnbanApplied"
+	{
+		"#format"	"{1:s}"
+		"en"		"Unban applied to {1}"
+		"es"		"Desbaneo aplicado a {1}"
+	}
+
+	"CVBAdminMenuActionFailed"
+	{
+		"en"		"Action failed"
+		"es"		"La accion fallo"
+	}
+
+	"CVBAdminMenuNoActivePrompt"
+	{
+		"en"		"There is no active panel prompt"
+		"es"		"No hay un prompt de panel activo"
+	}
+}

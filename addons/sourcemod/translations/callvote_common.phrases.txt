@@ -1,0 +1,43 @@
+"Phrases"
+{
+	"CallVoteDurationPermanent"
+	{
+		"en"		"Permanent"
+		"es"		"Permanente"
+	}
+
+	"CallVoteDurationMinutes"
+	{
+		"#format"	"{1:d}"
+		"en"		"{1} minutes"
+		"es"		"{1} minutos"
+	}
+
+	"CallVoteDurationHours"
+	{
+		"#format"	"{1:d}"
+		"en"		"{1} hours"
+		"es"		"{1} horas"
+	}
+
+	"CallVoteDurationHoursMinutes"
+	{
+		"#format"	"{1:d},{2:d}"
+		"en"		"{1} hours {2} minutes"
+		"es"		"{1} horas {2} minutos"
+	}
+
+	"CallVoteDurationDays"
+	{
+		"#format"	"{1:d}"
+		"en"		"{1} days"
+		"es"		"{1} dias"
+	}
+
+	"CallVoteDurationDaysHours"
+	{
+		"#format"	"{1:d},{2:d}"
+		"en"		"{1} days {2} hours"
+		"es"		"{1} dias {2} horas"
+	}
+}

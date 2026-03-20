@@ -74,7 +74,11 @@ compile_plugin \
   "$ROOT_DIR/addons/sourcemod/scripting/callvote_bans.sp" \
   "$PACKAGE_PLUGIN_DIR/callvote_bans.smx"
 
-for plugin in callvotemanager callvote_kicklimit callvote_bans; do
+compile_plugin \
+  "$ROOT_DIR/addons/sourcemod/scripting/callvote_bans_adminmenu.sp" \
+  "$PACKAGE_PLUGIN_DIR/callvote_bans_adminmenu.smx"
+
+for plugin in callvotemanager callvote_kicklimit callvote_bans callvote_bans_adminmenu; do
   if [[ ! -f "$PACKAGE_PLUGIN_DIR/${plugin}.smx" ]]; then
     echo "Compiled plugin was not generated: ${plugin}.smx" >&2
     exit 1
@@ -85,7 +89,6 @@ cp "$ROOT_DIR/addons/sourcemod/scripting/include/callvotemanager.inc" "$PACKAGE_
 cp "$ROOT_DIR/addons/sourcemod/scripting/include/callvote_stock.inc" "$PACKAGE_INCLUDE_DIR/"
 cp "$ROOT_DIR/addons/sourcemod/scripting/include/callvote_bans.inc" "$PACKAGE_INCLUDE_DIR/"
 
-cp "$ROOT_DIR/addons/sourcemod/configs/callvote_ban_reasons.cfg" "$PACKAGE_CONFIG_DIR/"
 cp -R "$ROOT_DIR/addons/sourcemod/configs/sql-init-callvote" "$PACKAGE_CONFIG_DIR/"
 
 find "$ROOT_DIR/addons/sourcemod/translations" -type f \( -name 'callvote*.phrases.txt' -o -path '*/callvote*.phrases.txt' \) -print0 | while IFS= read -r -d '' translation_file; do

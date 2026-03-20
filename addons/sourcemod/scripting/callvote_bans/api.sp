@@ -20,7 +20,7 @@ void RegisterForwards()
  * Closes and cleans up all registered forwards by deleting their handles and setting them to null.
  *
  * This function ensures that any global forward handles used for event notifications
- * (such as blocking, ban reasons loaded, and player banned events) are properly deleted
+ * (such as vote blocking and player banned events) are properly deleted
  * to prevent memory leaks or dangling references.
  */
 void CloseForwards()
@@ -50,6 +50,24 @@ void RegisterNatives()
 	CreateNative("CVB_GetBanInfo", Native_GetBanInfo);
 }
 
+static bool CVB_TryLoadActiveBanInfoForClient(int client, PlayerBanInfo banInfo)
+{
+	banInfo.Reset(GetClientAccountID(client));
+
+	if (CVB_GetMemoryCache(banInfo) && banInfo.IsBanned())
+		return true;
+
+	if (CVB_CheckActiveBan(banInfo) && banInfo.IsBanned())
+	{
+		CVB_UpdateMemoryCache(banInfo);
+		return true;
+	}
+
+	banInfo.Clear();
+	CVB_UpdateMemoryCache(banInfo);
+	return false;
+}
+
 public int Native_IsPlayerBanned(Handle plugin, int numParams)
 {
 	int client = GetNativeCell(1);
@@ -59,10 +77,8 @@ public int Native_IsPlayerBanned(Handle plugin, int numParams)
 		return false;
 	}
 
-	PlayerBanInfo banInfo = new PlayerBanInfo(GetSteamAccountID(client));
-	bool result = IsPlayerBanned(client, banInfo);
-	delete banInfo;
-	return result;
+	PlayerBanInfo banInfo;
+	return IsPlayerBanned(client, banInfo);
 }
 
 public int Native_GetPlayerBanType(Handle plugin, int numParams)
@@ -74,18 +90,16 @@ public int Native_GetPlayerBanType(Handle plugin, int numParams)
 		return 0;
 	}
 
-	PlayerBanInfo banInfo = new PlayerBanInfo(GetClientAccountID(client));
-	int banType = CVB_GetCacheStringMap(banInfo) ? banInfo.BanType : 0;
-	delete banInfo;
-	return banType;
+	PlayerBanInfo banInfo;
+	return CVB_TryLoadActiveBanInfoForClient(client, banInfo) ? banInfo.BanType : 0;
 }
 
 public int Native_BanPlayer(Handle plugin, int numParams)
 {
-	int	 targetClient	 = GetNativeCell(1);
-	int	 banType		 = GetNativeCell(2);
-	int	 durationMinutes = GetNativeCell(3);
-	int	 adminClient	 = GetNativeCell(4);
+	int targetClient = GetNativeCell(1);
+	int banType = GetNativeCell(2);
+	int durationMinutes = GetNativeCell(3);
+	int adminClient = GetNativeCell(4);
 
 	char reason[256];
 	GetNativeString(5, reason, sizeof(reason));
@@ -96,52 +110,58 @@ public int Native_BanPlayer(Handle plugin, int numParams)
 		return false;
 	}
 
-	int	 targetAccountId = GetSteamAccountID(targetClient);
-	char targetSteamId2[MAX_AUTHID_LENGTH];
-	GetClientAuthId(targetClient, AuthId_Steam2, targetSteamId2, sizeof(targetSteamId2));
-
-	int	 adminAccountId					  = 0;
-	char adminSteamId2[MAX_AUTHID_LENGTH] = "CONSOLE";
-
-	if (IsValidClient(adminClient))
+	if (banType <= 0 || banType > view_as<int>(VOTE_ALL))
 	{
-		adminAccountId = GetSteamAccountID(adminClient);
-		GetClientAuthId(adminClient, AuthId_Steam2, adminSteamId2, sizeof(adminSteamId2));
+		ThrowNativeError(SP_ERROR_NATIVE, "Invalid ban type %d", banType);
+		return false;
 	}
 
-	char reasonCode[256];
-	CVB_GetBanReason(reason, reasonCode, sizeof(reasonCode));
+	if (durationMinutes < 0)
+	{
+		ThrowNativeError(SP_ERROR_NATIVE, "Invalid duration %d", durationMinutes);
+		return false;
+	}
 
-	CVB_InsertMysqlBan(targetAccountId, banType, durationMinutes, adminAccountId, reasonCode);
-	FireOnPlayerBanned(targetClient, banType, durationMinutes, adminClient, reason);
-	return true;
+	if (adminClient != SERVER_INDEX && !IsValidClient(adminClient))
+	{
+		ThrowNativeError(SP_ERROR_NATIVE, "Invalid admin client index %d", adminClient);
+		return false;
+	}
+
+	if (CVB_GetActiveDatabase() == SourceDB_Unknown)
+		return false;
+
+	char normalizedReason[256];
+	NormalizeBanReason(reason, normalizedReason, sizeof(normalizedReason));
+	return ApplyBanToPlayer(adminClient, targetClient, banType, durationMinutes, normalizedReason);
 }
 
 public int Native_UnbanPlayer(Handle plugin, int numParams)
 {
 	int target = GetNativeCell(1);
 	int admin = GetNativeCell(2);
+
 	if (!IsValidClient(target))
 	{
 		ThrowNativeError(SP_ERROR_NATIVE, "Invalid target client index %d", target);
 		return false;
 	}
 
-	int targetAccountId = GetSteamAccountID(target);
-	int adminAccountId = (IsValidClient(admin)) ? GetSteamAccountID(admin) : SERVER_INDEX;
-	CVB_RemoveMysqlBan(targetAccountId, adminAccountId);
-	return true;
+	if (admin != SERVER_INDEX && !IsValidClient(admin))
+	{
+		ThrowNativeError(SP_ERROR_NATIVE, "Invalid admin client index %d", admin);
+		return false;
+	}
+
+	if (CVB_GetActiveDatabase() == SourceDB_Unknown)
+		return false;
+
+	return ApplyUnbanToPlayer(admin, target);
 }
 
 public int Native_GetBanInfo(Handle plugin, int numParams)
 {
-	int target      = GetNativeCell(1);
-	int banType     = GetNativeCell(2);
-	int duration= GetNativeCell(3);
-	int admin       = GetNativeCell(4);
-
-	char reason[256];
-	GetNativeString(5, reason, sizeof(reason));
+	int target = GetNativeCell(1);
 
 	if (!IsValidClient(target))
 	{
@@ -149,14 +169,25 @@ public int Native_GetBanInfo(Handle plugin, int numParams)
 		return false;
 	}
 
-	int targetAccountId = GetSteamAccountID(target);
-	int adminAccountId  = (IsValidClient(admin)) ? GetSteamAccountID(admin) : SERVER_INDEX;
+	PlayerBanInfo banInfo;
+	if (!CVB_TryLoadActiveBanInfoForClient(target, banInfo))
+	{
+		return false;
+	}
 
-	char reasonCode[256];
-	CVB_GetBanReason(reason, reasonCode, sizeof(reasonCode));
+	char reason[256];
+	char adminSteamId[MAX_AUTHID_LENGTH];
+	adminSteamId[0] = '\0';
+	banInfo.GetReason(reason, sizeof(reason));
+	if (banInfo.AdminAccountId > 0)
+		AccountIDToSteamID2(banInfo.AdminAccountId, adminSteamId, sizeof(adminSteamId));
 
-	CVB_InsertMysqlBan(targetAccountId, banType, duration, adminAccountId, reasonCode);
-	FireOnPlayerBanned(target, banType, duration, admin, reason);
+	SetNativeCellRef(2, banInfo.BanType);
+	SetNativeCellRef(3, banInfo.ExpiresTimestamp);
+	SetNativeCellRef(4, banInfo.CreatedTimestamp);
+	SetNativeString(5, reason, GetNativeCell(6), true);
+	SetNativeString(7, adminSteamId, GetNativeCell(8), true);
+
 	return true;
 
 }

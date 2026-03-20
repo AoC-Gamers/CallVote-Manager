@@ -4,9 +4,10 @@
 #include <sourcemod>
 #include <colors>
 #include <left4dhooks>
-#include <callvote_stock>
+#include <callvotemanager>
 #include <language_manager>
 #include <campaign_manager>
+#include <steamidtools_helpers>
 
 
 #undef REQUIRE_EXTENSIONS
@@ -20,19 +21,55 @@
 
 #define PLUGIN_VERSION "2.0.0"
 
-#define DEBUG			1	// General debug information
-#define DEBUG_SQL		1	// SQL statements
-#define DEBUG_SQL_QUERY	1	// SQL database queries
-
-enum VoteRestrictionType
+enum CallVoteSessionStatus
 {
-	VoteRestriction_None = 0,
-	VoteRestriction_ConVar,
-	VoteRestriction_GameMode,
-	VoteRestriction_SameState,
-	VoteRestriction_Immunity,
-	VoteRestriction_Team,
-	VoteRestriction_Target
+	CallVoteSession_None = 0,
+	CallVoteSession_Pending,
+	CallVoteSession_Started,
+	CallVoteSession_Blocked,
+	CallVoteSession_Ended
+}
+
+enum CallVoteSessionLookupResult
+{
+	CallVoteSessionLookup_None = 0,
+	CallVoteSessionLookup_Current,
+	CallVoteSessionLookup_Last
+}
+
+enum struct CVClientIdentity
+{
+	int Client;
+	int UserId;
+	int AccountId;
+	char SteamID64[STEAMID64_EXACT_LENGTH + 1];
+}
+
+enum struct CVVoteSession
+{
+	int sessionId;
+	CallVoteSessionStatus status;
+	int createdAt;
+	int callerClient;
+	int callerUserId;
+	int callerAccountId;
+	TypeVotes voteType;
+	int targetClient;
+	int targetUserId;
+	int targetAccountId;
+	char callerSteamID64[STEAMID64_EXACT_LENGTH + 1];
+	char targetSteamID64[STEAMID64_EXACT_LENGTH + 1];
+	char argumentRaw[64];
+	char engineIssue[128];
+	char engineParam1[128];
+	char engineParam2[128];
+	int engineTeam;
+	int engineInitiatorClient;
+	VoteRestrictionType restriction;
+	CallVoteEndReason endReason;
+	int yesVotes;
+	int noVotes;
+	int potentialVotes;
 }
 
 stock char sTypeVotes[TypeVotes_Size][] = {
@@ -49,21 +86,23 @@ StringMap g_mapVoteTypes;
 
 ConVar
 	g_cvarRegLog,
+	g_cvarLogMode,
+	g_cvarDebugMask,
 	g_cvarEnable,
 
 	g_cvarBuiltinVote,
 	g_cvarAnnouncer,
 	g_cvarProgress,
-	g_cvarProgressAnony,
+	g_cvarProgressAnonymous,
 
 	g_cvarLobby,
 	g_cvarChapter,
 	g_cvarAllTalk,
 
-	g_cvarAdminInmunity,
-	g_cvarSTVInmunity,
-	g_cvarSelfInmunity,
-	g_cvarBotInmunity,
+	g_cvarAdminImmunity,
+	g_cvarSTVImmunity,
+	g_cvarSelfImmunity,
+	g_cvarBotImmunity,
 
 	sv_vote_issue_change_difficulty_allowed,
 	sv_vote_issue_restart_game_allowed,
@@ -75,17 +114,21 @@ ConVar
 bool
 	g_bBuiltinVotes = false,
 	g_bConfogl = false,
-	g_bLateLoad;
-
-char
-	g_sLogPath[PLATFORM_MAX_PATH];
+	g_bLateLoad,
+	g_bCurrentVoteSessionValid = false,
+	g_bLastVoteSessionValid = false;
 
 float
 	g_fLastVote;
 
 int
+	g_iNextVoteSessionId = 1,
 	g_iFlagsAdmin,
 	g_iClientFlagsCache[MAXPLAYERS + 1];	// Cache for client admin flags
+
+CVVoteSession
+	g_CurrentVoteSession,
+	g_LastVoteSession;
 
 bool
 	g_bClientFlagsCached[MAXPLAYERS + 1];	 // Track which clients have cached flags
@@ -94,20 +137,16 @@ GlobalForward
 	g_ForwardCallVotePreStart,
 	g_ForwardCallVoteStart,
 	g_ForwardCallVotePreExecute,
-	g_ForwardCallVoteBlocked;
+	g_ForwardCallVoteBlocked,
+	g_ForwardCallVotePreStartEx,
+	g_ForwardCallVoteStartEx,
+	g_ForwardCallVotePreExecuteEx,
+	g_ForwardCallVoteBlockedEx,
+	g_ForwardCallVoteEndEx;
 
 Localizer
 	g_loc;
-
-/**
- * Enumeration for different log categories
- */
-enum CVLogCategory
-{
-	CVLog_Debug 	= 0,	// General debug information  
-	CVLog_SQL   	= 1,	// SQL operations and database queries
-	CVLog_SQL_Query = 2,	// Detailed SQL query information
-}
+CallVoteLogger g_Log = null;
 
 /**
  * Modern logging system using methodmap
@@ -115,100 +154,257 @@ enum CVLogCategory
  */
 methodmap CVLog
 {
-	/**
-	 * Internal method to format and write log message
-	 *
-	 * @param category    Log category for prefix formatting
-	 * @param message     Format string for the message
-	 * @param args        Variable arguments for formatting
-	 */
-	public 	static void WriteLog(CVLogCategory category, const char[] message, any...)
+	public static void Event(const char[] eventTag, const char[] message, any...)
 	{
+		if (g_Log == null)
+			return;
+
 		static char sFormat[1024];
-		static char sPrefix[32];
-
-		VFormat(sFormat, sizeof(sFormat), message, 3);
-
-		switch (category)
-		{
-			case CVLog_Debug: strcopy(sPrefix, sizeof(sPrefix), "[CV][Debug]");
-			case CVLog_SQL: strcopy(sPrefix, sizeof(sPrefix), "[CV][SQL]");
-			case CVLog_SQL_Query: strcopy(sPrefix, sizeof(sPrefix), "[CV][SQL-Query]");
-			default: strcopy(sPrefix, sizeof(sPrefix), "[CV][Unknown]");
-		}
-
-		LogToFileEx(g_sLogPath, "%s %s", sPrefix, sFormat);
+		VFormat(sFormat, sizeof(sFormat), message, 2);
+		g_Log.Normal(eventTag, "%s", sFormat);
 	}
 
-	/**
-	 * Logs debug information with timestamp
-	 * Only compiled when DEBUG macro is enabled
-	 *
-	 * @param message    Format string for the debug message
-	 * @param ...        Additional arguments for formatting
-	 */
-	#if DEBUG
+	public static void Debug(const char[] message, any...)
+	{
+		if (g_Log == null)
+			return;
 
-		public 	static void Debug(const char[] message, any...)
-		{
-			static char sFormat[1024];
-			VFormat(sFormat, sizeof(sFormat), message, 2);
-			CVLog.WriteLog(CVLog_Debug, sFormat);
-		}
-	#else
-
-	public 	static void Debug(const char[] message, any...) {}
-	#endif
-
-	/**
-	 * Logs SQL-related information
-	 * Only compiled when DEBUG_SQL macro is enabled
-	 *
-	 * @param message    Format string for the SQL message
-	 * @param ...        Additional arguments for formatting
-	 */
-	#if DEBUG && DEBUG_SQL
-
-		public 	static void SQL(const char[] message, any...)
-		{
-			static char sFormat[1024];
-			VFormat(sFormat, sizeof(sFormat), message, 2);
-			CVLog.WriteLog(CVLog_SQL, sFormat);
-		}
-	#else
-
-	public 	static void SQL(const char[] message, any...) {
-		#pragma unused message
+		static char sFormat[1024];
+		VFormat(sFormat, sizeof(sFormat), message, 2);
+		g_Log.Debug(CVLogMask_Core, "Core", "%s", sFormat);
 	}
-	#endif
 
-	/**
-	 * Logs database query information
-	 * Only compiled when DEBUG_SQL_QUERY macro is enabled
-	 *
-	 * @param message    Format string for the query message
-	 * @param ...        Additional arguments for formatting
-	 */
-	#if DEBUG && DEBUG_SQL_QUERY
+	public static void SQL(const char[] message, any...)
+	{
+		if (g_Log == null)
+			return;
 
-		public 	static void Query(const char[] message, any...)
+		static char sFormat[1024];
+		VFormat(sFormat, sizeof(sFormat), message, 2);
+		g_Log.Debug(CVLogMask_SQL, "SQL", "%s", sFormat);
+	}
+
+	public static void Query(const char[] message, any...)
+	{
+		if (g_Log == null)
+			return;
+
+		static char sFormat[1024];
+		VFormat(sFormat, sizeof(sFormat), message, 2);
+		g_Log.Debug(CVLogMask_SQL, "SQL-Query", "%s", sFormat);
+	}
+
+	public static void Session(const char[] message, any...)
+	{
+		if (g_Log == null)
+			return;
+
+		static char sFormat[1024];
+		VFormat(sFormat, sizeof(sFormat), message, 2);
+		g_Log.Debug(CVLogMask_Session, "Session", "%s", sFormat);
+	}
+
+	public static void Forwards(const char[] message, any...)
+	{
+		if (g_Log == null)
+			return;
+
+		static char sFormat[1024];
+		VFormat(sFormat, sizeof(sFormat), message, 2);
+		g_Log.Debug(CVLogMask_Forwards, "Forwards", "%s", sFormat);
+	}
+
+	public static void Localization(const char[] message, any...)
+	{
+		if (g_Log == null)
+			return;
+
+		static char sFormat[1024];
+		VFormat(sFormat, sizeof(sFormat), message, 2);
+		g_Log.Debug(CVLogMask_Localization, "Localization", "%s", sFormat);
+	}
+}
+
+void ResetVoteSession(CVVoteSession session)
+{
+	session.sessionId = 0;
+	session.status = CallVoteSession_None;
+	session.createdAt = 0;
+	session.callerClient = 0;
+	session.callerUserId = 0;
+	session.callerAccountId = 0;
+	session.voteType = ChangeDifficulty;
+	session.targetClient = 0;
+	session.targetUserId = 0;
+	session.targetAccountId = 0;
+	session.callerSteamID64[0] = '\0';
+	session.targetSteamID64[0] = '\0';
+	session.argumentRaw[0] = '\0';
+	session.engineIssue[0] = '\0';
+	session.engineParam1[0] = '\0';
+	session.engineParam2[0] = '\0';
+	session.engineTeam = -1;
+	session.engineInitiatorClient = 0;
+	session.restriction = VoteRestriction_None;
+	session.endReason = CallVoteEnd_Aborted;
+	session.yesVotes = 0;
+	session.noVotes = 0;
+	session.potentialVotes = 0;
+}
+
+void ArchiveCurrentVoteSession()
+{
+	if (!g_bCurrentVoteSessionValid)
+		return;
+
+	g_LastVoteSession = g_CurrentVoteSession;
+	g_bLastVoteSessionValid = true;
+	ResetVoteSession(g_CurrentVoteSession);
+	g_bCurrentVoteSessionValid = false;
+}
+
+void ResolveClientIdentity(int client, CVClientIdentity identity, bool requireHumanForAccount = false)
+{
+	identity.Client = client;
+	identity.UserId = IsValidClientIndex(client) ? GetClientUserId(client) : 0;
+	identity.AccountId = 0;
+	identity.SteamID64[0] = '\0';
+
+	if (requireHumanForAccount)
+	{
+		if (IsHuman(client))
 		{
-			static char sFormat[1024];
-			VFormat(sFormat, sizeof(sFormat), message, 2);
-			CVLog.WriteLog(CVLog_SQL_Query, sFormat);
+			identity.AccountId = GetClientAccountID(client);
+			GetClientAuthId(client, AuthId_SteamID64, identity.SteamID64, sizeof(identity.SteamID64));
 		}
-	#else
+		return;
+	}
 
-	public 	static void Query(const char[] message, any...) {}
-	#endif
+	if (IsValidClient(client))
+	{
+		identity.AccountId = GetClientAccountID(client);
+		GetClientAuthId(client, AuthId_SteamID64, identity.SteamID64, sizeof(identity.SteamID64));
+	}
+}
+
+void BeginVoteSession(int client, TypeVotes voteType, int target = 0, const char[] argument = "")
+{
+	if (g_bCurrentVoteSessionValid)
+	{
+		CVLog.Session("[BeginVoteSession] Replacing stale active session %d", g_CurrentVoteSession.sessionId);
+		ArchiveCurrentVoteSession();
+	}
+
+	CVClientIdentity callerIdentity;
+	CVClientIdentity targetIdentity;
+	ResolveClientIdentity(client, callerIdentity);
+	ResolveClientIdentity(target, targetIdentity, true);
+
+	ResetVoteSession(g_CurrentVoteSession);
+	g_CurrentVoteSession.sessionId = g_iNextVoteSessionId++;
+	g_CurrentVoteSession.status = CallVoteSession_Pending;
+	g_CurrentVoteSession.createdAt = GetTime();
+	g_CurrentVoteSession.callerClient = callerIdentity.Client;
+	g_CurrentVoteSession.callerUserId = callerIdentity.UserId;
+	g_CurrentVoteSession.callerAccountId = callerIdentity.AccountId;
+	g_CurrentVoteSession.voteType = voteType;
+	g_CurrentVoteSession.targetClient = targetIdentity.Client;
+	g_CurrentVoteSession.targetUserId = targetIdentity.UserId;
+	g_CurrentVoteSession.targetAccountId = targetIdentity.AccountId;
+	strcopy(g_CurrentVoteSession.callerSteamID64, sizeof(g_CurrentVoteSession.callerSteamID64), callerIdentity.SteamID64);
+	strcopy(g_CurrentVoteSession.targetSteamID64, sizeof(g_CurrentVoteSession.targetSteamID64), targetIdentity.SteamID64);
+	strcopy(g_CurrentVoteSession.argumentRaw, sizeof(g_CurrentVoteSession.argumentRaw), argument);
+	g_bCurrentVoteSessionValid = true;
+
+	CVLog.Session("[BeginVoteSession] session=%d caller=%d account=%d voteType=%d target=%d targetAccount=%d argument='%s'",
+		g_CurrentVoteSession.sessionId,
+		g_CurrentVoteSession.callerClient,
+		g_CurrentVoteSession.callerAccountId,
+		view_as<int>(g_CurrentVoteSession.voteType),
+		g_CurrentVoteSession.targetClient,
+		g_CurrentVoteSession.targetAccountId,
+		g_CurrentVoteSession.argumentRaw);
+}
+
+bool TryGetVoteSessionById(int sessionId, CVVoteSession session, CallVoteSessionLookupResult &lookupResult)
+{
+	lookupResult = CallVoteSessionLookup_None;
+
+	if (sessionId <= 0)
+		return false;
+
+	if (g_bCurrentVoteSessionValid && g_CurrentVoteSession.sessionId == sessionId)
+	{
+		session = g_CurrentVoteSession;
+		lookupResult = CallVoteSessionLookup_Current;
+		return true;
+	}
+
+	if (g_bLastVoteSessionValid && g_LastVoteSession.sessionId == sessionId)
+	{
+		session = g_LastVoteSession;
+		lookupResult = CallVoteSessionLookup_Last;
+		return true;
+	}
+
+	return false;
+}
+
+bool TryGetNativeVoteSession(int sessionId, CVVoteSession session)
+{
+	CallVoteSessionLookupResult lookupResult;
+
+	if (sessionId <= 0)
+	{
+		ThrowNativeError(SP_ERROR_NATIVE, "Invalid session id (%d)", sessionId);
+		return false;
+	}
+
+	if (!TryGetVoteSessionById(sessionId, session, lookupResult))
+		return false;
+
+	return true;
+}
+
+bool TryGetSessionSteamID64Info(int sessionId, char[] callerSteamID64, int callerMaxLen, char[] targetSteamID64, int targetMaxLen)
+{
+	CVVoteSession session;
+	CallVoteSessionLookupResult lookupResult;
+
+	callerSteamID64[0] = '\0';
+	targetSteamID64[0] = '\0';
+
+	if (sessionId <= 0)
+		return false;
+
+	if (!TryGetVoteSessionById(sessionId, session, lookupResult))
+		return false;
+
+	strcopy(callerSteamID64, callerMaxLen, session.callerSteamID64);
+	strcopy(targetSteamID64, targetMaxLen, session.targetSteamID64);
+	return true;
+}
+
+bool IsClientInRecipients(int client, const int[] recipients, int recipientsNum)
+{
+	if (!IsValidClientIndex(client))
+		return false;
+
+	for (int i = 0; i < recipientsNum; i++)
+	{
+		if (recipients[i] == client)
+			return true;
+	}
+
+	return false;
 }
 
 /*****************************************************************
 			L I B R A R Y   I N C L U D E S
 *****************************************************************/
 
-#include "callvote/manager_sql.sp"
-#include "callvote/manager_printlocalized.sp"
+#include "callvote_manager/sql.sp"
+#include "callvote_manager/printlocalized.sp"
 
 /*****************************************************************
 			P L U G I N   I N F O
@@ -233,11 +429,23 @@ public APLRes AskPluginLoad2(Handle hMyself, bool bLate, char[] sError, int iErr
 	g_ForwardCallVoteStart = CreateGlobalForward("CallVote_Start", ET_Ignore, Param_Cell, Param_Cell, Param_Cell);
 	g_ForwardCallVotePreExecute = CreateGlobalForward("CallVote_PreExecute", ET_Hook, Param_Cell, Param_Cell, Param_Cell);
 	g_ForwardCallVoteBlocked = CreateGlobalForward("CallVote_Blocked", ET_Ignore, Param_Cell, Param_Cell, Param_Cell, Param_Cell);
+	g_ForwardCallVotePreStartEx = CreateGlobalForward("CallVote_PreStartEx", ET_Hook, Param_Cell, Param_Cell, Param_Cell, Param_Cell, Param_Cell, Param_Cell, Param_String);
+	g_ForwardCallVoteStartEx = CreateGlobalForward("CallVote_StartEx", ET_Ignore, Param_Cell);
+	g_ForwardCallVotePreExecuteEx = CreateGlobalForward("CallVote_PreExecuteEx", ET_Hook, Param_Cell, Param_Cell, Param_Cell, Param_Cell, Param_Cell, Param_Cell, Param_String);
+	g_ForwardCallVoteBlockedEx = CreateGlobalForward("CallVote_BlockedEx", ET_Ignore, Param_Cell, Param_Cell, Param_Cell, Param_Cell, Param_Cell, Param_Cell, Param_Cell, Param_String);
+	g_ForwardCallVoteEndEx = CreateGlobalForward("CallVote_EndEx", ET_Ignore, Param_Cell, Param_Cell, Param_Cell, Param_Cell, Param_Cell);
 
 	CreateNative("CallVoteManager_IsVoteAllowedByConVar", Native_IsVoteAllowedByConVar);
 	CreateNative("CallVoteManager_IsVoteAllowedByGameMode", Native_IsVoteAllowedByGameMode);
+	CreateNative("CallVoteManager_GetClientAccountID", Native_GetClientAccountID);
+	CreateNative("CallVoteManager_GetClientSteamID2", Native_GetClientSteamID2);
+	CreateNative("CallVoteManager_GetCurrentSession", Native_GetCurrentSession);
+	CreateNative("CallVoteManager_GetSessionInfo", Native_GetSessionInfo);
+	CreateNative("CallVoteManager_GetSessionSteamID64Info", Native_GetSessionSteamID64Info);
+	CreateNative("CallVoteManager_GetSessionIssueInfo", Native_GetSessionIssueInfo);
+	CreateNative("CallVoteManager_GetSessionTally", Native_GetSessionTally);
 
-	RegPluginLibrary("callvotemanager");
+	RegPluginLibrary(CALLVOTEMANAGER_LIBRARY);
 	g_bLateLoad = bLate;
 	return APLRes_Success;
 }
@@ -266,27 +474,28 @@ public void OnLibraryAdded(const char[] sName)
 
 public void OnPluginStart()
 {
-	BuildPath(Path_SM, g_sLogPath, sizeof(g_sLogPath), DIR_CALLVOTE);
 	g_loc = new Localizer();
 
 	LoadTranslation("callvote_manager.phrases");
-	CreateConVar("sm_cvm_version", PLUGIN_VERSION, "Plugin version", FCVAR_REPLICATED | FCVAR_NOTIFY | FCVAR_SPONLY | FCVAR_DONTRECORD);
-
+	LoadTranslation("callvote_common.phrases");
+	g_cvarLogMode							= CallVoteEnsureLogModeConVar();
+	g_cvarDebugMask						= CreateConVar("sm_cvm_debug_mask", "0", "Debug mask for callvote_manager. Core=1 SQL=2 Cache=4 Commands=8 Identity=16 Forwards=32 Session=64 Localization=128 All=2147483647.", FCVAR_NONE, true, 0.0, true, 2147483647.0);
+	g_Log									= new CallVoteLogger("CVM", "callvote_manager.log", g_cvarLogMode, g_cvarDebugMask);
 	g_cvarEnable							= CreateConVar("sm_cvm_enable", "1", "Enable plugin", FCVAR_NOTIFY, true, 0.0, true, 1.0);
-	g_cvarRegLog							= CreateConVar("sm_cvm_log", "0", "logging flags <dificulty:1, restartgame:2, kick:4, changemission:8, lobby:16, chapter:32, alltalk:64, ALL:127>", FCVAR_NOTIFY, true, 0.0, true, 127.0);
-	g_cvarBuiltinVote						= CreateConVar("sm_cvm_builtinvote", "1", "<builtinvotes> support", FCVAR_NOTIFY, true, 0.0, true, 1.0);
+	g_cvarRegLog							= CreateConVar("sm_cvm_log_flags", "0", "logging flags <dificulty:1, restartgame:2, kick:4, changemission:8, lobby:16, chapter:32, alltalk:64, ALL:127>", FCVAR_NOTIFY, true, 0.0, true, 127.0);
+	g_cvarBuiltinVote						= CreateConVar("sm_cvm_builtin_vote", "1", "<builtinvotes> support", FCVAR_NOTIFY, true, 0.0, true, 1.0);
 	g_cvarAnnouncer							= CreateConVar("sm_cvm_announcer", "1", "Announce voting calls", FCVAR_NOTIFY, true, 0.0, true, 1.0);
 	g_cvarProgress							= CreateConVar("sm_cvm_progress", "1", "Show voting progress", FCVAR_NOTIFY, true, 0.0, true, 1.0);
-	g_cvarProgressAnony						= CreateConVar("sm_cvm_progressanony", "0", "Show voting progress anonymously", FCVAR_NOTIFY, true, 0.0, true, 1.0);
+	g_cvarProgressAnonymous					= CreateConVar("sm_cvm_progress_anonymous", "0", "Show voting progress anonymously", FCVAR_NOTIFY, true, 0.0, true, 1.0);
 
 	g_cvarLobby								= CreateConVar("sm_cvm_lobby", "1", "Enable vote ReturnToLobby", FCVAR_NOTIFY, true, 0.0, true, 1.0);
 	g_cvarChapter							= CreateConVar("sm_cvm_chapter", "1", "Enable vote ChangeChapter", FCVAR_NOTIFY, true, 0.0, true, 1.0);
-	g_cvarAllTalk							= CreateConVar("sm_cvm_alltalk", "1", "Enable vote ChangeAllTalk", FCVAR_NOTIFY, true, 0.0, true, 1.0);
+	g_cvarAllTalk							= CreateConVar("sm_cvm_all_talk", "1", "Enable vote ChangeAllTalk", FCVAR_NOTIFY, true, 0.0, true, 1.0);
 
-	g_cvarAdminInmunity						= CreateConVar("sm_cvm_admininmunity", "", "Admins are immune to kick votes. Specify admin flags or blank.", FCVAR_NOTIFY);
-	g_cvarSTVInmunity						= CreateConVar("sm_cvm_stvinmunity", "1", "SourceTV is immune to votekick", FCVAR_NOTIFY, true, 0.0, true, 1.0);
-	g_cvarSelfInmunity						= CreateConVar("sm_cvm_selfinmunity", "1", "Immunity to self-kick", FCVAR_NOTIFY, true, 0.0, true, 1.0);
-	g_cvarBotInmunity						= CreateConVar("sm_cvm_botinmunity", "1", "Immunity to bots", FCVAR_NOTIFY, true, 0.0, true, 1.0);
+	g_cvarAdminImmunity						= CreateConVar("sm_cvm_admin_immunity", "", "Admins are immune to kick votes. Specify admin flags or blank.", FCVAR_NOTIFY);
+	g_cvarSTVImmunity						= CreateConVar("sm_cvm_stv_immunity", "1", "SourceTV is immune to votekick", FCVAR_NOTIFY, true, 0.0, true, 1.0);
+	g_cvarSelfImmunity						= CreateConVar("sm_cvm_self_immunity", "1", "Immunity to self-kick", FCVAR_NOTIFY, true, 0.0, true, 1.0);
+	g_cvarBotImmunity						= CreateConVar("sm_cvm_bot_immunity", "1", "Immunity to bots", FCVAR_NOTIFY, true, 0.0, true, 1.0);
 
 	sv_vote_issue_change_difficulty_allowed = FindConVar("sv_vote_issue_change_difficulty_allowed");
 	sv_vote_issue_restart_game_allowed		= FindConVar("sv_vote_issue_restart_game_allowed");
@@ -297,20 +506,24 @@ public void OnPluginStart()
 
 	char sTempAdmin[32];
 
-	g_cvarAdminInmunity.AddChangeHook(ConVarChanged_AdminInmunity);
-	g_cvarAdminInmunity.GetString(sTempAdmin, sizeof(sTempAdmin));
+	g_cvarAdminImmunity.AddChangeHook(ConVarChanged_AdminImmunity);
+	g_cvarAdminImmunity.GetString(sTempAdmin, sizeof(sTempAdmin));
 	g_iFlagsAdmin = ReadFlagString(sTempAdmin);
 
 	OnPluginStart_SQL();
 
 	AddCommandListener(Listener_CallVote, "callvote");
+	HookEvent("vote_started", Event_VoteStarted);
+	HookEvent("vote_ended", Event_VoteEnded);
+	HookEvent("vote_changed", Event_VoteChanged);
 	HookEvent("vote_cast_yes", Event_VoteCastYes);
 	HookEvent("vote_cast_no", Event_VoteCastNo);
+	HookUserMessage(GetUserMessageId("CallVoteFailed"), Message_CallVoteFailed);
 
-	g_cvarAdminInmunity.AddChangeHook(ConVarChanged_AdminInmunity);
-
-	AutoExecConfig(false, "callvote_manager");
+	CallVoteAutoExecConfig(false, "callvote_manager");
 	InitializeVoteTypesMap();
+	ResetVoteSession(g_CurrentVoteSession);
+	ResetVoteSession(g_LastVoteSession);
 
 	if (!g_bLateLoad)
 		return;
@@ -319,10 +532,10 @@ public void OnPluginStart()
 	g_bConfogl = LibraryExists("confogl");
 }
 
-public void ConVarChanged_AdminInmunity(Handle hConVar, const char[] sOldValue, const char[] sNewValue)
+public void ConVarChanged_AdminImmunity(Handle hConVar, const char[] sOldValue, const char[] sNewValue)
 {
 	char sTempAdmin[32];
-	g_cvarAdminInmunity.GetString(sTempAdmin, sizeof(sTempAdmin));
+	g_cvarAdminImmunity.GetString(sTempAdmin, sizeof(sTempAdmin));
 	g_iFlagsAdmin = ReadFlagString(sTempAdmin);
 
 	ClearAdminFlagsCache();
@@ -334,6 +547,9 @@ public void OnPluginEnd()
 
 	if (g_mapVoteTypes != null)
 		delete g_mapVoteTypes;
+
+	if (g_Log != null)
+		delete g_Log;
 }
 
 public void OnConfigsExecuted()
@@ -347,6 +563,10 @@ public void OnConfigsExecuted()
 public void OnMapStart()
 {
 	g_fLastVote = 0.0;
+	ResetVoteSession(g_CurrentVoteSession);
+	ResetVoteSession(g_LastVoteSession);
+	g_bCurrentVoteSessionValid = false;
+	g_bLastVoteSessionValid = false;
 }
 
 /**
@@ -361,15 +581,46 @@ public void OnMapStart()
  */
 Action ProcessVoteCommon(int iClient, TypeVotes type, int iTarget = SERVER_INDEX, const char[] sArgument = "")
 {
+	BeginVoteSession(iClient, type, iTarget, sArgument);
+
 	Action preStartResult;
 	if (type == Kick)
 		preStartResult = ForwardCallVotePreStart(iClient, type, iTarget);
 	else
 		preStartResult = ForwardCallVotePreStart(iClient, type);
 
+	Action preStartExResult = ForwardCallVotePreStartEx();
 	if (preStartResult >= Plugin_Handled)
 	{
-		CVLog.Debug("[ProcessVoteCommon] Vote blocked by PreStart forward for client %d", iClient);
+		CVLog.Forwards("[ProcessVoteCommon] Vote blocked by PreStart forward for client %d", iClient);
+		g_CurrentVoteSession.status = CallVoteSession_Blocked;
+		g_CurrentVoteSession.restriction = VoteRestriction_Plugin;
+		CVLog.Event("VoteBlocked", "session=%d callerAccountId=%d voteType=%d stage=PreStart restriction=%d target=%d argument=%s",
+			g_CurrentVoteSession.sessionId,
+			g_CurrentVoteSession.callerAccountId,
+			g_CurrentVoteSession.voteType,
+			VoteRestriction_Plugin,
+			g_CurrentVoteSession.targetAccountId,
+			g_CurrentVoteSession.argumentRaw);
+		ForwardCallVoteBlockedEx(VoteRestriction_Plugin);
+		ArchiveCurrentVoteSession();
+		return Plugin_Handled;
+	}
+
+	if (preStartExResult >= Plugin_Handled)
+	{
+		CVLog.Forwards("[ProcessVoteCommon] Vote blocked by PreStartEx forward for client %d", iClient);
+		g_CurrentVoteSession.status = CallVoteSession_Blocked;
+		g_CurrentVoteSession.restriction = VoteRestriction_Plugin;
+		CVLog.Event("VoteBlocked", "session=%d callerAccountId=%d voteType=%d stage=PreStartEx restriction=%d target=%d argument=%s",
+			g_CurrentVoteSession.sessionId,
+			g_CurrentVoteSession.callerAccountId,
+			g_CurrentVoteSession.voteType,
+			VoteRestriction_Plugin,
+			g_CurrentVoteSession.targetAccountId,
+			g_CurrentVoteSession.argumentRaw);
+		ForwardCallVoteBlockedEx(VoteRestriction_Plugin);
+		ArchiveCurrentVoteSession();
 		return Plugin_Handled;
 	}
 
@@ -383,6 +634,15 @@ Action ProcessVoteCommon(int iClient, TypeVotes type, int iTarget = SERVER_INDEX
 
 	if (restriction != VoteRestriction_None)
 	{
+		g_CurrentVoteSession.status = CallVoteSession_Blocked;
+		g_CurrentVoteSession.restriction = restriction;
+		CVLog.Event("VoteBlocked", "session=%d callerAccountId=%d voteType=%d stage=Validation restriction=%d target=%d argument=%s",
+			g_CurrentVoteSession.sessionId,
+			g_CurrentVoteSession.callerAccountId,
+			g_CurrentVoteSession.voteType,
+			restriction,
+			g_CurrentVoteSession.targetAccountId,
+			g_CurrentVoteSession.argumentRaw);
 		if (type == Kick)
 		{
 			ForwardCallVoteBlocked(iClient, type, restriction, iTarget);
@@ -393,6 +653,8 @@ Action ProcessVoteCommon(int iClient, TypeVotes type, int iTarget = SERVER_INDEX
 			ForwardCallVoteBlocked(iClient, type, restriction);
 			SendRestrictionFeedback(iClient, restriction, type);
 		}
+		ForwardCallVoteBlockedEx(restriction);
+		ArchiveCurrentVoteSession();
 		return Plugin_Handled;
 	}
 
@@ -402,9 +664,38 @@ Action ProcessVoteCommon(int iClient, TypeVotes type, int iTarget = SERVER_INDEX
 	else
 		preExecuteResult = ForwardCallVotePreExecute(iClient, type);
 
+	Action preExecuteExResult = ForwardCallVotePreExecuteEx();
 	if (preExecuteResult >= Plugin_Handled)
 	{
-		CVLog.Debug("[ProcessVoteCommon] Vote blocked by PreExecute forward for client %d", iClient);
+		CVLog.Forwards("[ProcessVoteCommon] Vote blocked by PreExecute forward for client %d", iClient);
+		g_CurrentVoteSession.status = CallVoteSession_Blocked;
+		g_CurrentVoteSession.restriction = VoteRestriction_Plugin;
+		CVLog.Event("VoteBlocked", "session=%d callerAccountId=%d voteType=%d stage=PreExecute restriction=%d target=%d argument=%s",
+			g_CurrentVoteSession.sessionId,
+			g_CurrentVoteSession.callerAccountId,
+			g_CurrentVoteSession.voteType,
+			VoteRestriction_Plugin,
+			g_CurrentVoteSession.targetAccountId,
+			g_CurrentVoteSession.argumentRaw);
+		ForwardCallVoteBlockedEx(VoteRestriction_Plugin);
+		ArchiveCurrentVoteSession();
+		return Plugin_Handled;
+	}
+
+	if (preExecuteExResult >= Plugin_Handled)
+	{
+		CVLog.Forwards("[ProcessVoteCommon] Vote blocked by PreExecuteEx forward for client %d", iClient);
+		g_CurrentVoteSession.status = CallVoteSession_Blocked;
+		g_CurrentVoteSession.restriction = VoteRestriction_Plugin;
+		CVLog.Event("VoteBlocked", "session=%d callerAccountId=%d voteType=%d stage=PreExecuteEx restriction=%d target=%d argument=%s",
+			g_CurrentVoteSession.sessionId,
+			g_CurrentVoteSession.callerAccountId,
+			g_CurrentVoteSession.voteType,
+			VoteRestriction_Plugin,
+			g_CurrentVoteSession.targetAccountId,
+			g_CurrentVoteSession.argumentRaw);
+		ForwardCallVoteBlockedEx(VoteRestriction_Plugin);
+		ArchiveCurrentVoteSession();
 		return Plugin_Handled;
 	}
 
@@ -736,17 +1027,17 @@ VoteRestrictionType ValidateVote(int client, TypeVotes voteType, int target = 0,
 			if (target <= NO_INDEX)
 				return VoteRestriction_Target;
 
-			if (g_cvarSTVInmunity.BoolValue && IsClientConnected(target) && IsClientSourceTV(target))
+			if (g_cvarSTVImmunity.BoolValue && IsClientConnected(target) && IsClientSourceTV(target))
 			{
 				return VoteRestriction_Immunity;
 			}
 
-			if (g_cvarBotInmunity.BoolValue && IsClientConnected(target) && IsFakeClient(target))
+			if (g_cvarBotImmunity.BoolValue && IsClientConnected(target) && IsFakeClient(target))
 			{
 				return VoteRestriction_Immunity;
 			}
 
-			if (g_cvarSelfInmunity.BoolValue && target == client)
+			if (g_cvarSelfImmunity.BoolValue && target == client)
 			{
 				return VoteRestriction_Immunity;
 			}
@@ -850,6 +1141,110 @@ void SendRestrictionFeedback(int client, VoteRestrictionType restrictionType, Ty
 			C A L L B A C K S
 *****************************************************************/
 
+void Event_VoteStarted(Event event, const char[] sEventName, bool bDontBroadcast)
+{
+	if (!g_bCurrentVoteSessionValid)
+		return;
+
+	event.GetString("issue", g_CurrentVoteSession.engineIssue, sizeof(g_CurrentVoteSession.engineIssue));
+	event.GetString("param1", g_CurrentVoteSession.engineParam1, sizeof(g_CurrentVoteSession.engineParam1));
+	event.GetString("param2", g_CurrentVoteSession.engineParam2, sizeof(g_CurrentVoteSession.engineParam2));
+	g_CurrentVoteSession.engineTeam = event.GetInt("team");
+	g_CurrentVoteSession.engineInitiatorClient = event.GetInt("initiator");
+	g_CurrentVoteSession.status = CallVoteSession_Started;
+
+	CVLog.Session("[Event_VoteStarted] session=%d issue=%s param1=%s param2=%s team=%d initiator=%d",
+		g_CurrentVoteSession.sessionId,
+		g_CurrentVoteSession.engineIssue,
+		g_CurrentVoteSession.engineParam1,
+		g_CurrentVoteSession.engineParam2,
+		g_CurrentVoteSession.engineTeam,
+		g_CurrentVoteSession.engineInitiatorClient);
+
+	ForwardCallVoteStartEx(g_CurrentVoteSession.sessionId);
+}
+
+void Event_VoteEnded(Event event, const char[] sEventName, bool bDontBroadcast)
+{
+	if (!g_bCurrentVoteSessionValid)
+		return;
+
+	int success = event.GetInt("success");
+	g_CurrentVoteSession.engineTeam = event.GetInt("team");
+	g_CurrentVoteSession.status = CallVoteSession_Ended;
+	g_CurrentVoteSession.endReason = success ? CallVoteEnd_Passed : CallVoteEnd_Failed;
+
+	CVLog.Session("[Event_VoteEnded] session=%d success=%d yes=%d no=%d potential=%d",
+		g_CurrentVoteSession.sessionId,
+		success,
+		g_CurrentVoteSession.yesVotes,
+		g_CurrentVoteSession.noVotes,
+		g_CurrentVoteSession.potentialVotes);
+	CVLog.Event("VoteResult", "session=%d callerAccountId=%d voteType=%d result=%d yes=%d no=%d potential=%d target=%d argument=%s",
+		g_CurrentVoteSession.sessionId,
+		g_CurrentVoteSession.callerAccountId,
+		g_CurrentVoteSession.voteType,
+		g_CurrentVoteSession.endReason,
+		g_CurrentVoteSession.yesVotes,
+		g_CurrentVoteSession.noVotes,
+		g_CurrentVoteSession.potentialVotes,
+		g_CurrentVoteSession.targetAccountId,
+		g_CurrentVoteSession.argumentRaw);
+
+	ForwardCallVoteEndEx(g_CurrentVoteSession.endReason);
+	ArchiveCurrentVoteSession();
+}
+
+void Event_VoteChanged(Event event, const char[] sEventName, bool bDontBroadcast)
+{
+	if (!g_bCurrentVoteSessionValid)
+		return;
+
+	g_CurrentVoteSession.yesVotes = event.GetInt("yesVotes");
+	g_CurrentVoteSession.noVotes = event.GetInt("noVotes");
+	g_CurrentVoteSession.potentialVotes = event.GetInt("potentialVotes");
+
+	CVLog.Session("[Event_VoteChanged] session=%d yes=%d no=%d potential=%d",
+		g_CurrentVoteSession.sessionId,
+		g_CurrentVoteSession.yesVotes,
+		g_CurrentVoteSession.noVotes,
+		g_CurrentVoteSession.potentialVotes);
+}
+
+public Action Message_CallVoteFailed(UserMsg hMsgId, BfRead hBf, const int[] iPlayers, int iPlayersNum, bool bReliable, bool bInit)
+{
+	if (!g_bCurrentVoteSessionValid)
+		return Plugin_Continue;
+
+	if (!IsClientInRecipients(g_CurrentVoteSession.callerClient, iPlayers, iPlayersNum))
+		return Plugin_Continue;
+
+	int reason = hBf.ReadByte();
+	int time = hBf.ReadShort();
+
+	g_CurrentVoteSession.status = CallVoteSession_Ended;
+	g_CurrentVoteSession.endReason = CallVoteEnd_Aborted;
+
+	CVLog.Session("[Message_CallVoteFailed] session=%d caller=%d reason=%d time=%d",
+		g_CurrentVoteSession.sessionId,
+		g_CurrentVoteSession.callerClient,
+		reason,
+		time);
+	CVLog.Event("VoteResult", "session=%d callerAccountId=%d voteType=%d result=%d reason=%d time=%d target=%d argument=%s",
+		g_CurrentVoteSession.sessionId,
+		g_CurrentVoteSession.callerAccountId,
+		g_CurrentVoteSession.voteType,
+		g_CurrentVoteSession.endReason,
+		reason,
+		time,
+		g_CurrentVoteSession.targetAccountId,
+		g_CurrentVoteSession.argumentRaw);
+
+	ForwardCallVoteEndEx(g_CurrentVoteSession.endReason);
+	ArchiveCurrentVoteSession();
+	return Plugin_Continue;
+}
+
 /*
  * vote_cast_yes
  *
@@ -869,7 +1264,7 @@ void Event_VoteCastYes(Event event, const char[] sEventName, bool bDontBroadcast
 	L4DTeam Team = L4D_GetClientTeam(iClient);
 
 	char	sTeamTranslation[64];
-	bool	bAnonymous = g_cvarProgressAnony.BoolValue;
+bool	bAnonymous = g_cvarProgressAnonymous.BoolValue;
 
 	for (int i = 1; i <= MaxClients; i++)
 	{
@@ -904,7 +1299,7 @@ void Event_VoteCastNo(Event event, const char[] sEventName, bool bDontBroadcast)
 	L4DTeam Team = L4D_GetClientTeam(iClient);
 
 	char	sTeamTranslation[64];
-	bool	bAnonymous = g_cvarProgressAnony.BoolValue;
+bool	bAnonymous = g_cvarProgressAnonymous.BoolValue;
 
 	for (int i = 1; i <= MaxClients; i++)
 	{
@@ -942,26 +1337,19 @@ void RegVote(TypeVotes type, int iClient, int iTarget = SERVER_INDEX)
 	if (!g_cvarRegLog.BoolValue)
 		return;
 
-	int iVoteFlag = 0;
-	switch (type)
-	{
-		case ChangeDifficulty: iVoteFlag = VOTE_CHANGEDIFFICULTY;
-		case RestartGame: iVoteFlag = VOTE_RESTARTGAME;
-		case Kick: iVoteFlag = VOTE_KICK;
-		case ChangeMission: iVoteFlag = VOTE_CHANGEMISSION;
-		case ReturnToLobby: iVoteFlag = VOTE_RETURNTOLOBBY;
-		case ChangeChapter: iVoteFlag = VOTE_CHANGECHAPTER;
-		case ChangeAllTalk: iVoteFlag = VOTE_CHANGEALLTALK;
-		default: return;
-	}
+	VoteType iVoteFlag = VOTE_NONE;
+	iVoteFlag = GetVoteFlag(type);
+	if (iVoteFlag == VOTE_NONE)
+		return;
 
-	if (!(g_cvarRegLog.IntValue & iVoteFlag))
+	if (!(g_cvarRegLog.IntValue & view_as<int>(iVoteFlag)))
 		return;
 
 	char sAuthID_Client[MAX_AUTHID_LENGTH];
-	if (!GetClientAuthId(iClient, AuthId_Steam2, sAuthID_Client, sizeof(sAuthID_Client)))
+	int iCallerAccountId = GetClientAccountID(iClient);
+	if (iCallerAccountId <= 0 || !AccountIDToSteamID2(iCallerAccountId, sAuthID_Client, sizeof(sAuthID_Client)))
 	{
-		LogError("[RegVote] Failed to get AuthID for client %N", iClient);
+		LogError("[RegVote] Failed to resolve AccountID/SteamID2 for client %N", iClient);
 		return;
 	}
 
@@ -975,9 +1363,10 @@ void RegVote(TypeVotes type, int iClient, int iTarget = SERVER_INDEX)
 	if (type == Kick && IsHuman(iTarget))
 	{
 		char sAuthID_Target[MAX_AUTHID_LENGTH];
-		if (!GetClientAuthId(iTarget, AuthId_Steam2, sAuthID_Target, sizeof(sAuthID_Target)))
+		int iTargetAccountId = GetClientAccountID(iTarget);
+		if (iTargetAccountId <= 0 || !AccountIDToSteamID2(iTargetAccountId, sAuthID_Target, sizeof(sAuthID_Target)))
 		{
-			CVLog.Debug("[RegVote] Failed to get AuthID for target %d", iTarget);
+			CVLog.Debug("[RegVote] Failed to resolve AccountID/SteamID2 for target %d", iTarget);
 			return;
 		}
 
@@ -995,7 +1384,7 @@ void RegVote(TypeVotes type, int iClient, int iTarget = SERVER_INDEX)
 			   sTime, sClientName, sAuthID_Client, sTypeVotes[type]);
 	}
 
-	LogToFileEx(g_sLogPath, "[RegVote] %s", sLogMessage);
+	CVLog.Event("Vote", "%s", sLogMessage);
 }
 
 /**
@@ -1090,9 +1479,33 @@ Action ForwardCallVotePreStart(int iClient, TypeVotes voteType, int target = 0)
 	Call_PushCell(target);
 	Call_Finish(result);
 	
-	CVLog.Debug("[ForwardCallVotePreStart] Forward called for client %d, vote type %d, target %d. Result: %d", 
+	CVLog.Forwards("[ForwardCallVotePreStart] Forward called for client %d, vote type %d, target %d. Result: %d", 
 		iClient, view_as<int>(voteType), target, view_as<int>(result));
 	
+	return result;
+}
+
+Action ForwardCallVotePreStartEx()
+{
+	if (!g_bCurrentVoteSessionValid)
+		return Plugin_Continue;
+
+	Action result = Plugin_Continue;
+
+	Call_StartForward(g_ForwardCallVotePreStartEx);
+	Call_PushCell(g_CurrentVoteSession.sessionId);
+	Call_PushCell(g_CurrentVoteSession.callerClient);
+	Call_PushCell(g_CurrentVoteSession.callerAccountId);
+	Call_PushCell(g_CurrentVoteSession.voteType);
+	Call_PushCell(g_CurrentVoteSession.targetClient);
+	Call_PushCell(g_CurrentVoteSession.targetAccountId);
+	Call_PushString(g_CurrentVoteSession.argumentRaw);
+	Call_Finish(result);
+
+	CVLog.Forwards("[ForwardCallVotePreStartEx] session=%d result=%d",
+		g_CurrentVoteSession.sessionId,
+		view_as<int>(result));
+
 	return result;
 }
 
@@ -1107,8 +1520,17 @@ void ForwardCallVoteStart(int iClient, TypeVotes voteType, int target = 0)
 	Call_PushCell(target);
 	Call_Finish();
 	
-	CVLog.Debug("[ForwardCallVoteStart] Vote started by client %d, vote type %d, target %d", 
+	CVLog.Forwards("[ForwardCallVoteStart] Vote started by client %d, vote type %d, target %d", 
 		iClient, view_as<int>(voteType), target);
+}
+
+void ForwardCallVoteStartEx(int sessionId)
+{
+	Call_StartForward(g_ForwardCallVoteStartEx);
+	Call_PushCell(sessionId);
+	Call_Finish();
+
+	CVLog.Forwards("[ForwardCallVoteStartEx] session=%d", sessionId);
 }
 
 /**
@@ -1124,9 +1546,33 @@ Action ForwardCallVotePreExecute(int iClient, TypeVotes voteType, int target = 0
 	Call_PushCell(target);
 	Call_Finish(result);
 	
-	CVLog.Debug("[ForwardCallVotePreExecute] Forward called for client %d, vote type %d, target %d. Result: %d", 
+	CVLog.Forwards("[ForwardCallVotePreExecute] Forward called for client %d, vote type %d, target %d. Result: %d", 
 		iClient, view_as<int>(voteType), target, view_as<int>(result));
 	
+	return result;
+}
+
+Action ForwardCallVotePreExecuteEx()
+{
+	if (!g_bCurrentVoteSessionValid)
+		return Plugin_Continue;
+
+	Action result = Plugin_Continue;
+
+	Call_StartForward(g_ForwardCallVotePreExecuteEx);
+	Call_PushCell(g_CurrentVoteSession.sessionId);
+	Call_PushCell(g_CurrentVoteSession.callerClient);
+	Call_PushCell(g_CurrentVoteSession.callerAccountId);
+	Call_PushCell(g_CurrentVoteSession.voteType);
+	Call_PushCell(g_CurrentVoteSession.targetClient);
+	Call_PushCell(g_CurrentVoteSession.targetAccountId);
+	Call_PushString(g_CurrentVoteSession.argumentRaw);
+	Call_Finish(result);
+
+	CVLog.Forwards("[ForwardCallVotePreExecuteEx] session=%d result=%d",
+		g_CurrentVoteSession.sessionId,
+		view_as<int>(result));
+
 	return result;
 }
 
@@ -1142,8 +1588,50 @@ void ForwardCallVoteBlocked(int iClient, TypeVotes voteType, VoteRestrictionType
 	Call_PushCell(target);
 	Call_Finish();
 	
-	CVLog.Debug("[ForwardCallVoteBlocked] Vote blocked for client %d, vote type %d, restriction %d, target %d", 
+	CVLog.Forwards("[ForwardCallVoteBlocked] Vote blocked for client %d, vote type %d, restriction %d, target %d", 
 		iClient, view_as<int>(voteType), view_as<int>(restriction), target);
+}
+
+void ForwardCallVoteBlockedEx(VoteRestrictionType restriction)
+{
+	if (!g_bCurrentVoteSessionValid)
+		return;
+
+	Call_StartForward(g_ForwardCallVoteBlockedEx);
+	Call_PushCell(g_CurrentVoteSession.sessionId);
+	Call_PushCell(g_CurrentVoteSession.callerClient);
+	Call_PushCell(g_CurrentVoteSession.callerAccountId);
+	Call_PushCell(g_CurrentVoteSession.voteType);
+	Call_PushCell(restriction);
+	Call_PushCell(g_CurrentVoteSession.targetClient);
+	Call_PushCell(g_CurrentVoteSession.targetAccountId);
+	Call_PushString(g_CurrentVoteSession.argumentRaw);
+	Call_Finish();
+
+	CVLog.Forwards("[ForwardCallVoteBlockedEx] session=%d restriction=%d",
+		g_CurrentVoteSession.sessionId,
+		view_as<int>(restriction));
+}
+
+void ForwardCallVoteEndEx(CallVoteEndReason endReason)
+{
+	if (!g_bCurrentVoteSessionValid)
+		return;
+
+	Call_StartForward(g_ForwardCallVoteEndEx);
+	Call_PushCell(g_CurrentVoteSession.sessionId);
+	Call_PushCell(endReason);
+	Call_PushCell(g_CurrentVoteSession.yesVotes);
+	Call_PushCell(g_CurrentVoteSession.noVotes);
+	Call_PushCell(g_CurrentVoteSession.potentialVotes);
+	Call_Finish();
+
+	CVLog.Forwards("[ForwardCallVoteEndEx] session=%d result=%d yes=%d no=%d potential=%d",
+		g_CurrentVoteSession.sessionId,
+		view_as<int>(endReason),
+		g_CurrentVoteSession.yesVotes,
+		g_CurrentVoteSession.noVotes,
+		g_CurrentVoteSession.potentialVotes);
 }
 
 /**
@@ -1174,6 +1662,112 @@ int Native_IsVoteAllowedByGameMode(Handle plugin, int numParams)
 	}
 	
 	return IsVoteAllowedByGameMode(voteType);
+}
+
+int Native_GetClientAccountID(Handle plugin, int numParams)
+{
+	int client = GetNativeCell(1);
+
+	if (!IsValidClientIndex(client))
+	{
+		return ThrowNativeError(SP_ERROR_NATIVE, "Invalid client index (%d)", client);
+	}
+
+	return GetClientAccountID(client);
+}
+
+int Native_GetClientSteamID2(Handle plugin, int numParams)
+{
+	int client = GetNativeCell(1);
+	int maxlen = GetNativeCell(3);
+	char steamId2[MAX_AUTHID_LENGTH];
+	steamId2[0] = '\0';
+
+	if (!IsValidClientIndex(client))
+	{
+		return ThrowNativeError(SP_ERROR_NATIVE, "Invalid client index (%d)", client);
+	}
+
+	bool result = AccountIDToSteamID2(GetClientAccountID(client), steamId2, sizeof(steamId2));
+	SetNativeString(2, steamId2, maxlen, true);
+	return result;
+}
+
+int Native_GetCurrentSession(Handle plugin, int numParams)
+{
+	if (!g_bCurrentVoteSessionValid)
+		return 0;
+
+	return g_CurrentVoteSession.sessionId;
+}
+
+int Native_GetSessionInfo(Handle plugin, int numParams)
+{
+	int sessionId = GetNativeCell(1);
+	CVVoteSession session;
+
+	if (!TryGetNativeVoteSession(sessionId, session))
+		return false;
+
+	TypeVotes voteType = session.voteType;
+	SetNativeCellRef(2, session.callerClient);
+	SetNativeCellRef(3, session.callerAccountId);
+	SetNativeCellRef(4, voteType);
+	SetNativeCellRef(5, session.targetClient);
+	SetNativeCellRef(6, session.targetAccountId);
+	SetNativeString(7, session.argumentRaw, GetNativeCell(8), true);
+	return true;
+}
+
+int Native_GetSessionSteamID64Info(Handle plugin, int numParams)
+{
+	int sessionId = GetNativeCell(1);
+	char callerSteamID64[STEAMID64_EXACT_LENGTH + 1];
+	char targetSteamID64[STEAMID64_EXACT_LENGTH + 1];
+
+	if (sessionId <= 0)
+	{
+		return ThrowNativeError(SP_ERROR_NATIVE, "Invalid session id (%d)", sessionId);
+	}
+
+	if (!TryGetSessionSteamID64Info(sessionId, callerSteamID64, sizeof(callerSteamID64), targetSteamID64, sizeof(targetSteamID64)))
+		return false;
+
+	SetNativeString(2, callerSteamID64, GetNativeCell(3), true);
+	SetNativeString(4, targetSteamID64, GetNativeCell(5), true);
+	return true;
+}
+
+int Native_GetSessionIssueInfo(Handle plugin, int numParams)
+{
+	int sessionId = GetNativeCell(1);
+	CVVoteSession session;
+
+	if (!TryGetNativeVoteSession(sessionId, session))
+		return false;
+
+	SetNativeString(2, session.engineIssue, GetNativeCell(3), true);
+	SetNativeString(4, session.engineParam1, GetNativeCell(5), true);
+	SetNativeString(6, session.engineParam2, GetNativeCell(7), true);
+	SetNativeCellRef(8, session.engineTeam);
+	SetNativeCellRef(9, session.engineInitiatorClient);
+	return true;
+}
+
+int Native_GetSessionTally(Handle plugin, int numParams)
+{
+	int sessionId = GetNativeCell(1);
+	CVVoteSession session;
+
+	if (!TryGetNativeVoteSession(sessionId, session))
+		return false;
+
+	CallVoteEndReason endReason = session.endReason;
+	SetNativeCellRef(2, session.yesVotes);
+	SetNativeCellRef(3, session.noVotes);
+	SetNativeCellRef(4, session.potentialVotes);
+	SetNativeCellRef(5, endReason);
+	return true;
 }
 
 /**

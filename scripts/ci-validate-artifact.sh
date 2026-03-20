@@ -21,6 +21,7 @@ expected_plugins = {
     "callvotemanager.smx",
     "callvote_kicklimit.smx",
     "callvote_bans.smx",
+    "callvote_bans_adminmenu.smx",
 }
 
 if not os.path.isdir(plugin_dir):
@@ -42,23 +43,17 @@ if include_entries != expected_includes:
     raise SystemExit(f"Unexpected public includes: {include_entries}")
 
 config_dir = os.path.join(artifact_dir, "addons", "sourcemod", "configs")
-if not os.path.isfile(os.path.join(config_dir, "callvote_ban_reasons.cfg")):
-    raise SystemExit("Missing callvote_ban_reasons.cfg")
-
 sql_init_dir = os.path.join(config_dir, "sql-init-callvote")
 if not os.path.isdir(sql_init_dir):
     raise SystemExit("Missing sql-init-callvote directory")
 
 translations_dir = os.path.join(artifact_dir, "addons", "sourcemod", "translations")
 expected_translations = [
+    os.path.join(translations_dir, "callvote_bans_adminmenu.phrases.txt"),
     os.path.join(translations_dir, "callvote_bans.phrases.txt"),
-    os.path.join(translations_dir, "callvote_bans_reason.phrases.txt"),
-    os.path.join(translations_dir, "callvote_database.phrases.txt"),
+    os.path.join(translations_dir, "callvote_common.phrases.txt"),
     os.path.join(translations_dir, "callvote_kicklimit.phrases.txt"),
     os.path.join(translations_dir, "callvote_manager.phrases.txt"),
-    os.path.join(translations_dir, "es", "callvote_database.phrases.txt"),
-    os.path.join(translations_dir, "es", "callvote_kicklimit.phrases.txt"),
-    os.path.join(translations_dir, "es", "callvote_manager.phrases.txt"),
 ]
 
 for translation_path in expected_translations:

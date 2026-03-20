@@ -38,108 +38,14 @@ SQLDriver
 
 public void OnPluginStart_SQL()
 {
-	g_cvarRegLogSQL = CreateConVar("sm_cvm_sql", "0", "SQL logging flags <dificulty:1, restartgame:2, kick:4, changemission:8, lobby:16, chapter:32, alltalk:64, ALL:127, NONE:0>", FCVAR_NOTIFY, true, 0.0, true, 127.0);
+	g_cvarRegLogSQL = CreateConVar("sm_cvm_sql_log_flags", "0", "SQL logging flags <dificulty:1, restartgame:2, kick:4, changemission:8, lobby:16, chapter:32, alltalk:64, ALL:127, NONE:0>", FCVAR_NOTIFY, true, 0.0, true, 127.0);
 	g_cvarCleanupDays = CreateConVar("sm_cvm_cleanup_days", "30", "Days to keep records in automatic cleanup", FCVAR_NOTIFY, true, 1.0, true, 365.0);
 	g_cvarIsMasterServer = CreateConVar("sm_cvm_master_server", "0", "Designate this server as master for automatic cleanup (0=disabled, 1=enabled)", FCVAR_NOTIFY, true, 0.0, true, 1.0);
 	
-	RegAdminCmd("sm_cv_sql_install", Command_CreateSQL, ADMFLAG_ROOT, "Install SQL tables");
-	RegAdminCmd("sm_cv_sql_cleanup", Command_CleanupDB, ADMFLAG_ROOT, "Clean up database records");
-	RegAdminCmd("sm_cv_sql_truncate", Command_TruncateDB, ADMFLAG_ROOT, "Completely clear database table");
-	RegAdminCmd("sm_cv_sql_stats", Command_DBStats, ADMFLAG_GENERIC, "Show database statistics");
-	RegAdminCmd("sm_cv_sql_auto", Command_AutoCleanupControl, ADMFLAG_ROOT, "Control automatic cleanup system");
-}
-
-Action Command_CreateSQL(int iClient, int iArgs)
-{
-	if (!g_cvarEnable.BoolValue)
-	{
-		CReplyToCommand(iClient, "%t %t", "Tag", "PluginDisabled");
-		return Plugin_Handled;
-	}
-
-	if (!g_cvarRegLogSQL.IntValue)
-	{
-		CReplyToCommand(iClient, "%t %t", "Tag", "SQLDisabled");
-		return Plugin_Handled;
-	}
-
-	if (!g_bSQLConnected)
-	{
-		CReplyToCommand(iClient, "%t %t", "Tag", "DBNoConnect");
-		return Plugin_Handled;
-	}
-
-	char sQueryTable[1024];
-	char sQueryTrigger[512];
-	bool bIsMySQL = false;
-	int iLen = 0;
-
-	switch (g_SQLDriver)
-	{
-		case SQL_MySQL:
-		{
-			bIsMySQL = true;
-			iLen += Format(sQueryTable[iLen], sizeof(sQueryTable) - iLen, "CREATE TABLE IF NOT EXISTS `%s` ( ", g_sTable);
-			iLen += Format(sQueryTable[iLen], sizeof(sQueryTable) - iLen, "`id` INT AUTO_INCREMENT PRIMARY KEY, ");
-			iLen += Format(sQueryTable[iLen], sizeof(sQueryTable) - iLen, "`authid` VARCHAR(64) NOT NULL DEFAULT '' COMMENT 'Client SteamID2 calling for a vote', ");
-			iLen += Format(sQueryTable[iLen], sizeof(sQueryTable) - iLen, "`created` INT NOT NULL DEFAULT 0 COMMENT 'Creation date in UNIX format (auto-filled by trigger)', ");
-			iLen += Format(sQueryTable[iLen], sizeof(sQueryTable) - iLen, "`type` INT NOT NULL DEFAULT 0 COMMENT 'Type of vote', ");
-			iLen += Format(sQueryTable[iLen], sizeof(sQueryTable) - iLen, "`authidTarget` VARCHAR(64) NOT NULL DEFAULT '' COMMENT 'SteamID2 of the objective of a kick vote' ");
-			iLen += Format(sQueryTable[iLen], sizeof(sQueryTable) - iLen, ") ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci;");
-
-			int iTriggerLen = 0;
-			iTriggerLen += Format(sQueryTrigger[iTriggerLen], sizeof(sQueryTrigger) - iTriggerLen, "CREATE TRIGGER IF NOT EXISTS `trg_callvote_log_before_insert` ");
-			iTriggerLen += Format(sQueryTrigger[iTriggerLen], sizeof(sQueryTrigger) - iTriggerLen, "BEFORE INSERT ON `%s` ", g_sTable);
-			iTriggerLen += Format(sQueryTrigger[iTriggerLen], sizeof(sQueryTrigger) - iTriggerLen, "FOR EACH ROW ");
-			iTriggerLen += Format(sQueryTrigger[iTriggerLen], sizeof(sQueryTrigger) - iTriggerLen, "SET NEW.created = UNIX_TIMESTAMP();");
-		}
-		case SQL_SQLite:
-		{
-			iLen += Format(sQueryTable[iLen], sizeof(sQueryTable) - iLen, "CREATE TABLE IF NOT EXISTS `%s` ( ", g_sTable);
-			iLen += Format(sQueryTable[iLen], sizeof(sQueryTable) - iLen, "`id` INTEGER PRIMARY KEY AUTOINCREMENT, ");
-			iLen += Format(sQueryTable[iLen], sizeof(sQueryTable) - iLen, "`authid` TEXT NOT NULL DEFAULT '', ");
-			iLen += Format(sQueryTable[iLen], sizeof(sQueryTable) - iLen, "`created` INTEGER NOT NULL DEFAULT 0, "); // SQLite will still rely on manual insertion of UNIX time
-			iLen += Format(sQueryTable[iLen], sizeof(sQueryTable) - iLen, "`type` INTEGER NOT NULL DEFAULT 0, ");
-			iLen += Format(sQueryTable[iLen], sizeof(sQueryTable) - iLen, "`authidTarget` TEXT NOT NULL DEFAULT '' ");
-			iLen += Format(sQueryTable[iLen], sizeof(sQueryTable) - iLen, ");");
-		}
-		default:
-		{
-			CVLog.Debug("[Command_CreateSQL] Unknown SQL driver: %d", view_as<int>(g_SQLDriver));
-			CReplyToCommand(iClient, "%t %t", "Tag", "DBUnknownDriver");
-			return Plugin_Handled;
-		}
-	}
-
-	CVLog.Query("[Command_CreateSQL] Executing table creation query: %s", sQueryTable);
-	if (!SQL_FastQuery(g_db, sQueryTable))
-	{
-		char sSQLError[250];
-		SQL_GetError(g_db, sSQLError, sizeof(sSQLError));
-		CVLog.Query("[Command_CreateSQL] SQL_FastQuery failed for table creation. Error: %s", sSQLError);
-		CReplyToCommand(iClient, "%t %t", "Tag", "DBQueryErrorTable");
-		return Plugin_Handled;
-	}
-
-	CReplyToCommand(iClient, "%t %t", "Tag", "DBTableCreated", g_sTable);
-	CVLog.Debug("[Command_CreateSQL] Table `%s` created successfully or already existed.", g_sTable);
-
-	// Create control table for cleanup management
-	CreateCleanupControlTable();
-
-	if (bIsMySQL && sQueryTrigger[0] != '\0')
-	{
-		CVLog.Query("[Command_CreateSQL] Executing trigger creation query: %s", sQueryTrigger);
-		if (!SQL_FastQuery(g_db, sQueryTrigger))
-		{
-			char sSQLError[250];
-			SQL_GetError(g_db, sSQLError, sizeof(sSQLError));
-			CVLog.Query("[Command_CreateSQL] SQL_FastQuery for trigger creation might have failed (or trigger already exists). Error: %s.", sSQLError);
-			CReplyToCommand(iClient, "%t %t", "Tag", "DBTriggerIssue", g_sTable);
-		}
-	}
-
-	return Plugin_Handled;
+	RegAdminCmd("sm_cvm_sql_cleanup", Command_CleanupDB, ADMFLAG_ROOT, "Clean up database records");
+	RegAdminCmd("sm_cvm_sql_truncate", Command_TruncateDB, ADMFLAG_ROOT, "Completely clear database table");
+	RegAdminCmd("sm_cvm_sql_stats", Command_DBStats, ADMFLAG_GENERIC, "Show database statistics");
+	RegAdminCmd("sm_cvm_sql_auto", Command_AutoCleanupControl, ADMFLAG_ROOT, "Control automatic cleanup system");
 }
 
 public void OnPluginEnd_SQL()
@@ -165,6 +71,42 @@ void OnConfigsExecuted_SQL()
 	ConnectDB("callvote");
 }
 
+void EnsureSQLiteSchema()
+{
+	if (g_SQLDriver != SQL_SQLite || g_db == null)
+		return;
+
+	char sQueryTable[1024];
+	int iLen = 0;
+
+	iLen += Format(sQueryTable[iLen], sizeof(sQueryTable) - iLen, "CREATE TABLE IF NOT EXISTS `%s` ( ", g_sTable);
+	iLen += Format(sQueryTable[iLen], sizeof(sQueryTable) - iLen, "`id` INTEGER PRIMARY KEY AUTOINCREMENT, ");
+	iLen += Format(sQueryTable[iLen], sizeof(sQueryTable) - iLen, "`caller_account_id` INTEGER NOT NULL DEFAULT 0, ");
+	iLen += Format(sQueryTable[iLen], sizeof(sQueryTable) - iLen, "`created` INTEGER NOT NULL DEFAULT 0, ");
+	iLen += Format(sQueryTable[iLen], sizeof(sQueryTable) - iLen, "`type` INTEGER NOT NULL DEFAULT 0, ");
+	iLen += Format(sQueryTable[iLen], sizeof(sQueryTable) - iLen, "`target_account_id` INTEGER NOT NULL DEFAULT 0 ");
+	iLen += Format(sQueryTable[iLen], sizeof(sQueryTable) - iLen, ");");
+
+	if (!SQL_FastQuery(g_db, sQueryTable))
+	{
+		char sError[256];
+		SQL_GetError(g_db, sError, sizeof(sError));
+		CVLog.Query("[EnsureSQLiteSchema] Failed to create SQLite table `%s`: %s", g_sTable, sError);
+		return;
+	}
+
+	char sIndexQuery[256];
+	FormatEx(sIndexQuery, sizeof(sIndexQuery), "CREATE INDEX IF NOT EXISTS `idx_callvote_log_caller_created` ON `%s` (`caller_account_id`, `created`)", g_sTable);
+	if (!SQL_FastQuery(g_db, sIndexQuery))
+	{
+		char sError[256];
+		SQL_GetError(g_db, sError, sizeof(sError));
+		CVLog.Query("[EnsureSQLiteSchema] Failed to create SQLite index for `%s`: %s", g_sTable, sError);
+	}
+
+	CreateCleanupControlTable();
+}
+
 /*****************************************************************
 			P L U G I N   F U N C T I O N S
 *****************************************************************/
@@ -173,90 +115,93 @@ void OnConfigsExecuted_SQL()
  * Logs a vote action to the SQL database.
  * 
  * This function validates SQL logging settings, checks database connectivity,
- * retrieves client authentication IDs, and constructs appropriate SQL queries
+ * retrieves client AccountIDs, and constructs appropriate SQL queries
  * based on the database driver type (MySQL/SQLite).
  *
  * @param type      The type of vote action (ChangeDifficulty, RestartGame, Kick, etc.).
  * @param iClient   The client index of the player initiating the vote.
  * @param iTarget   The client index of the target player (only used for Kick votes, default SERVER_INDEX).
  * @noreturn        Function returns early if logging is disabled or conditions are not met.
- * @error           Function logs errors and returns if AuthID retrieval fails or database is unavailable.
+ * @error           Function logs errors and returns if AccountID retrieval fails or database is unavailable.
  */
 void RegSQLVote(TypeVotes type, int iClient, int iTarget = SERVER_INDEX)
 {
 	if (!g_cvarRegLogSQL.IntValue)
 		return;
 	
-	int iVoteFlag = 0;
-	switch (type)
-	{
-		case ChangeDifficulty: iVoteFlag = VOTE_CHANGEDIFFICULTY;
-		case RestartGame: iVoteFlag = VOTE_RESTARTGAME;
-		case Kick: iVoteFlag = VOTE_KICK;
-		case ChangeMission: iVoteFlag = VOTE_CHANGEMISSION;
-		case ReturnToLobby: iVoteFlag = VOTE_RETURNTOLOBBY;
-		case ChangeChapter: iVoteFlag = VOTE_CHANGECHAPTER;
-		case ChangeAllTalk: iVoteFlag = VOTE_CHANGEALLTALK;
-		default: return;
-	}
+	VoteType iVoteFlag = VOTE_NONE;
+	iVoteFlag = GetVoteFlag(type);
+	if (iVoteFlag == VOTE_NONE)
+		return;
 	
-	if (!(g_cvarRegLogSQL.IntValue & iVoteFlag))
+	if (!(g_cvarRegLogSQL.IntValue & view_as<int>(iVoteFlag)))
 		return;
 	
     if (!g_bSQLConnected || !g_bSQLTableExists)
         return;
 
-    char sAuthID_Client[MAX_AUTHID_LENGTH];
-    char sAuthID_Target[MAX_AUTHID_LENGTH];
-    
-    if (!GetClientAuthId(iClient, AuthId_Steam2, sAuthID_Client, sizeof(sAuthID_Client)))
+    int iCallerAccountId = GetClientAccountID(iClient);
+    if (iCallerAccountId <= 0)
     {
-        CVLog.Debug("[RegSQLVote] Failed to get AuthID for client %d", iClient);
+        CVLog.Debug("[RegSQLVote] Failed to resolve AccountID for client %d", iClient);
+        return;
+    }
+
+    int iTargetAccountId = 0;
+    char sTargetSteamID64[STEAMID64_EXACT_LENGTH + 1];
+    sTargetSteamID64[0] = '\0';
+    char sCallerSteamID64[STEAMID64_EXACT_LENGTH + 1];
+    sCallerSteamID64[0] = '\0';
+
+    if (g_SQLDriver == SQL_MySQL && (!g_bCurrentVoteSessionValid || !TryGetSessionSteamID64Info(g_CurrentVoteSession.sessionId, sCallerSteamID64, sizeof(sCallerSteamID64), sTargetSteamID64, sizeof(sTargetSteamID64))))
+    {
+        CVLog.Debug("[RegSQLVote] Failed to resolve frozen SteamID64 values for session %d", g_CurrentVoteSession.sessionId);
         return;
     }
 
     if (type == Kick && IsHuman(iTarget))
     {
-        if (!GetClientAuthId(iTarget, AuthId_Steam2, sAuthID_Target, sizeof(sAuthID_Target)))
+        iTargetAccountId = GetClientAccountID(iTarget);
+        if (iTargetAccountId <= 0)
         {
-            LogError("[RegVote] Failed to get AuthID for client %N", iTarget);
+            CVLog.Debug("[RegSQLVote] Failed to resolve target AccountID for client %d", iTarget);
             return;
         }
     }
 
+    int iTime = GetTime();
     char sQuery[700];
 
     switch (g_SQLDriver)
     {
         case SQL_MySQL:
         {
-            if (type == Kick && sAuthID_Target[0] != '\0')
+            if (type == Kick && iTargetAccountId > 0)
             {
                 g_db.Format(sQuery, sizeof(sQuery),
-                    "INSERT INTO `%s` (authid, type, authidTarget) VALUES ('%s', %d, '%s')",
-                    g_sTable, sAuthID_Client, view_as<int>(type), sAuthID_Target);
+                    "INSERT INTO `%s` (caller_account_id, caller_steamid64, created, type, target_account_id, target_steamid64) VALUES (%d, '%s', %d, %d, %d, '%s')",
+                    g_sTable, iCallerAccountId, sCallerSteamID64, iTime, view_as<int>(type), iTargetAccountId, sTargetSteamID64);
             }
             else
             {
                 g_db.Format(sQuery, sizeof(sQuery),
-                    "INSERT INTO `%s` (authid, type) VALUES ('%s', %d)",
-                    g_sTable, sAuthID_Client, view_as<int>(type));
+                    "INSERT INTO `%s` (caller_account_id, caller_steamid64, created, type) VALUES (%d, '%s', %d, %d)",
+                    g_sTable, iCallerAccountId, sCallerSteamID64, iTime, view_as<int>(type));
             }
         }
         case SQL_SQLite:
         {
-            int iTime = GetTime();
-            if (type == Kick && sAuthID_Target[0] != '\0')
+            if (type == Kick && iTargetAccountId > 0)
             {
                 g_db.Format(sQuery, sizeof(sQuery),
-                    "INSERT INTO `%s` (authid, created, type, authidTarget) VALUES ('%s', %d, %d, '%s')",
-                    g_sTable, sAuthID_Client, iTime, view_as<int>(type), sAuthID_Target);
+                    "INSERT INTO `%s` (caller_account_id, created, type, target_account_id) VALUES (%d, %d, %d, %d)",
+                    g_sTable, iCallerAccountId, iTime, view_as<int>(type), iTargetAccountId);
             }
             else
             {
                 g_db.Format(sQuery, sizeof(sQuery),
-                    "INSERT INTO `%s` (authid, created, type) VALUES ('%s', %d, %d)",
-                    g_sTable, sAuthID_Client, iTime, view_as<int>(type));
+                    "INSERT INTO `%s` (caller_account_id, created, type) VALUES (%d, %d, %d)",
+                    g_sTable, iCallerAccountId, iTime, view_as<int>(type));
             }
         }
         default:
@@ -298,7 +243,7 @@ public void CallBack_logSQL(Database db, DBResultSet results, const char[] error
 
 /**
  * Command to clean up old database records
- * Usage: sm_cv_sql_cleanup [days] - Clean records older than X days (default: 30)
+ * Usage: sm_cvm_sql_cleanup [days] - Clean records older than X days (default: 30)
  */
 Action Command_CleanupDB(int iClient, int iArgs)
 {
@@ -365,7 +310,7 @@ Action Command_CleanupDB(int iClient, int iArgs)
 
 /**
  * Command to completely truncate (empty) the database table
- * Usage: sm_cv_sql_truncate - Requires confirmation
+ * Usage: sm_cvm_sql_truncate - Requires confirmation
  */
 Action Command_TruncateDB(int iClient, int iArgs)
 {
@@ -427,7 +372,7 @@ Action Command_TruncateDB(int iClient, int iArgs)
 
 /**
  * Command to show database statistics
- * Usage: sm_cv_sql_stats - Show total records and breakdown by vote type
+ * Usage: sm_cvm_sql_stats - Show total records and breakdown by vote type
  */
 Action Command_DBStats(int iClient, int iArgs)
 {
@@ -477,7 +422,7 @@ Action Command_DBStats(int iClient, int iArgs)
 
 /**
  * Command to control automatic cleanup system
- * Usage: sm_cv_sql_auto [start|stop|status|force]
+ * Usage: sm_cvm_sql_auto [start|stop|status|force]
  */
 Action Command_AutoCleanupControl(int iClient, int iArgs)
 {
@@ -489,7 +434,7 @@ Action Command_AutoCleanupControl(int iClient, int iArgs)
 
 	if (iArgs < 1)
 	{
-		CReplyToCommand(iClient, "%t Usage: sm_cv_sql_auto <start|stop|status|force>", "Tag");
+		CReplyToCommand(iClient, "%t Usage: sm_cvm_sql_auto <start|stop|status|force>", "Tag");
 		CReplyToCommand(iClient, "%t - start: Start automatic cleanup", "Tag");
 		CReplyToCommand(iClient, "%t - stop: Stop automatic cleanup", "Tag");
 		CReplyToCommand(iClient, "%t - status: Show current status", "Tag");
@@ -565,19 +510,15 @@ void CreateCleanupControlTable()
 	if (!g_bSQLConnected || g_db == null)
 		return;
 
+	if (g_SQLDriver != SQL_SQLite)
+	{
+		CVLog.Debug("[CreateCleanupControlTable] Skipping auto-create for MySQL; apply migrations instead");
+		return;
+	}
+
 	char sQuery[512];
 	switch (g_SQLDriver)
 	{
-		case SQL_MySQL:
-		{
-			Format(sQuery, sizeof(sQuery),
-				"CREATE TABLE IF NOT EXISTS `%s` ( "...
-				"`id` INT PRIMARY KEY DEFAULT 1, "...
-				"`last_cleanup` INT NOT NULL DEFAULT 0 COMMENT 'Last cleanup timestamp', "...
-				"`cleanup_count` INT NOT NULL DEFAULT 0 COMMENT 'Total cleanup operations performed' "...
-				") ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci",
-				g_sControlTable);
-		}
 		case SQL_SQLite:
 		{
 			Format(sQuery, sizeof(sQuery),
@@ -658,8 +599,15 @@ public void CheckControlTableCallback(Database database, DBResultSet results, co
 	bool tableExists = results.FetchRow();
 	if (!tableExists)
 	{
-		CVLog.Debug("[CheckControlTableCallback] Control table doesn't exist, creating it");
-		CreateCleanupControlTable();
+		if (g_SQLDriver == SQL_SQLite)
+		{
+			CVLog.Debug("[CheckControlTableCallback] SQLite control table doesn't exist, creating it");
+			CreateCleanupControlTable();
+		}
+		else
+		{
+			CVLog.Debug("[CheckControlTableCallback] MySQL control table is missing; apply schema migrations");
+		}
 	}
 	else
 	{
@@ -942,6 +890,9 @@ void ConnectCallback(Database database, const char[] error, any data)
 		return;
 	}
 
+	if (g_SQLDriver == SQL_SQLite)
+		EnsureSQLiteSchema();
+
 	CheckTableExists();
 	CheckCleanupControlTable();
 	CreateTimer(5.0, Timer_CheckCleanupConditions, _, TIMER_FLAG_NO_MAPCHANGE);
@@ -1015,6 +966,9 @@ void CheckTableCallback(Database database, DBResultSet results, const char[] err
 
 	g_bSQLTableExists = results.FetchRow();
 	CVLog.Debug("[CheckTableCallback] Table '%s' exists: %s", g_sTable, g_bSQLTableExists ? "true" : "false");
+
+	if (!g_bSQLTableExists && g_SQLDriver == SQL_MySQL)
+		CVLog.Debug("[CheckTableCallback] MySQL table `%s` is missing; apply schema migrations", g_sTable);
 }
 
 /**

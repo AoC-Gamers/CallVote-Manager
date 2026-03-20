@@ -3,6 +3,7 @@
 
 #include <sourcemod>
 #include <colors>
+#include <dbi>
 
 #undef REQUIRE_PLUGIN
 #include <callvotemanager>
@@ -32,12 +33,32 @@ int
 	g_iCaller = 0;
 
 ConVar
+	g_cvarDebug,
+	g_cvarEnable,
+	g_cvarLog,
 	g_cvarKickLimit;
 
+char
+	g_sLogPath[PLATFORM_MAX_PATH];
+
 bool
+	g_bSQLConnected,
+	g_bSQLTableExists,
 	g_bCallVoteManager,
 	g_bLateLoad = false,
 	g_bVoteKickInProgress = false; // We make sure that voting end events do not execute code twice.
+
+Database
+	g_db;
+
+enum SQLDriver
+{
+	SQL_MySQL = 0,
+	SQL_SQLite
+}
+
+SQLDriver
+	g_SQLDriver;
 
 /*****************************************************************
 			L I B R A R Y   I N C L U D E S
@@ -226,7 +247,7 @@ public void OnClientAuthorized(int iClient, const char[] sAuth)
 			F O R W A R D   P L U G I N S
 *****************************************************************/
 
-public Action CallVote_Start(int iClient, TypeVotes iVotes, int iTarget)
+public Action CallVote_PreStart(int iClient, TypeVotes iVotes, int iTarget)
 {
 	if (!g_cvarEnable.BoolValue)
 		return Plugin_Continue;
@@ -234,7 +255,7 @@ public Action CallVote_Start(int iClient, TypeVotes iVotes, int iTarget)
 	if (iVotes != Kick)
 		return Plugin_Continue;
 
-	log(true, "[CallVote_Start] Call KickVote Client:%N | Target:%N", iClient, iTarget);
+	log(true, "[CallVote_PreStart] Call KickVote Client:%N | Target:%N", iClient, iTarget);
 	if (g_cvarKickLimit.IntValue <= g_Players[iClient].Kick)
 	{
 		char sBuffer[128];
@@ -249,7 +270,6 @@ public Action CallVote_Start(int iClient, TypeVotes iVotes, int iTarget)
 
 	g_bVoteKickInProgress = true;
 	return Plugin_Continue; // Allow the vote
-	return;
 }
 
 /****************************************************************
@@ -310,8 +330,9 @@ Action Message_VoteFail(UserMsg hMsg_id, BfRead hBf, const int[] iPlayers, int i
 	if (!g_bVoteKickInProgress)
 		return Plugin_Continue;
 
+	int caller = g_iCaller;
 	g_iCaller = 0;
-	g_Players[g_iCaller].Target = 0;
+	g_Players[caller].Target = 0;
 	g_bVoteKickInProgress = false;
 	return Plugin_Continue;
 }
@@ -335,8 +356,9 @@ public Action MessageCallVoteFailed(UserMsg hMsg_id, BfRead hBf, const int[] iPl
 	if (!g_bVoteKickInProgress)
 		return Plugin_Continue;
 
+	int caller = g_iCaller;
 	g_iCaller = 0;
-	g_Players[g_iCaller].Target = 0;
+	g_Players[caller].Target = 0;
 	g_bVoteKickInProgress = false;
 	return Plugin_Continue;
 }
@@ -388,6 +410,139 @@ bool IsClientRegistred(int iClient, const char[] sAuth)
 
 	}
 	return false;
+}
+
+void log(bool error, const char[] format, any ...)
+{
+	if (g_cvarLog == null || !g_cvarLog.BoolValue)
+		return;
+
+	char message[512];
+	VFormat(message, sizeof(message), format, 3);
+
+	if (error)
+		LogError("%s", message);
+
+	LogToFileEx(g_sLogPath, "%s", message);
+
+	if (g_cvarDebug != null && g_cvarDebug.BoolValue)
+		PrintToServer("[CallVote Kick Limit] %s", message);
+}
+
+void logErrorSQL(Database db, const char[] query, const char[] context)
+{
+	char sqlError[256];
+	if (db != null)
+		SQL_GetError(db, sqlError, sizeof(sqlError));
+	else
+		strcopy(sqlError, sizeof(sqlError), "Unknown database handle");
+
+	log(false, "[%s] SQL error: %s", context, sqlError);
+	log(true, "[%s] Query dump: %s", context, query);
+}
+
+void ConnectDB(const char[] configName, const char[] tableName)
+{
+	g_bSQLConnected = false;
+	g_bSQLTableExists = false;
+
+	if (!SQL_CheckConfig(configName))
+	{
+		log(false, "[ConnectDB] Missing database config: %s", configName);
+		return;
+	}
+
+	log(false, "[ConnectDB] Connecting to database config %s for table %s", configName, tableName);
+	Database.Connect(ConnectCallback, configName);
+}
+
+void ConnectCallback(Database database, const char[] error, any data)
+{
+	g_bSQLConnected = false;
+	g_bSQLTableExists = false;
+
+	if (database == null)
+	{
+		log(true, "[ConnectCallback] Could not connect to database: %s", error);
+		return;
+	}
+
+	g_db = database;
+	g_bSQLConnected = true;
+
+	DBDriver driver = database.Driver;
+	if (driver == null)
+	{
+		log(true, "[ConnectCallback] Could not resolve database driver.");
+		g_bSQLConnected = false;
+		delete g_db;
+		g_db = null;
+		return;
+	}
+
+	char driverName[64];
+	driver.GetIdentifier(driverName, sizeof(driverName));
+
+	if (StrEqual(driverName, "mysql", false))
+	{
+		g_SQLDriver = SQL_MySQL;
+		database.SetCharset("utf8");
+	}
+	else if (StrEqual(driverName, "sqlite", false))
+	{
+		g_SQLDriver = SQL_SQLite;
+	}
+	else
+	{
+		log(true, "[ConnectCallback] Unsupported database driver: %s", driverName);
+		g_bSQLConnected = false;
+		delete g_db;
+		g_db = null;
+		return;
+	}
+
+	CheckTableExists();
+}
+
+void CheckTableExists()
+{
+	if (!g_bSQLConnected || g_db == null)
+	{
+		g_bSQLTableExists = false;
+		return;
+	}
+
+	char query[256];
+	switch (g_SQLDriver)
+	{
+		case SQL_MySQL:
+		{
+			g_db.Format(query, sizeof(query),
+				"SELECT 1 FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = '%s' LIMIT 1",
+				g_sTable);
+		}
+		case SQL_SQLite:
+		{
+			g_db.Format(query, sizeof(query),
+				"SELECT 1 FROM sqlite_master WHERE type='table' AND name='%s' LIMIT 1",
+				g_sTable);
+		}
+	}
+
+	g_db.Query(CheckTableCallback, query);
+}
+
+void CheckTableCallback(Database database, DBResultSet results, const char[] error, any data)
+{
+	if (results == null)
+	{
+		log(true, "[CheckTableCallback] Error checking table existence: %s", error);
+		g_bSQLTableExists = false;
+		return;
+	}
+
+	g_bSQLTableExists = results.FetchRow();
+	log(false, "[CheckTableCallback] Table %s exists: %s", g_sTable, g_bSQLTableExists ? "true" : "false");
 }
 
 // =======================================================================================

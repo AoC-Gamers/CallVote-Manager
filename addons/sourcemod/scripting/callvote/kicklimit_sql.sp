@@ -71,7 +71,7 @@ Action Command_CreateSQL(int iClient, int iArgs)
         default:
         {
             log(false, "[Command_CreateSQL] Unknown SQL driver.");
-            CReplyToCommand(iClient, "%t %t", "Tag", "UnknownSQLDriver");
+            CReplyToCommand(iClient, "%t %t", "Tag", "DBQueryError");
             return Plugin_Handled;
         }
     }
@@ -216,7 +216,7 @@ public void CallBack_GetCountKick(Database db, DBResultSet results, const char[]
     }
 
     int iClient = GetClientOfUserId(data);
-    if (iClient == CONSOLE)
+    if (iClient == SERVER_INDEX)
         return;
 
     int iKick = 0;

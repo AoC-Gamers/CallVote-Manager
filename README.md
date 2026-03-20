@@ -151,13 +151,37 @@ wget https://github.com/lechuga16/callvote_manager/releases/latest
 ### **2. Instalar Plugins**
 ```bash
 # Copiar archivos compilados
-addons/sourcemod/plugins/callvotemanager.smx     # Plugin principal
-addons/sourcemod/plugins/callvote_kicklimit.smx  # Control de kicks  
-addons/sourcemod/plugins/callvote_bans.smx       # Sistema de bans
+addons/sourcemod/plugins/callvote/callvotemanager.smx     # Plugin principal
+addons/sourcemod/plugins/callvote/callvote_kicklimit.smx  # Control de kicks
+addons/sourcemod/plugins/callvote/callvote_bans.smx       # Sistema de bans
 
 # Copiar configuraciones
 addons/sourcemod/configs/callvote_ban_reasons.cfg
+addons/sourcemod/configs/sql-init-callvote/
 addons/sourcemod/translations/callvote_*.phrases.txt
+addons/sourcemod/scripting/include/callvotemanager.inc
+addons/sourcemod/scripting/include/callvote_stock.inc
+addons/sourcemod/scripting/include/callvote_bans.inc
+```
+
+### **Artefacto generado por CI**
+El workflow genera un artefacto instalable con este layout:
+
+```text
+addons/sourcemod/plugins/callvote/
+    callvotemanager.smx
+    callvote_kicklimit.smx
+    callvote_bans.smx
+addons/sourcemod/scripting/include/
+    callvotemanager.inc
+    callvote_stock.inc
+    callvote_bans.inc
+addons/sourcemod/configs/
+    callvote_ban_reasons.cfg
+    sql-init-callvote/
+addons/sourcemod/translations/
+    callvote*.phrases.txt
+    es/callvote*.phrases.txt
 ```
 
 ### **3. Configurar Base de Datos** *(Opcional - Solo para funciones SQL)*

@@ -21,6 +21,7 @@ SOURCEMOD_INCLUDE_DIR="$SOURCEMOD_DIR/addons/sourcemod/scripting/include"
 LOCAL_INCLUDE_DIR="$ROOT_DIR/addons/sourcemod/scripting/include"
 PACKAGE_SM_DIR="$ARTIFACT_DIR/addons/sourcemod"
 PACKAGE_PLUGIN_DIR="$PACKAGE_SM_DIR/plugins/callvote"
+PACKAGE_SCRIPTING_DIR="$PACKAGE_SM_DIR/scripting"
 PACKAGE_INCLUDE_DIR="$PACKAGE_SM_DIR/scripting/include"
 PACKAGE_CONFIG_DIR="$PACKAGE_SM_DIR/configs"
 PACKAGE_TRANSLATIONS_DIR="$PACKAGE_SM_DIR/translations"
@@ -28,6 +29,7 @@ COMPILE_LOG="$DIST_DIR/compile.log"
 
 mkdir -p \
   "$PACKAGE_PLUGIN_DIR" \
+  "$PACKAGE_SCRIPTING_DIR" \
   "$PACKAGE_INCLUDE_DIR" \
   "$PACKAGE_CONFIG_DIR" \
   "$PACKAGE_TRANSLATIONS_DIR"
@@ -88,6 +90,13 @@ done
 cp "$ROOT_DIR/addons/sourcemod/scripting/include/callvotemanager.inc" "$PACKAGE_INCLUDE_DIR/"
 cp "$ROOT_DIR/addons/sourcemod/scripting/include/callvote_stock.inc" "$PACKAGE_INCLUDE_DIR/"
 cp "$ROOT_DIR/addons/sourcemod/scripting/include/callvote_bans.inc" "$PACKAGE_INCLUDE_DIR/"
+
+cp "$ROOT_DIR/addons/sourcemod/scripting/callvote_manager.sp" "$PACKAGE_SCRIPTING_DIR/"
+cp "$ROOT_DIR/addons/sourcemod/scripting/callvote_kicklimit.sp" "$PACKAGE_SCRIPTING_DIR/"
+cp "$ROOT_DIR/addons/sourcemod/scripting/callvote_bans.sp" "$PACKAGE_SCRIPTING_DIR/"
+cp "$ROOT_DIR/addons/sourcemod/scripting/callvote_bans_adminmenu.sp" "$PACKAGE_SCRIPTING_DIR/"
+cp -R "$ROOT_DIR/addons/sourcemod/scripting/callvote_manager" "$PACKAGE_SCRIPTING_DIR/"
+cp -R "$ROOT_DIR/addons/sourcemod/scripting/callvote_bans" "$PACKAGE_SCRIPTING_DIR/"
 
 cp -R "$ROOT_DIR/addons/sourcemod/configs/sql-init-callvote" "$PACKAGE_CONFIG_DIR/"
 

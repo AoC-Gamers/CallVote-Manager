@@ -42,6 +42,25 @@ include_entries = sorted(entry for entry in os.listdir(include_dir) if os.path.i
 if include_entries != expected_includes:
     raise SystemExit(f"Unexpected public includes: {include_entries}")
 
+scripting_dir = os.path.join(artifact_dir, "addons", "sourcemod", "scripting")
+expected_source_entries = {
+    "callvote_bans",
+    "callvote_bans.sp",
+    "callvote_bans_adminmenu.sp",
+    "callvote_kicklimit.sp",
+    "callvote_manager",
+    "callvote_manager.sp",
+    "include",
+}
+
+if not os.path.isdir(scripting_dir):
+    raise SystemExit(f"Missing scripting directory: {scripting_dir}")
+
+source_entries = {entry for entry in os.listdir(scripting_dir)}
+missing_source_entries = sorted(expected_source_entries - source_entries)
+if missing_source_entries:
+    raise SystemExit(f"Missing scripting sources: {missing_source_entries}")
+
 config_dir = os.path.join(artifact_dir, "addons", "sourcemod", "configs")
 sql_init_dir = os.path.join(config_dir, "sql-init-callvote")
 if not os.path.isdir(sql_init_dir):

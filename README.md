@@ -23,6 +23,20 @@ El objetivo actual del proyecto es consolidar el core como una API estable para 
 
 ## Componentes
 
+```mermaid
+flowchart LR
+    Player[Jugador]
+    Manager[callvote_manager]
+    KickLimit[callvote_kicklimit]
+    Bans[callvote_bans]
+    External[Suites externas]
+
+    Player --> Manager
+    Manager --> KickLimit
+    Manager --> Bans
+    Manager --> External
+```
+
 ### [CallVote Manager](docs/README_MANAGER.md)
 
 Core del sistema. Intercepta `callvote`, clasifica el tipo de voto, valida restricciones, construye una sesion de voto y expone forwards y natives para otros plugins.
@@ -40,6 +54,42 @@ Plugin legado de restricciones. El runtime base queda reducido a API, persistenc
 - [Implementacion Core AccountID](docs/IMPLEMENTACION_CORE_ACCOUNTID.md)
 - [Investigacion HL2SDK y Votaciones](docs/INVESTIGACION_HL2SDK_VOTACIONES.md)
 - [Migracion SQL a AccountID](docs/MIGRACION_ACCOUNTID_SQL.md)
+
+## Artefactos
+
+La suite se distribuye mediante artefactos zip publicados por CI y releases de GitHub.
+
+Nombre esperado del paquete:
+
+- `callvote-manager-<version>.zip`
+
+Layout instalable del artefacto:
+
+```text
+addons/sourcemod/plugins/callvote/
+    callvotemanager.smx
+    callvote_kicklimit.smx
+    callvote_bans.smx
+
+addons/sourcemod/scripting/include/
+    callvotemanager.inc
+    callvote_stock.inc
+    callvote_bans.inc
+
+addons/sourcemod/configs/
+    callvote_ban_reasons.cfg
+    sql-init-callvote/
+
+addons/sourcemod/translations/
+    callvote*.phrases.txt
+    es/callvote*.phrases.txt
+```
+
+Los binarios publicos de la suite viven en `addons/sourcemod/plugins/callvote/`.
+
+El artefacto no incluye bibliotecas adicionales ajenas a la suite ni requiere limpieza posterior de includes antes de instalarse. El zip ya viene listo para copiar sobre el servidor.
+
+Para integradores como Docker-L4D2-AoC esto significa que el instalador debe consumir el artefacto ya empaquetado y preservar el subdirectorio `callvote` para mantener la suite agrupada.
 
 ## Estado
 

@@ -30,6 +30,38 @@ Las conversiones offline usan `steamidtools.inc` y `steamidtools_helpers.inc`. S
 - MySQL ejecuta mutaciones y lecturas administrativas en forma asincrona
 - el cache en memoria es solo un acelerador del runtime; la fuente de verdad es la base activa
 
+```mermaid
+flowchart TD
+    A[Comando admin] --> B[Parseo de identidad]
+    B --> C{Target conectado?}
+    C -- Si --> D[Resolver AccountID localmente]
+    C -- No --> E{Formato offline resolvible?}
+    E -- Si --> F[Resolver offline]
+    E -- No --> G[Usar steamidtools.smx]
+    G --> H{Backend saludable?}
+    H -- No --> I[Abortar]
+    H -- Si --> J[Resolver SteamID64 a AccountID]
+    D --> K[Mutacion o lookup]
+    F --> K
+    J --> K
+    K --> L[SQLite sync o MySQL async]
+    L --> M[Actualizar memory cache]
+```
+
+```mermaid
+flowchart LR
+    Runtime[Runtime del plugin]
+    Cache[Memory cache]
+    SQLite[SQLite]
+    MySQL[MySQL]
+    AdminMenu[callvote_bans_adminmenu]
+
+    Runtime --> Cache
+    Runtime --> SQLite
+    Runtime --> MySQL
+    AdminMenu --> Runtime
+```
+
 ## Direccion
 
 `callvote_bans` debe mantenerse pequeno y estable. La logica de sanciones mas compleja, paneles avanzados y flujos mas ricos deberian crecer fuera de esta suite, consumiendo el core publico de `callvote_manager`.

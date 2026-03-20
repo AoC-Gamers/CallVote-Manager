@@ -74,7 +74,7 @@ jobs:
 
       - name: Package release assets
         env:
-          RELEASE_VERSION: ${{ needs.prepare-release.outputs.version }}
+          RELEASE_BASENAME: callvote-manager-${{ needs.prepare-release.outputs.version }}
         run: bash ./scripts/ci-package-release-assets.sh
 
       - name: Create GitHub release

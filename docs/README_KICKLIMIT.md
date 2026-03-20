@@ -17,6 +17,21 @@ El plugin consume el lifecycle del manager, especialmente:
 
 Eso evita reconstruir el estado del voto desde hooks dispersos del motor.
 
+```mermaid
+flowchart TD
+    A[CallVote_PreStartEx] --> B{Es votekick?}
+    B -- No --> C[Ignorar]
+    B -- Si --> D[Resolver caller AccountID]
+    D --> E[Leer contador local o SQL]
+    E --> F{Limite alcanzado?}
+    F -- Si --> G[Bloquear voto]
+    F -- No --> H[Permitir voto]
+    H --> I[CallVote_EndEx]
+    I --> J{Resultado Passed?}
+    J -- No --> K[Sin cambios]
+    J -- Si --> L[Incrementar contador y persistir]
+```
+
 ## Convencion publica
 
 La superficie publica de `callvote_kicklimit` usa una sola convencion:
@@ -52,6 +67,20 @@ El esquema sigue la misma convencion del core:
 `SteamID64` se guarda solo para lectura externa de estadisticas. El plugin sigue operando con `AccountID`.
 
 SQLite se bootstrapea desde el plugin. MySQL se provisiona con scripts SQL.
+
+```mermaid
+flowchart LR
+    Caller[Caller AccountID]
+    Target[Target AccountID]
+    Session[Session congelada]
+    SQL[(SQLite/MySQL)]
+    Stats[Estadisticas externas]
+
+    Caller --> Session
+    Target --> Session
+    Session --> SQL
+    SQL --> Stats
+```
 
 ## Alcance
 

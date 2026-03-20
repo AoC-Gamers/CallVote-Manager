@@ -42,6 +42,25 @@ De forma resumida, el flujo es:
 5. si el motor confirma el inicio, la sesion pasa a activa
 6. el core observa el cierre y publica el resultado final
 
+```mermaid
+flowchart TD
+    A[Jugador ejecuta callvote] --> B[callvote_manager crea VoteSession]
+    B --> C[Clasificacion de voteType y argumento]
+    C --> D[Forwards PreStart y PreStartEx]
+    D --> E{Bloqueado por plugin?}
+    E -- Si --> F[Session bloqueada y feedback]
+    E -- No --> G[Validacion comun del core]
+    G --> H{Restriccion?}
+    H -- Si --> F
+    H -- No --> I[Forwards PreExecute y PreExecuteEx]
+    I --> J{Bloqueado?}
+    J -- Si --> F
+    J -- No --> K[Motor inicia la votacion]
+    K --> L[Session activa]
+    L --> M[Eventos y usermessages del motor]
+    M --> N[Resultado final]
+```
+
 ## Contrato publico
 
 El plugin expone dos niveles de contrato:
@@ -76,6 +95,23 @@ El esquema actual usa:
 SQLite se instala automaticamente desde el plugin y mantiene un esquema minimo orientado al runtime local.
 
 MySQL se instala solo mediante scripts SQL y agrega `SteamID64` para consumo externo y analitica.
+
+```mermaid
+flowchart LR
+    Session[VoteSession]
+    AccountID[AccountID]
+    SteamID2[SteamID2]
+    SteamID64[SteamID64]
+    SQLite[SQLite]
+    MySQL[MySQL]
+
+    Session --> AccountID
+    AccountID --> SteamID2
+    AccountID --> SteamID64
+    AccountID --> SQLite
+    AccountID --> MySQL
+    SteamID64 --> MySQL
+```
 
 ## Alcance
 

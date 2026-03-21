@@ -21,7 +21,15 @@
 #endif
 #define _callvote_stocks_included
 
+#if defined REQUIRE_PLUGIN
+	#undef REQUIRE_PLUGIN
+	#define _callvote_restore_require_plugin
+#endif
 #include <steamidtools>
+#if defined _callvote_restore_require_plugin
+	#define REQUIRE_PLUGIN
+	#undef _callvote_restore_require_plugin
+#endif
 
 /*****************************************************************
 			G L O B A L   V A R S

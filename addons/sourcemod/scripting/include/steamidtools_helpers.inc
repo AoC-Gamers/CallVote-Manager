@@ -9,7 +9,15 @@
 #endif
 #define _steamidtools_helpers_included
 
+#if defined REQUIRE_PLUGIN
+	#undef REQUIRE_PLUGIN
+	#define _steamidtools_helpers_restore_require_plugin
+#endif
 #include <steamidtools>
+#if defined _steamidtools_helpers_restore_require_plugin
+	#define REQUIRE_PLUGIN
+	#undef _steamidtools_helpers_restore_require_plugin
+#endif
 
 #define STEAMIDTOOLS_HELPERS_INCLUDE_VERSION "1.0.0"
 

@@ -89,7 +89,12 @@ methodmap CVBLog
 
 	public 	static void Debug(const char[] message, any...)
 	{
-		CVBLog.Core(message, 2);
+		if (g_Log == null)
+			return;
+
+		static char sFormat[1024];
+		VFormat(sFormat, sizeof(sFormat), message, 2);
+		g_Log.Debug(CVLogMask_Core, "Core", "%s", sFormat);
 	}
 
 	public 	static void SQL(const char[] message, any...)
@@ -240,10 +245,10 @@ public void OnPluginStart()
 	g_cvarMemoryCache			 = CreateConVar("sm_cvb_memory_cache", "1", "Enable in-memory cache for ban lookups", FCVAR_NOTIFY, true, 0.0, true, 1.0);
 	g_cvarAnnounceJoin			 = CreateConVar("sm_cvb_announce_join", "1", "0=off, 1=admins, 2=everyone", FCVAR_NOTIFY, true, 0.0, true, 2.0);
 	g_cvarLogMode				 = CallVoteEnsureLogModeConVar();
-	g_cvarDebugMask			 = CreateConVar("sm_cvb_debug_mask", "0", "Debug mask for callvote_bans. Core=1 SQL=2 Cache=4 Commands=8 Identity=16 All=2147483647.", FCVAR_NONE, true, 0.0, true, 2147483647.0);
+	g_cvarDebugMask			 = CreateConVar("sm_cvb_debug_mask", "0", "Debug mask for callvote_bans. Core=1 SQL=2 Cache=4 Commands=8 Identity=16 All=255.", FCVAR_NONE, true, 0.0, true, 255.0);
 	g_Log						 = new CallVoteLogger(CVB_LOG_TAG, CVB_LOG_FILE, g_cvarLogMode, g_cvarDebugMask);
 
-	CallVoteAutoExecConfig(false, "callvote_bans");
+	CallVoteAutoExecConfig(true, "callvote_bans");
 
 	InitMemoryCache();
 	RegisterCommands();

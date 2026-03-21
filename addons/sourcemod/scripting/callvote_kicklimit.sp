@@ -320,7 +320,7 @@ public void OnPluginStart()
 	g_cvarDebug		= CreateConVar("sm_cvkl_debug", "0", "Enable debug", FCVAR_NONE, true, 0.0, true, 1.0);
 	g_cvarEnable	= CreateConVar("sm_cvkl_enable", "1", "Enable plugin", FCVAR_NOTIFY, true, 0.0, true, 1.0);
 	g_cvarLogMode	= CallVoteEnsureLogModeConVar();
-	g_cvarDebugMask = CreateConVar("sm_cvkl_debug_mask", "0", "Debug mask for callvote_kicklimit. Core=1 SQL=2 Cache=4 Commands=8 Identity=16 Forwards=32 Session=64 Localization=128 All=2147483647.", FCVAR_NONE, true, 0.0, true, 2147483647.0);
+	g_cvarDebugMask = CreateConVar("sm_cvkl_debug_mask", "0", "Debug mask for callvote_kicklimit. Core=1 SQL=2 Cache=4 Commands=8 Identity=16 Forwards=32 Session=64 Localization=128 All=255.", FCVAR_NONE, true, 0.0, true, 255.0);
 	g_Log			= new CallVoteLogger(CVKL_LOG_TAG, CVKL_LOG_FILE, g_cvarLogMode, g_cvarDebugMask);
 	g_cvarKickLimit = CreateConVar("sm_cvkl_kicklimit", "1", "Kick limit", FCVAR_NOTIFY, true, 0.0);
 	
@@ -331,7 +331,7 @@ public void OnPluginStart()
 
 	OnPluginStart_SQL();
 
-	CallVoteAutoExecConfig(false, "callvote_kicklimit");
+	CallVoteAutoExecConfig(true, "callvote_kicklimit");
 
 	if(!g_bLateLoad)
 		return;

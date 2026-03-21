@@ -61,7 +61,7 @@ enum CVLogDebugMask
 	CVLogMask_Session      = (1 << 6),
 	CVLogMask_Localization = (1 << 7),
 
-	CVLogMask_All          = 0x7FFFFFFF
+	CVLogMask_All          = 255
 };
 
 /**

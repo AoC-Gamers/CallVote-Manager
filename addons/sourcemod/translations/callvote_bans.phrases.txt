@@ -65,7 +65,7 @@
 	"InvalidPlayer"
 	{
 		"en"		"Invalid player specified."
-		"es"		"Jugador especificado inválido."
+		"es"		"El jugador especificado no es válido."
 	}
 	"PluginDisabled"
 	{
@@ -92,19 +92,19 @@
 	"ErrorGettingAdminInfo"
 	{
 		"en"		"Error getting admin info."
-		"es"		"Error obteniendo información del admin."
+		"es"		"Error al obtener la información del administrador."
 	}
 	"PlayerJoinedWithRestrictions"
 	{
 		"#format"	"{1:N}"
-		"en"		"{olive}{1}{default} joined with vote restrictions"
-		"es"		"{olive}{1}{default} se unió con restricciones de voto"
+		"en"		"{olive}{1}{default} joined with active vote restrictions"
+		"es"		"{olive}{1}{default} se conectó con restricciones de voto activas"
 	}
 	"PlayerBanRestrictionApplied"
 	{
 		"#format"	"{1:N}"
-		"en"		"A vote restriction has been applied to {1}"
-		"es"		"Se aplicó una restricción de voto a {1}"
+		"en"		"A vote restriction has been applied to you"
+		"es"		"Se te aplicó una restricción de voto"
 	}
 	"CheckConsoleForDetails"
 	{
@@ -144,7 +144,7 @@
 	"BanDetailsHeader"
 	{
 		"#format"	"{1:N}"
-		"en"		"Ban details for {1}:"
+		"en"		"Restriction details for {1}:"
 		"es"		"Detalles de la restricción para {1}:"
 	}
 	"BanDetailsTypes"
@@ -173,7 +173,7 @@
 	}
 	"BanStatusHeader"
 	{
-		"en"		"Ban status for {1}:"
+		"en"		"Restriction status for {1}:"
 		"es"		"Estado de restricción para {1}:"
 	}
 	"BanStatusAccountID"
@@ -229,18 +229,18 @@
 	}
 	"NoBanFound"
 	{
-		"en"		"No active ban found."
+		"en"		"No active restriction found."
 		"es"		"No se encontró restricción activa."
 	}
 	"YourBanRemoved"
 	{
-		"en"		"Your ban was removed."
-		"es"		"Su restricción fue removida."
+		"en"		"Your restriction was removed."
+		"es"		"Tu restricción fue removida."
 	}
 	"BanRemovedSuccess"
 	{
 		"#format"	"{1:s}"
-		"en"		"Successfully removed ban from {1}"
+		"en"		"Successfully removed the restriction from {1}"
 		"es"		"Se removió la restricción de {1}"
 	}
 }

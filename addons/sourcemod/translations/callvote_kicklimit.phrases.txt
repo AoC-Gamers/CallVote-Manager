@@ -8,7 +8,7 @@
 	"Usage"
 	{
 		"en" 		"Usage:"
-		"es" 		"{green}Uso{default}"
+		"es" 		"{green}Uso{default}:"
 	}
 	"PluginDisabled"
 	{
@@ -38,20 +38,20 @@
 	"KickReached"
 	{
 		"#format" 	"{1:d},{2:d}"
-		"en" 		"The limit for {green}kicking{default} calls has been reached ({red}{1}{default}/{olive}{2}{default})"
-		"es" 		"Se alcanzado el límite de llamadas para {green}expulsar{default} ({red}{1}{default}/{olive}{2}{default})"
+		"en" 		"You have reached the limit for {green}kick{default} votes ({red}{1}{default}/{olive}{2}{default})"
+		"es" 		"Has alcanzado el límite de votos para {green}expulsar{default} ({red}{1}{default}/{olive}{2}{default})"
 	}
 	"KickLimit"
 	{
 		"#format" 	"{1:d},{2:d}"
-		"en" 		"Your call limit to {green}kick{default} is ({olive}{1}{default}/{olive}{2}{default})"
-		"es" 		"Su límite de llamadas para {green}expulsar{default} es de ({olive}{1}{default}/{olive}{2}{default})"
+		"en" 		"Your {green}kick{default} vote limit is ({olive}{1}{default}/{olive}{2}{default})"
+		"es" 		"Tu límite de votos para {green}expulsar{default} es ({olive}{1}{default}/{olive}{2}{default})"
 	}
 	"KickLimitTarget"
 	{
 		"#format" 	"{1:s},{2:d},{3:d}"
-		"en" 		"The call limit for ({olive}{1}{default}) for {green}kick{default} is ({olive}{2}{default}/{olive}{3}{default})"
-		"es" 		"El límite de llamadas de ({olive}{1}{default}) para {green}expulsar{default} es de ({olive}{2}{default}/{olive}{3}{default})"
+		"en" 		"The {green}kick{default} vote limit for {olive}{1}{default} is ({olive}{2}{default}/{olive}{3}{default})"
+		"es" 		"El límite de votos para {green}expulsar{default} de {olive}{1}{default} es ({olive}{2}{default}/{olive}{3}{default})"
 	}
 	"KickShow"
 	{
@@ -61,12 +61,12 @@
 	}
 	"NoFound"
 	{
-		"en" 		"There are {red}no registered{default} kicks"
-		"es" 		"{red}No existen{default} kicks registrados"
+		"en" 		"There are {red}no registered{default} kick votes"
+		"es" 		"{red}No hay{default} votos de expulsión registrados"
 	}
 	"KickDataPending"
 	{
 		"en" 		"Your kick limit data is still loading. Try again in a moment."
-		"es" 		"Los datos de su límite de expulsión aún se están cargando. Intente nuevamente en un momento."
+		"es" 		"Los datos de tu límite de expulsión aún se están cargando. Intenta nuevamente en un momento."
 	}
 }

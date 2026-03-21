@@ -8,70 +8,255 @@
 
 	"CVBAdminMenuBan"
 	{
-		"en"		"Ban player"
-		"es"		"Banear jugador"
+		"en"		"Restrict player"
+		"es"		"Restringir jugador"
 	}
 
 	"CVBAdminMenuUnban"
 	{
-		"en"		"Unban player"
-		"es"		"Desbanear jugador"
+		"en"		"Remove restriction"
+		"es"		"Remover restricción"
 	}
 
 	"CVBAdminMenuCheck"
 	{
-		"en"		"Check ban status"
-		"es"		"Revisar estado del ban"
+		"en"		"Check restriction status"
+		"es"		"Revisar estado de restricción"
 	}
 
 	"CVBAdminMenuModuleUnavailable"
 	{
 		"en"		"CallVote Bans is not available"
-		"es"		"CallVote Bans no esta disponible"
+		"es"		"CallVote Bans no está disponible"
 	}
 
 	"CVBAdminMenuReasonPrompt"
 	{
 		"#format"	"{1:s}"
-		"en"		"Type the ban reason for {1} in chat. Use !cancel to abort."
-		"es"		"Escribe en chat la razon del baneo para {1}. Usa !cancel para cancelar."
+		"en"		"Type the restriction reason for {1} in chat. Use !cancel to abort."
+		"es"		"Escribe en el chat la razón de la restricción para {1}. Usa !cancel para cancelar."
 	}
 
 	"CVBAdminMenuReasonRequired"
 	{
 		"en"		"Reason cannot be empty"
-		"es"		"La razon no puede estar vacia"
+		"es"		"La razón no puede estar vacía"
 	}
 
 	"CVBAdminMenuCancelled"
 	{
 		"en"		"Panel action cancelled"
-		"es"		"Accion del panel cancelada"
+		"es"		"Acción del panel cancelada"
 	}
 
 	"CVBAdminMenuBanApplied"
 	{
 		"#format"	"{1:s}"
-		"en"		"Ban applied to {1}"
-		"es"		"Baneo aplicado a {1}"
+		"en"		"Restriction applied to {1}"
+		"es"		"Restricción aplicada a {1}"
 	}
 
 	"CVBAdminMenuUnbanApplied"
 	{
 		"#format"	"{1:s}"
-		"en"		"Unban applied to {1}"
-		"es"		"Desbaneo aplicado a {1}"
+		"en"		"Restriction removed from {1}"
+		"es"		"Restricción removida de {1}"
 	}
 
 	"CVBAdminMenuActionFailed"
 	{
-		"en"		"Action failed"
-		"es"		"La accion fallo"
+		"en"		"Could not complete the action"
+		"es"		"No se pudo completar la acción"
 	}
 
 	"CVBAdminMenuNoActivePrompt"
 	{
 		"en"		"There is no active panel prompt"
 		"es"		"No hay un prompt de panel activo"
+	}
+
+	"MenuBanManagementTitle"
+	{
+		"en"		"Restriction management"
+		"es"		"Gestión de restricciones"
+	}
+
+	"MenuUnbanManagementTitle"
+	{
+		"en"		"Remove restriction"
+		"es"		"Remover restricción"
+	}
+
+	"MenuCheckBanStatusTitle"
+	{
+		"en"		"Check restriction status"
+		"es"		"Revisar estado de restricción"
+	}
+
+	"MenuNoPlayersConnected"
+	{
+		"en"		"No connected players"
+		"es"		"No hay jugadores conectados"
+	}
+
+	"MenuNoBannedPlayers"
+	{
+		"en"		"No restricted players"
+		"es"		"No hay jugadores restringidos"
+	}
+
+	"MenuPlayerDisconnected"
+	{
+		"en"		"Player disconnected"
+		"es"		"El jugador se desconectó"
+	}
+
+	"MenuBannedPlayerFormat"
+	{
+		"#format"	"{1:s},{2:s}"
+		"en"		"{1} [{2}]"
+		"es"		"{1} [{2}]"
+	}
+
+	"MenuUnbanPlayerFormat"
+	{
+		"#format"	"{1:s},{2:s}"
+		"en"		"{1} [{2}]"
+		"es"		"{1} [{2}]"
+	}
+
+	"MenuBanPlayerTitle"
+	{
+		"#format"	"{1:s}"
+		"en"		"Restrict player: {1}"
+		"es"		"Restringir jugador: {1}"
+	}
+
+	"MenuBanDurationTitle"
+	{
+		"#format"	"{1:s},{2:s}"
+		"en"		"Duration for {1} ({2})"
+		"es"		"Duración para {1} ({2})"
+	}
+
+	"MenuBanTypeDifficulty"
+	{
+		"en"		"Difficulty"
+		"es"		"Dificultad"
+	}
+
+	"MenuBanTypeRestart"
+	{
+		"en"		"Restart"
+		"es"		"Reinicio"
+	}
+
+	"MenuBanTypeKick"
+	{
+		"en"		"Kick"
+		"es"		"Expulsión"
+	}
+
+	"MenuBanTypeMission"
+	{
+		"en"		"Mission"
+		"es"		"Misión"
+	}
+
+	"MenuBanTypeLobby"
+	{
+		"en"		"Lobby"
+		"es"		"Lobby"
+	}
+
+	"MenuBanTypeChapter"
+	{
+		"en"		"Chapter"
+		"es"		"Capítulo"
+	}
+
+	"MenuBanTypeAllTalk"
+	{
+		"en"		"All talk"
+		"es"		"Hablar con todos"
+	}
+
+	"MenuBanTypeAll"
+	{
+		"en"		"All"
+		"es"		"Todo"
+	}
+
+	"MenuBanDurationPermanent"
+	{
+		"en"		"Permanent"
+		"es"		"Permanente"
+	}
+
+	"MenuBanDuration30Min"
+	{
+		"en"		"30 minutes"
+		"es"		"30 minutos"
+	}
+
+	"MenuBanDuration1Hour"
+	{
+		"en"		"1 hour"
+		"es"		"1 hora"
+	}
+
+	"MenuBanDuration3Hours"
+	{
+		"en"		"3 hours"
+		"es"		"3 horas"
+	}
+
+	"MenuBanDuration6Hours"
+	{
+		"en"		"6 hours"
+		"es"		"6 horas"
+	}
+
+	"MenuBanDuration12Hours"
+	{
+		"en"		"12 hours"
+		"es"		"12 horas"
+	}
+
+	"MenuBanDuration1Day"
+	{
+		"en"		"1 day"
+		"es"		"1 día"
+	}
+
+	"MenuBanDuration3Days"
+	{
+		"en"		"3 days"
+		"es"		"3 días"
+	}
+
+	"MenuBanDuration1Week"
+	{
+		"en"		"1 week"
+		"es"		"1 semana"
+	}
+
+	"MenuUnbanConfirmationTitle"
+	{
+		"#format"	"{1:s},{2:s},{3:s}"
+		"en"		"Remove restriction from {1} ({2}) [{3}]?"
+		"es"		"¿Remover restricción de {1} ({2}) [{3}]?"
+	}
+
+	"MenuUnbanConfirmYes"
+	{
+		"en"		"Yes, remove restriction"
+		"es"		"Sí, remover restricción"
+	}
+
+	"MenuBanConfirmCancel"
+	{
+		"en"		"Cancel"
+		"es"		"Cancelar"
 	}
 }

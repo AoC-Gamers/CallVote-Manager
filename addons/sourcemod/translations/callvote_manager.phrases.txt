@@ -23,7 +23,12 @@
 	"DBUnknownDriver"
 	{
 		"en" 		"Unknown database {red}driver{default}."
-		"es" 		"{red}Driver{default} de base de datos desconocido."
+		"es" 		"Controlador de base de datos {red}desconocido{default}."
+	}
+	"ValidClientOnly"
+	{
+		"en" 		"Votes can only be issued by a valid client."
+		"es" 		"Las votaciones solo pueden ser iniciadas por un cliente válido."
 	}
 
 	"TryAgain"
@@ -35,31 +40,31 @@
 	"ChangeDifficulty"
 	{
 		"#format" 	"{1:N},{2:s}"
-		"en" 		"{green}{1}{default} called vote for {olive}change difficulty{default}: {blue}{2}{default}"
-		"es" 		"{green}{1}{default} llamó votación para {olive}cambiar la dificultad{default}: {blue}{2}{default}"
+		"en" 		"{green}{1}{default} started a vote to {olive}change difficulty{default}: {blue}{2}{default}"
+		"es" 		"{green}{1}{default} inició una votación para {olive}cambiar la dificultad{default}: {blue}{2}{default}"
 	}
 	"ChangeMission"
 	{
 		"#format" 	"{1:N},{2:s}"
-		"en" 		"{green}{1}{default} called vote for {olive}change campaign{default}: {blue}{2}{default}"
-		"es" 		"{green}{1}{default} llamó votación para {olive}cambiar la campaña{default}: {blue}{2}{default}"
+		"en" 		"{green}{1}{default} started a vote to {olive}change campaign{default}: {blue}{2}{default}"
+		"es" 		"{green}{1}{default} inició una votación para {olive}cambiar la campaña{default}: {blue}{2}{default}"
 	}
 	"ChangeChapter"
 	{
 		"#format" 	"{1:N},{2:s}"
-		"en" 		"{green}{1}{default} called vote to {olive}change chapter{default}: {blue}{2}{default}"
-		"es" 		"{green}{1}{default} llamó votación para {olive}cambiar el capítulo{default}: {blue}{2}{default}"
+		"en" 		"{green}{1}{default} started a vote to {olive}change chapter{default}: {blue}{2}{default}"
+		"es" 		"{green}{1}{default} inició una votación para {olive}cambiar el capítulo{default}: {blue}{2}{default}"
 	}
 	"ChangeAllTalk"
 	{
 		"#format" 	"{1:N},{2:s},{3:s}"
-		"en" 		"{green}{1}{default} called vote for {olive}{2}{default}: {blue}{3}{default}"
-		"es" 		"{green}{1}{default} llamó votación para {olive}{2}{default}: {blue}{3}{default}"
+		"en" 		"{green}{1}{default} started a vote for {olive}{2}{default}: {blue}{3}{default}"
+		"es" 		"{green}{1}{default} inició una votación para {olive}{2}{default}: {blue}{3}{default}"
 	}
 	"VoteDisabled"
 	{
-		"en"        "This voting call was {red}deactivated{default}."
-		"es"        "Esta llamada de votación fue {red}desactivada{default}."
+		"en"        "This vote type is {red}disabled{default}."
+		"es"        "Este tipo de votación está {red}desactivado{default}."
 	}
 	"SourceTVKick"
 	{
@@ -90,12 +95,12 @@
 	{
 		"#format" 	"{1:N}"
 		"en"        "{1} tried to {red}kick{default} you"
-		"es"        "{1} Intento {red}expulsarte{default}"
+		"es"        "{1} intentó {red}expulsarte{default}"
 	}
 	"SpecVote"
 	{
 		"en"        "You can't call a vote while you are {olive}spectating{default}"
-		"es"        "No puedes llamar una votación mientras estás {olive}especteando{default}"
+		"es"        "No puedes iniciar una votación mientras estás {olive}espectando{default}"
 	}
 	"SameDifficulty"
 	{
@@ -117,7 +122,7 @@
 	"InvalidTarget"
 	{
 		"en" 		"Invalid target for kick vote"
-		"es" 		"Entidad inválida para el voto de expulsión"
+		"es" 		"Objetivo inválido para el voto de expulsión"
 	}
 	"VoteNotAllowedInGameMode"
 	{
@@ -142,12 +147,12 @@
 	"TruncatingTable"
 	{
 		"en" 		"Truncating table data..."
-		"es" 		"Truncando datos de la tabla..."
+		"es" 		"Eliminando registros de la tabla..."
 	}
 	"UsageTruncateConfirm"
 	{
-		"en" 		"Usage: sm_callvote_truncate confirm - This will delete ALL records!"
-		"es" 		"Uso: sm_callvote_truncate confirm - ¡Esto eliminará TODOS los registros!"
+		"en" 		"Usage: sm_cvm_sql_truncate confirm - This will delete ALL records!"
+		"es" 		"Uso: sm_cvm_sql_truncate confirm - ¡Esto eliminará TODOS los registros!"
 	}
 	"WarningDeleteAllRecords"
 	{

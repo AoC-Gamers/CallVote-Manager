@@ -17,6 +17,8 @@
 #define PLUGIN_VERSION "1.5.0"
 #define CVKL_LOG_TAG "CVKL"
 #define CVKL_LOG_FILE "callvote_kicklimit.log"
+#define CVKL_DB_CONFIG "callvote"
+#define CVKL_SQL_QUERY_LENGTH 600
 
 enum KickCountLoadState
 {
@@ -69,8 +71,56 @@ enum SQLDriver
 	SQL_SQLite
 }
 
+enum struct KickInsertQueryContext
+{
+	char Query[CVKL_SQL_QUERY_LENGTH];
+}
+
+enum struct KickCountRequestContext
+{
+	int UserId;
+	int AccountId;
+}
+
 SQLDriver
 	g_SQLDriver;
+
+DataPack CreateKickInsertQueryDataPack(const char[] query)
+{
+	KickInsertQueryContext context;
+	strcopy(context.Query, sizeof(context.Query), query);
+
+	DataPack pack = new DataPack();
+	pack.WriteCell(sizeof(KickInsertQueryContext));
+	pack.WriteString(context.Query);
+	return pack;
+}
+
+void ReadKickInsertQueryDataPack(DataPack pack, KickInsertQueryContext context)
+{
+	pack.Reset();
+	pack.ReadCell();
+	pack.ReadString(context.Query, sizeof(context.Query));
+}
+
+DataPack CreateKickCountRequestDataPack(int userId, int accountId)
+{
+	KickCountRequestContext context;
+	context.UserId = userId;
+	context.AccountId = accountId;
+
+	DataPack pack = new DataPack();
+	pack.WriteCell(context.UserId);
+	pack.WriteCell(context.AccountId);
+	return pack;
+}
+
+void ReadKickCountRequestDataPack(DataPack pack, KickCountRequestContext context)
+{
+	pack.Reset();
+	context.UserId = pack.ReadCell();
+	context.AccountId = pack.ReadCell();
+}
 
 /*****************************************************************
 			S Q L   H E L P E R S
@@ -89,7 +139,7 @@ void OnConfigsExecuted_SQL()
 	if (g_db != null)
 		return;
 
-	ConnectDB("callvote", g_sTable);
+	ConnectDB(CVKL_DB_CONFIG, g_sTable);
 }
 
 void EnsureSQLiteSchema()
@@ -132,12 +182,12 @@ bool CanUseKickLimitSQL()
 	);
 }
 
-void sqlinsert(int iSessionId, int iClientAccountId, int iTargetAccountId)
+void InsertKickRecordSQL(int iSessionId, int iClientAccountId, int iTargetAccountId)
 {
 	if (!CanUseKickLimitSQL())
 		return;
 
-	char sQuery[600];
+	char sQuery[CVKL_SQL_QUERY_LENGTH];
 	char sCallerSteamID64[STEAMID64_EXACT_LENGTH + 1];
 	char sTargetSteamID64[STEAMID64_EXACT_LENGTH + 1];
 	sCallerSteamID64[0] = '\0';
@@ -177,32 +227,28 @@ void sqlinsert(int iSessionId, int iClientAccountId, int iTargetAccountId)
 	}
 
 	log(true, "[sqlinsert] Driver: %s | Query: %s", g_SQLDriver == SQL_MySQL ? "MySQL" : "SQLite", sQuery);
-	DataPack dp = new DataPack();
-	dp.WriteString(sQuery);
-	g_db.Query(CallBack_SQLInsert, sQuery, dp);
+	g_db.Query(SQLInsertCallback, sQuery, CreateKickInsertQueryDataPack(sQuery));
 }
 
-public void CallBack_SQLInsert(Database db, DBResultSet results, const char[] error, any data)
+public void SQLInsertCallback(Database db, DBResultSet results, const char[] error, any data)
 {
-	DataPack dp = view_as<DataPack>(data);
+	DataPack pack = view_as<DataPack>(data);
 
 	if (results == null)
 	{
-		char sQuery[600];
-
-		dp.Reset();
-		dp.ReadString(sQuery, sizeof(sQuery));
+		KickInsertQueryContext context;
+		ReadKickInsertQueryDataPack(pack, context);
 
 		log(false, "[CallBack_SQLInsert] SQL failed: %s", error);
-		log(false, "[CallBack_SQLInsert] Query dump: %s", sQuery);
-		delete dp;
+		log(false, "[CallBack_SQLInsert] Query dump: %s", context.Query);
+		delete pack;
 		return;
 	}
 
-	delete dp;
+	delete pack;
 }
 
-void GetCountKick(int iClient, int iAccountId)
+void RequestKickCountLoad(int iClient, int iAccountId)
 {
 	if (!CanUseKickLimitSQL())
 		return;
@@ -230,26 +276,22 @@ void GetCountKick(int iClient, int iAccountId)
 	}
 
 	log(true, "[GetCountKick] Driver: %s | Query: %s", g_SQLDriver == SQL_MySQL ? "MySQL" : "SQLite", sQuery);
-	DataPack dp = new DataPack();
-	dp.WriteCell(GetClientUserId(iClient));
-	dp.WriteCell(iAccountId);
-	g_db.Query(CallBack_GetCountKick, sQuery, dp);
+	g_db.Query(GetKickCountCallback, sQuery, CreateKickCountRequestDataPack(GetClientUserId(iClient), iAccountId));
 }
 
-public void CallBack_GetCountKick(Database db, DBResultSet results, const char[] error, any data)
+public void GetKickCountCallback(Database db, DBResultSet results, const char[] error, any data)
 {
-	DataPack dp = view_as<DataPack>(data);
-	dp.Reset();
-	int iUserId = dp.ReadCell();
-	int iAccountId = dp.ReadCell();
-	delete dp;
+	DataPack pack = view_as<DataPack>(data);
+	KickCountRequestContext context;
+	ReadKickCountRequestDataPack(pack, context);
+	delete pack;
 
 	if (results == null)
 	{
 		log(false, "[CallBack_GetCountKick] Error: %s", error);
 
-		int iClientOnError = GetClientOfUserId(iUserId);
-		if (iClientOnError > 0 && g_Players[iClientOnError].AccountID == iAccountId)
+		int iClientOnError = GetClientOfUserId(context.UserId);
+		if (iClientOnError > 0 && g_Players[iClientOnError].AccountID == context.AccountId)
 		{
 			g_Players[iClientOnError].LoadState = KickCount_Uninitialized;
 		}
@@ -257,7 +299,7 @@ public void CallBack_GetCountKick(Database db, DBResultSet results, const char[]
 		return;
 	}
 
-	int iClient = GetClientOfUserId(iUserId);
+	int iClient = GetClientOfUserId(context.UserId);
 	if (iClient == SERVER_INDEX)
 		return;
 
@@ -268,8 +310,8 @@ public void CallBack_GetCountKick(Database db, DBResultSet results, const char[]
 		iKick = results.FetchInt(0);
 	}
 
-	log(true, "[CallBack_GetCountKick] Client: %N | AccountID: %d | Kicks: %d", iClient, iAccountId, iKick);
-	UpdateConnectedClientKickCount(iAccountId, iKick);
+	log(true, "[CallBack_GetCountKick] Client: %N | AccountID: %d | Kicks: %d", iClient, context.AccountId, iKick);
+	UpdateConnectedClientKickCount(context.AccountId, iKick);
 }
 
 /*****************************************************************
@@ -464,7 +506,7 @@ public void OnClientPostAdminCheck(int iClient)
 	if (CanUseKickLimitSQL())
 	{
 		g_Players[iClient].LoadState = KickCount_Pending;
-		GetCountKick(iClient, iAccountId);
+		RequestKickCountLoad(iClient, iAccountId);
 	}
 	else
 		LoadLocalKickCount(iClient, iAccountId);
@@ -568,7 +610,7 @@ public void CallVote_EndEx(int iSessionId, CallVoteEndReason iResult, int iYesCo
 
 		iNewKickCount = iKnownKickCount + 1;
 		UpdateConnectedClientKickCount(iCallerAccountId, iNewKickCount);
-		sqlinsert(iSessionId, iCallerAccountId, iTargetAccountId);
+		InsertKickRecordSQL(iSessionId, iCallerAccountId, iTargetAccountId);
 	}
 	else
 	{
@@ -734,7 +776,7 @@ void RefreshConnectedClientsFromSQL()
 		if (!IsClientInGame(i) || IsFakeClient(i) || g_Players[i].AccountID <= 0)
 			continue;
 
-		GetCountKick(i, g_Players[i].AccountID);
+		RequestKickCountLoad(i, g_Players[i].AccountID);
 	}
 }
 

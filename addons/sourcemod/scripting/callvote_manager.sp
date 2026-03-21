@@ -704,14 +704,10 @@ Action ProcessVoteCommon(int iClient, TypeVotes type, int iTarget = SERVER_INDEX
 	if (type == Kick)
 	{
 		ForwardCallVoteStart(iClient, type, iTarget);
-		RegVote(type, iClient, iTarget);
-		RegSQLVote(type, iClient, iTarget);
 	}
 	else
 	{
 		ForwardCallVoteStart(iClient, type);
-		RegVote(type, iClient);
-		RegSQLVote(type, iClient);
 	}
 
 	return Plugin_Continue;
@@ -782,7 +778,7 @@ Action Listener_CallVote(int iClient, const char[] sCommand, int iArgs)
 
 	if (iClient == SERVER_INDEX)
 	{
-		CReplyToCommand(iClient, "%t Votes can only be issued from a valid client.", "Tag");
+		CReplyToCommand(iClient, "%t %t", "Tag", "ValidClientOnly");
 		return Plugin_Handled;
 	}
 
@@ -1163,6 +1159,17 @@ void Event_VoteStarted(Event event, const char[] sEventName, bool bDontBroadcast
 		g_CurrentVoteSession.engineTeam,
 		g_CurrentVoteSession.engineInitiatorClient);
 
+	if (g_CurrentVoteSession.voteType == Kick)
+	{
+		RegVote(g_CurrentVoteSession.voteType, g_CurrentVoteSession.callerClient, g_CurrentVoteSession.targetClient);
+		RegSQLVote(g_CurrentVoteSession.voteType, g_CurrentVoteSession.callerClient, g_CurrentVoteSession.targetClient);
+	}
+	else
+	{
+		RegVote(g_CurrentVoteSession.voteType, g_CurrentVoteSession.callerClient);
+		RegSQLVote(g_CurrentVoteSession.voteType, g_CurrentVoteSession.callerClient);
+	}
+
 	ForwardCallVoteStartEx(g_CurrentVoteSession.sessionId);
 }
 
@@ -1348,10 +1355,16 @@ void RegVote(TypeVotes type, int iClient, int iTarget = SERVER_INDEX)
 		return;
 
 	char sAuthID_Client[MAX_AUTHID_LENGTH];
-	int iCallerAccountId = GetClientAccountID(iClient);
+	int iCallerAccountId = 0;
+	if (g_bCurrentVoteSessionValid && g_CurrentVoteSession.callerClient == iClient)
+		iCallerAccountId = g_CurrentVoteSession.callerAccountId;
+
+	if (iCallerAccountId <= 0)
+		iCallerAccountId = GetClientAccountID(iClient);
+
 	if (iCallerAccountId <= 0 || !AccountIDToSteamID2(iCallerAccountId, sAuthID_Client, sizeof(sAuthID_Client)))
 	{
-		LogError("[RegVote] Failed to resolve AccountID/SteamID2 for client %N", iClient);
+		CVLog.Debug("[RegVote] Skipping vote log because caller identity is unavailable for client %N", iClient);
 		return;
 	}
 
@@ -1365,10 +1378,16 @@ void RegVote(TypeVotes type, int iClient, int iTarget = SERVER_INDEX)
 	if (type == Kick && IsHuman(iTarget))
 	{
 		char sAuthID_Target[MAX_AUTHID_LENGTH];
-		int iTargetAccountId = GetClientAccountID(iTarget);
+		int iTargetAccountId = 0;
+		if (g_bCurrentVoteSessionValid && g_CurrentVoteSession.targetClient == iTarget)
+			iTargetAccountId = g_CurrentVoteSession.targetAccountId;
+
+		if (iTargetAccountId <= 0)
+			iTargetAccountId = GetClientAccountID(iTarget);
+
 		if (iTargetAccountId <= 0 || !AccountIDToSteamID2(iTargetAccountId, sAuthID_Target, sizeof(sAuthID_Target)))
 		{
-			CVLog.Debug("[RegVote] Failed to resolve AccountID/SteamID2 for target %d", iTarget);
+			CVLog.Debug("[RegVote] Skipping vote log because target identity is unavailable for client %d", iTarget);
 			return;
 		}
 

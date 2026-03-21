@@ -12,12 +12,18 @@
 
 #define CALLVOTE_BANS_ADMINMENU_VERSION "1.0.0"
 #define CALLVOTE_BANS_ADMINMENU_MAX_REASON_LENGTH 256
+#define CVBAM_LOG_TAG "CVBAM"
+#define CVBAM_LOG_FILE "callvote_bans_adminmenu.log"
 
 TopMenu g_hCVBAdminTopMenu;
 TopMenuObject g_oCVBAdminCategory = INVALID_TOPMENUOBJECT;
 TopMenuObject g_oCVBAdminBan = INVALID_TOPMENUOBJECT;
 TopMenuObject g_oCVBAdminUnban = INVALID_TOPMENUOBJECT;
 TopMenuObject g_oCVBAdminCheck = INVALID_TOPMENUOBJECT;
+
+ConVar g_cvarLogMode;
+ConVar g_cvarDebugMask;
+CallVoteLogger g_Log = null;
 
 enum CVBAdminMenuPanelType
 {
@@ -45,6 +51,29 @@ enum struct CVBAdminMenuState
 
 CVBAdminMenuState g_eCVBAdminState[MAXPLAYERS + 1];
 
+methodmap CVBAMLog
+{
+	public static void Debug(const char[] message, any...)
+	{
+		if (g_Log == null)
+			return;
+
+		static char sFormat[512];
+		VFormat(sFormat, sizeof(sFormat), message, 2);
+		g_Log.Debug(CVLogMask_Core, "Core", "%s", sFormat);
+	}
+
+	public static void Commands(const char[] message, any...)
+	{
+		if (g_Log == null)
+			return;
+
+		static char sFormat[512];
+		VFormat(sFormat, sizeof(sFormat), message, 2);
+		g_Log.Debug(CVLogMask_Commands, "Commands", "%s", sFormat);
+	}
+}
+
 public Plugin myinfo =
 {
 	name = "CallVote Bans Admin Menu",
@@ -60,10 +89,17 @@ public void OnPluginStart()
 	LoadTranslations("callvote_bans.phrases");
 	LoadTranslations("callvote_bans_adminmenu.phrases");
 
+	g_cvarLogMode = CallVoteEnsureLogModeConVar();
+	g_cvarDebugMask = CreateConVar("sm_cvbam_debug_mask", "0", "Debug mask for callvote_bans_adminmenu. Core=1 SQL=2 Cache=4 Commands=8 Identity=16 Forwards=32 Session=64 Localization=128 All=255.", FCVAR_NONE, true, 0.0, true, 255.0);
+	g_Log = new CallVoteLogger(CVBAM_LOG_TAG, CVBAM_LOG_FILE, g_cvarLogMode, g_cvarDebugMask);
+
 	RegAdminCmd("sm_cvb_ban_panel", Command_CVBAdminBanPanel, ADMFLAG_BAN, "Open the CallVote Bans admin panel.");
 	RegAdminCmd("sm_cvb_unban_panel", Command_CVBAdminUnbanPanel, ADMFLAG_UNBAN, "Open the CallVote Bans unban panel.");
 	RegAdminCmd("sm_cvb_check_panel", Command_CVBAdminCheckPanel, ADMFLAG_GENERIC, "Open the CallVote Bans check panel.");
 	RegAdminCmd("sm_cvb_panel_abort", Command_CVBAdminAbort, ADMFLAG_GENERIC, "Abort the current CallVote Bans panel prompt.");
+	RegAdminCmd("sm_cvb_panel_status", Command_CVBAdminStatus, ADMFLAG_GENERIC, "Show CallVote Bans admin menu runtime status.");
+
+	CallVoteAutoExecConfig(true, "callvote_bans_adminmenu");
 
 	if (LibraryExists("adminmenu"))
 	{
@@ -71,6 +107,12 @@ public void OnPluginStart()
 		if (hTopMenu != null)
 			OnAdminMenuReady(hTopMenu);
 	}
+}
+
+public void OnPluginEnd()
+{
+	if (g_Log != null)
+		delete g_Log;
 }
 
 public void OnClientDisconnect(int iClient)
@@ -153,6 +195,7 @@ public void OnAdminMenuReady(Handle hTopMenuHandle)
 
 	g_oCVBAdminCategory = g_hCVBAdminTopMenu.AddCategory("callvote_bans_adminmenu", CVBAdminMenu_CategoryHandler);
 	CVBAdminMenu_TryAddItems();
+	CVBAMLog.Debug("Admin menu ready and category registered");
 }
 
 static void CVBAdminMenu_TryAddItems()
@@ -259,6 +302,30 @@ Action Command_CVBAdminAbort(int iClient, int iArgs)
 	return Plugin_Handled;
 }
 
+Action Command_CVBAdminStatus(int iClient, int iArgs)
+{
+	bool hasAdminMenu = LibraryExists("adminmenu");
+	bool hasBans = LibraryExists(CALLVOTE_BANS_LIBRARY);
+	bool hasPrompt = CVBAdminMenu_HasActivePrompt(iClient);
+
+	CReplyToCommand(iClient, "[CVBAM] adminmenu=%s callvote_bans=%s topmenu=%s prompt=%s targetUserId=%d panelType=%d promptStage=%d",
+		hasAdminMenu ? "yes" : "no",
+		hasBans ? "yes" : "no",
+		g_hCVBAdminTopMenu != null ? "ready" : "null",
+		hasPrompt ? "yes" : "no",
+		(iClient > 0 && iClient <= MaxClients) ? g_eCVBAdminState[iClient].targetUserId : 0,
+		(iClient > 0 && iClient <= MaxClients) ? view_as<int>(g_eCVBAdminState[iClient].panelType) : 0,
+		(iClient > 0 && iClient <= MaxClients) ? view_as<int>(g_eCVBAdminState[iClient].promptStage) : 0);
+
+	CVBAMLog.Commands("Status requested by client %d (adminmenu=%d callvote_bans=%d topmenu=%d prompt=%d)",
+		iClient,
+		hasAdminMenu,
+		hasBans,
+		g_hCVBAdminTopMenu != null,
+		hasPrompt);
+	return Plugin_Handled;
+}
+
 bool CVBAdminMenu_CanOpen(int iClient)
 {
 	if (iClient <= 0 || iClient > MaxClients || !IsClientInGame(iClient))
@@ -271,6 +338,7 @@ bool CVBAdminMenu_CanOpen(int iClient)
 	}
 
 	CVBAdminMenu_ResetState(iClient);
+	CVBAMLog.Commands("Opening admin menu flow for client %d", iClient);
 	return true;
 }
 
@@ -328,7 +396,11 @@ void CVBAdminMenu_ShowBanTargetPanel(int iClient)
 		char szName[MAX_NAME_LENGTH];
 		GetClientName(i, szName, sizeof(szName));
 		if (CVB_IsPlayerBanned(i))
-			Format(szName, sizeof(szName), "%T", "MenuBannedPlayerFormat", iClient, szName, CVB_GetPlayerBanType(i));
+		{
+			char szBanType[64];
+			CVBAdminMenu_GetBanTypeString(CVB_GetPlayerBanType(i), szBanType, sizeof(szBanType));
+			Format(szName, sizeof(szName), "%T", "MenuBannedPlayerFormat", iClient, szName, szBanType);
+		}
 
 		hMenu.AddItem(szInfo, szName);
 		iCount++;
@@ -514,7 +586,9 @@ void CVBAdminMenu_ShowUnbanTargetPanel(int iClient)
 
 		char szName[MAX_NAME_LENGTH];
 		GetClientName(i, szName, sizeof(szName));
-		Format(szName, sizeof(szName), "%T", "MenuUnbanPlayerFormat", iClient, szName, CVB_GetPlayerBanType(i));
+		char szBanType[64];
+		CVBAdminMenu_GetBanTypeString(CVB_GetPlayerBanType(i), szBanType, sizeof(szBanType));
+		Format(szName, sizeof(szName), "%T", "MenuUnbanPlayerFormat", iClient, szName, szBanType);
 		hMenu.AddItem(szInfo, szName);
 		iCount++;
 	}
@@ -646,7 +720,11 @@ void CVBAdminMenu_ShowCheckTargetPanel(int iClient)
 		char szName[MAX_NAME_LENGTH];
 		GetClientName(i, szName, sizeof(szName));
 		if (CVB_IsPlayerBanned(i))
-			Format(szName, sizeof(szName), "%T", "MenuBannedPlayerFormat", iClient, szName, CVB_GetPlayerBanType(i));
+		{
+			char szBanType[64];
+			CVBAdminMenu_GetBanTypeString(CVB_GetPlayerBanType(i), szBanType, sizeof(szBanType));
+			Format(szName, sizeof(szName), "%T", "MenuBannedPlayerFormat", iClient, szName, szBanType);
+		}
 
 		hMenu.AddItem(szInfo, szName);
 		iCount++;

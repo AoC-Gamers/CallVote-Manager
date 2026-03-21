@@ -26,16 +26,16 @@
 forward void CVB_OnVoteBlocked(int client, int voteType, int target, int banType);
 
 /**
- * Fired after a ban has been persisted and applied.
+ * Fired after a restriction has been persisted and applied.
  *
  * @param target            Target client index
- * @param banType           Applied ban mask
+ * @param restrictionMask   Applied restriction mask
  * @param durationMinutes   Duration in minutes (0 = permanent)
  * @param admin             Admin client index (0 = console)
  * @param reason            Stored reason text
  * @noreturn
  */
-forward void CVB_OnPlayerBanned(int target, int banType, int durationMinutes, int admin, const char[] reason);
+forward void CVB_OnPlayerRestricted(int target, int restrictionMask, int durationMinutes, int admin, const char[] reason);
 
 /*****************************************************************
                     N A T I V E S
@@ -50,7 +50,7 @@ forward void CVB_OnPlayerBanned(int target, int banType, int durationMinutes, in
  *                      when the backend state could not be validated.
  * @error               Invalid client index
  */
-native bool CVB_IsPlayerBanned(int client);
+native bool CVB_HasActiveRestriction(int client);
 
 /**
  * Returns the active restriction mask for a connected player.
@@ -59,7 +59,7 @@ native bool CVB_IsPlayerBanned(int client);
  * @return              Active restriction mask, or 0 when no active restriction exists
  * @error               Invalid client index
  */
-native int CVB_GetPlayerBanType(int client);
+native int CVB_GetPlayerRestrictionMask(int client);
 
 /**
  * Queues a ban for a connected player.
@@ -68,14 +68,14 @@ native int CVB_GetPlayerBanType(int client);
  * Persistence may complete synchronously on SQLite or asynchronously on MySQL.
  *
  * @param target            Target client index
- * @param banType           Ban mask to apply
+ * @param restrictionMask   Restriction mask to apply
  * @param duration          Duration in minutes (0 = permanent)
  * @param admin             Admin client index (0 = console)
  * @param reason            Reason text
  * @return                  true if the request was accepted/queued
  * @error                   Invalid target client index
  */
-native bool CVB_BanPlayer(int target, int banType, int duration, int admin, const char[] reason);
+native bool CVB_RestrictPlayer(int target, int restrictionMask, int duration, int admin, const char[] reason);
 
 /**
  * Queues removal of the active restriction for a connected player.
@@ -87,13 +87,13 @@ native bool CVB_BanPlayer(int target, int banType, int duration, int admin, cons
  * @param admin             Admin client index (0 = console)
  * @return                  true if the request was accepted/queued
  */
-native bool CVB_UnbanPlayer(int target, int admin);
+native bool CVB_RemoveRestriction(int target, int admin);
 
 /**
  * Loads information about the active restriction of a connected player.
  *
  * @param client            Client index
- * @param banType           Receives the active restriction mask
+ * @param restrictionMask   Receives the active restriction mask
  * @param expiration        Receives the expiration timestamp
  * @param createdTime       Receives the creation timestamp
  * @param reason            Receives the stored reason text
@@ -103,7 +103,7 @@ native bool CVB_UnbanPlayer(int target, int admin);
  * @return                  true only when an active restriction exists and was loaded
  * @error                   Invalid client index
  */
-native bool CVB_GetBanInfo(int client, int &banType, int &expiration, int &createdTime, char[] reason, int reasonMaxLen, char[] adminSteamId, int adminMaxLen);
+native bool CVB_GetRestrictionInfo(int client, int &restrictionMask, int &expiration, int &createdTime, char[] reason, int reasonMaxLen, char[] adminSteamId, int adminMaxLen);
 
 public SharedPlugin __pl_callvote_bans =
 {
@@ -119,10 +119,10 @@ public SharedPlugin __pl_callvote_bans =
 #if !defined REQUIRE_PLUGIN
 public void __pl_callvote_bans_SetNTVOptional()
 {
-    MarkNativeAsOptional("CVB_IsPlayerBanned");
-    MarkNativeAsOptional("CVB_GetPlayerBanType");
-    MarkNativeAsOptional("CVB_BanPlayer");
-    MarkNativeAsOptional("CVB_UnbanPlayer");
-    MarkNativeAsOptional("CVB_GetBanInfo");
+    MarkNativeAsOptional("CVB_HasActiveRestriction");
+    MarkNativeAsOptional("CVB_GetPlayerRestrictionMask");
+    MarkNativeAsOptional("CVB_RestrictPlayer");
+    MarkNativeAsOptional("CVB_RemoveRestriction");
+    MarkNativeAsOptional("CVB_GetRestrictionInfo");
 }
 #endif

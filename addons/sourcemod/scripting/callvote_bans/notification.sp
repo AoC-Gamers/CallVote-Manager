@@ -32,18 +32,18 @@ static void CVB_PrintBanApplicationDetails(int target, const char[] adminIdentif
 		return;
 
 	PrintToConsole(target, "=====================================");
-	PrintToConsole(target, "%T", "BanDetailsHeader", target);
+	PrintToConsole(target, "%T", "RestrictionDetailsHeader", target);
 	PrintToConsole(target, "=====================================");
-	PrintToConsole(target, "%T", "BanDetailsTypes", target, banTypes);
-	PrintToConsole(target, "%T", "BanDetailsDuration", target, durationText);
-	PrintToConsole(target, "%T", "BanDetailsAdmin", target, adminIdentifier);
+	PrintToConsole(target, "%T", "RestrictionDetailsTypes", target, banTypes);
+	PrintToConsole(target, "%T", "RestrictionDetailsDuration", target, durationText);
+	PrintToConsole(target, "%T", "RestrictionDetailsAdmin", target, adminIdentifier);
 
 	if (durationMinutes > 0)
 	{
 		char expirationTime[64];
 		int expiresTimestamp = GetTime() + (durationMinutes * 60);
 		FormatTime(expirationTime, sizeof(expirationTime), "%Y-%m-%d %H:%M:%S", expiresTimestamp);
-		PrintToConsole(target, "%T", "BanDetailsExpiration", target, expirationTime);
+		PrintToConsole(target, "%T", "RestrictionDetailsExpiration", target, expirationTime);
 	}
 
 	PrintToConsole(target, "=====================================");
@@ -57,7 +57,7 @@ void NotifyPlayerRestrictionApplied(int target, int admin, const char[] adminIde
 	char resolvedAdminIdentifier[MAX_NAME_LENGTH];
 	CVB_ResolveNotificationAdminIdentifier(admin, adminIdentifier, resolvedAdminIdentifier, sizeof(resolvedAdminIdentifier));
 
-	CPrintToChat(target, "%t %t", "Tag", "PlayerBanRestrictionApplied");
+	CPrintToChat(target, "%t %t", "Tag", "PlayerRestrictionApplied");
 	CPrintToChat(target, "%t %t", "Tag", "CheckConsoleForDetails");
 	CVB_PrintBanApplicationDetails(target, resolvedAdminIdentifier, banTypes, durationText, durationMinutes);
 }
@@ -114,7 +114,7 @@ void ShowVoteBlockedDetailsInConsole(int client)
 	if (g_ClientStates[client].loadState != ClientBanLoad_Ready)
 		return;
 
-	int banType = GetClientBanType(client);
+	int banType = GetClientRestrictionMask(client);
 	int expiresTimestamp = GetClientBanExpiration(client);
 	int createdTimestamp = GetClientBanCreationTime(client);
 

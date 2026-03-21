@@ -75,7 +75,7 @@ static void ReadSQLClientDaysContext(DataPack pack, SQLClientDaysContext context
 
 public void OnPluginStart_SQL()
 {
-	g_cvarRegLogSQL = CreateConVar("sm_cvm_sql_log_flags", "0", "SQL logging flags <dificulty:1, restartgame:2, kick:4, changemission:8, lobby:16, chapter:32, alltalk:64, ALL:127, NONE:0>", FCVAR_NOTIFY, true, 0.0, true, 127.0);
+	g_cvarRegLogSQL = CreateConVar("sm_cvm_sql_log_flags", "0", "SQL logging flags <difficulty:1, restartgame:2, kick:4, changemission:8, lobby:16, chapter:32, alltalk:64, ALL:127, NONE:0>", FCVAR_NOTIFY, true, 0.0, true, 127.0);
 	g_cvarSQLConfig = CreateConVar("sm_cvm_sql_config", "callvote", "Database config name from databases.cfg for callvote_manager", FCVAR_NONE);
 	
 	RegAdminCmd("sm_cvm_sql_cleanup", Command_CleanupDB, ADMFLAG_ROOT, "Clean up database records");
@@ -140,6 +140,14 @@ void EnsureSQLiteSchema()
 		char sError[256];
 		SQL_GetError(g_db, sError, sizeof(sError));
 		CVLog.Query("[EnsureSQLiteSchema] Failed to create SQLite index for `%s`: %s", g_sTable, sError);
+	}
+
+	FormatEx(sIndexQuery, sizeof(sIndexQuery), "CREATE INDEX IF NOT EXISTS `idx_callvote_log_target_account_created` ON `%s` (`target_account_id`, `created`)", g_sTable);
+	if (!SQL_FastQuery(g_db, sIndexQuery))
+	{
+		char sError[256];
+		SQL_GetError(g_db, sError, sizeof(sError));
+		CVLog.Query("[EnsureSQLiteSchema] Failed to create SQLite target account index for `%s`: %s", g_sTable, sError);
 	}
 
 }
@@ -224,33 +232,15 @@ void RegSQLVote(TypeVotes type, int iClient, int iTarget = SERVER_INDEX)
     {
         case SQL_MySQL:
         {
-            if (type == Kick && iTargetAccountId > 0)
-            {
-                g_db.Format(sQuery, sizeof(sQuery),
-                    "INSERT INTO `%s` (caller_account_id, caller_steamid64, created, type, target_account_id, target_steamid64) VALUES (%d, '%s', %d, %d, %d, '%s')",
-                    g_sTable, iCallerAccountId, sCallerSteamID64, iTime, view_as<int>(type), iTargetAccountId, sTargetSteamID64);
-            }
-            else
-            {
-                g_db.Format(sQuery, sizeof(sQuery),
-                    "INSERT INTO `%s` (caller_account_id, caller_steamid64, created, type) VALUES (%d, '%s', %d, %d)",
-                    g_sTable, iCallerAccountId, sCallerSteamID64, iTime, view_as<int>(type));
-            }
+            g_db.Format(sQuery, sizeof(sQuery),
+                "INSERT INTO `%s` (caller_account_id, caller_steamid64, created, type, target_account_id, target_steamid64) VALUES (%d, '%s', %d, %d, %d, '%s')",
+                g_sTable, iCallerAccountId, sCallerSteamID64, iTime, view_as<int>(type), iTargetAccountId, sTargetSteamID64);
         }
         case SQL_SQLite:
         {
-            if (type == Kick && iTargetAccountId > 0)
-            {
-                g_db.Format(sQuery, sizeof(sQuery),
-                    "INSERT INTO `%s` (caller_account_id, created, type, target_account_id) VALUES (%d, %d, %d, %d)",
-                    g_sTable, iCallerAccountId, iTime, view_as<int>(type), iTargetAccountId);
-            }
-            else
-            {
-                g_db.Format(sQuery, sizeof(sQuery),
-                    "INSERT INTO `%s` (caller_account_id, created, type) VALUES (%d, %d, %d)",
-                    g_sTable, iCallerAccountId, iTime, view_as<int>(type));
-            }
+            g_db.Format(sQuery, sizeof(sQuery),
+                "INSERT INTO `%s` (caller_account_id, created, type, target_account_id) VALUES (%d, %d, %d, %d)",
+                g_sTable, iCallerAccountId, iTime, view_as<int>(type), iTargetAccountId);
         }
         default:
         {

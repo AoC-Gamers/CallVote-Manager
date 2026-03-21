@@ -215,13 +215,13 @@ void InsertKickRecordSQL(int iSessionId, int iClientAccountId, int iTargetAccoun
 		{
 			if (!CallVoteManager_GetSessionSteamID64Info(iSessionId, sCallerSteamID64, sizeof(sCallerSteamID64), sTargetSteamID64, sizeof(sTargetSteamID64)))
 			{
-				log(false, "[sqlinsert] Failed to resolve frozen SteamID64 values for session %d", iSessionId);
+				log(false, "[InsertKickRecordSQL] Failed to resolve frozen SteamID64 values for session %d", iSessionId);
 				return;
 			}
 
 			if (sCallerSteamID64[0] == '\0' || sTargetSteamID64[0] == '\0')
 			{
-				log(false, "[sqlinsert] Missing frozen SteamID64 values for session %d", iSessionId);
+				log(false, "[InsertKickRecordSQL] Missing frozen SteamID64 values for session %d", iSessionId);
 				return;
 			}
 
@@ -237,12 +237,12 @@ void InsertKickRecordSQL(int iSessionId, int iClientAccountId, int iTargetAccoun
 		}
 		default:
 		{
-			log(false, "[sqlinsert] Unknown SQL driver.");
+			log(false, "[InsertKickRecordSQL] Unknown SQL driver.");
 			return;
 		}
 	}
 
-	log(true, "[sqlinsert] Driver: %s | Query: %s", g_SQLDriver == SQL_MySQL ? "MySQL" : "SQLite", sQuery);
+	log(true, "[InsertKickRecordSQL] Driver: %s | Query: %s", g_SQLDriver == SQL_MySQL ? "MySQL" : "SQLite", sQuery);
 	g_db.Query(SQLInsertCallback, sQuery, CreateKickInsertQueryDataPack(iSessionId, iClientAccountId, iTargetAccountId, iExpectedKickCount, sQuery));
 }
 
@@ -254,14 +254,14 @@ public void SQLInsertCallback(Database db, DBResultSet results, const char[] err
 
 	if (results == null)
 	{
-		log(false, "[CallBack_SQLInsert] SQL failed: %s", error);
-		log(false, "[CallBack_SQLInsert] Query dump: %s", context.Query);
+		log(false, "[SQLInsertCallback] SQL failed: %s", error);
+		log(false, "[SQLInsertCallback] Query dump: %s", context.Query);
 		delete pack;
 		return;
 	}
 
 	UpdateConnectedClientKickCount(context.CallerAccountId, context.ExpectedKickCount);
-	log(false, "[CallBack_SQLInsert] Session:%d | CallerAID:%d | TargetAID:%d | Kicks:%d",
+	log(false, "[SQLInsertCallback] Session:%d | CallerAID:%d | TargetAID:%d | Kicks:%d",
 		context.SessionId,
 		context.CallerAccountId,
 		context.TargetAccountId,
@@ -299,12 +299,12 @@ void RequestKickCountLoad(int iClient, int iAccountId)
 		}
 		default:
 		{
-			log(false, "[GetCountKick] Unknown SQL driver.");
+			log(false, "[RequestKickCountLoad] Unknown SQL driver.");
 			return;
 		}
 	}
 
-	log(true, "[GetCountKick] Driver: %s | Query: %s", g_SQLDriver == SQL_MySQL ? "MySQL" : "SQLite", sQuery);
+	log(true, "[RequestKickCountLoad] Driver: %s | Query: %s", g_SQLDriver == SQL_MySQL ? "MySQL" : "SQLite", sQuery);
 	g_db.Query(GetKickCountCallback, sQuery, CreateKickCountRequestDataPack(GetClientUserId(iClient), iAccountId));
 }
 
@@ -317,7 +317,7 @@ public void GetKickCountCallback(Database db, DBResultSet results, const char[] 
 
 	if (results == null)
 	{
-		log(false, "[CallBack_GetCountKick] Error: %s", error);
+		log(false, "[GetKickCountCallback] Error: %s", error);
 
 		int iClientOnError = GetClientOfUserId(context.UserId);
 		if (iClientOnError > 0 && g_Players[iClientOnError].AccountID == context.AccountId)
@@ -339,7 +339,7 @@ public void GetKickCountCallback(Database db, DBResultSet results, const char[] 
 		iKick = results.FetchInt(0);
 	}
 
-	log(true, "[CallBack_GetCountKick] Client: %N | AccountID: %d | Kicks: %d", iClient, context.AccountId, iKick);
+	log(true, "[GetKickCountCallback] Client: %N | AccountID: %d | Kicks: %d", iClient, context.AccountId, iKick);
 	UpdateConnectedClientKickCount(context.AccountId, iKick);
 }
 
@@ -484,7 +484,7 @@ Action Command_KickShow(int iClient, int sArgs)
 	}
 
 	if (!iFound)
-		CPrintToChat(iClient, "%t %t", "Tag", "NoFound");
+		CPrintToChat(iClient, "%t %t", "Tag", "NoKickRecords");
 
 	return Plugin_Handled;
 }
@@ -817,10 +817,10 @@ void log(bool error, const char[] format, any ...)
 	char category[16];
 	strcopy(category, sizeof(category), "Core");
 
-	if (strncmp(message, "[sqlinsert]", 11, false) == 0
-		|| strncmp(message, "[CallBack_SQLInsert]", 20, false) == 0
-		|| strncmp(message, "[GetCountKick]", 14, false) == 0
-		|| strncmp(message, "[CallBack_GetCountKick]", 23, false) == 0
+	if (strncmp(message, "[InsertKickRecordSQL]", 21, false) == 0
+		|| strncmp(message, "[SQLInsertCallback]", 19, false) == 0
+		|| strncmp(message, "[RequestKickCountLoad]", 22, false) == 0
+		|| strncmp(message, "[GetKickCountCallback]", 22, false) == 0
 		|| strncmp(message, "[ConnectDB]", 11, false) == 0
 		|| strncmp(message, "[ConnectCallback]", 17, false) == 0
 		|| strncmp(message, "[CheckTableCallback]", 20, false) == 0)

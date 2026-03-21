@@ -7,10 +7,27 @@ Plugin basico de restricciones por tipo de votacion sobre `callvote_manager`.
 `callvote_bans` se encarga de:
 
 - bloquear votaciones cuando el jugador tiene una restriccion activa
-- persistir bans por `AccountID`
+- persistir restricciones por `AccountID`
 - exponer una API simple para integraciones y herramientas administrativas externas
 
 El plugin principal ya no incorpora paneles internos ni un sistema propio de razones. La capa administrativa puede vivir fuera del runtime base, por ejemplo en `callvote_bans_adminmenu`.
+
+## Superficie publica
+
+- comandos:
+  - `sm_cvb_restrict`
+  - `sm_cvb_unrestrict`
+  - `sm_cvb_status`
+- API:
+  - `CVB_HasActiveRestriction`
+  - `CVB_GetPlayerRestrictionMask`
+  - `CVB_RestrictPlayer`
+  - `CVB_RemoveRestriction`
+  - `CVB_GetRestrictionInfo`
+- admin menu externo:
+  - `sm_cvb_restrict_panel`
+  - `sm_cvb_unrestrict_panel`
+  - `sm_cvb_status_panel`
 
 ## Modelo
 

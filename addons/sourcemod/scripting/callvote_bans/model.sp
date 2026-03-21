@@ -3,10 +3,10 @@
 #endif
 #define _cvb_model_included
 
-enum struct PlayerBanInfo
+enum struct PlayerRestrictionInfo
 {
 	int AccountId;
-	int BanType;
+	int RestrictionMask;
 	int CreatedTimestamp;
 	int DurationMinutes;
 	int ExpiresTimestamp;
@@ -18,7 +18,7 @@ enum struct PlayerBanInfo
 	void Reset(int accountId = 0)
 	{
 		this.AccountId = accountId;
-		this.BanType = 0;
+		this.RestrictionMask = 0;
 		this.CreatedTimestamp = 0;
 		this.DurationMinutes = 0;
 		this.ExpiresTimestamp = 0;
@@ -45,7 +45,7 @@ enum struct PlayerBanInfo
 
 	bool IsBanned()
 	{
-		return this.BanType > 0 && !this.IsExpired();
+		return this.RestrictionMask > 0 && !this.IsExpired();
 	}
 
 	bool IsExpired()
@@ -58,7 +58,7 @@ enum struct PlayerBanInfo
 
 	bool IsPermanent()
 	{
-		return this.ExpiresTimestamp == 0 && this.BanType > 0;
+		return this.ExpiresTimestamp == 0 && this.RestrictionMask > 0;
 	}
 
 	int GetTimeRemaining()
@@ -90,12 +90,12 @@ enum struct PlayerBanInfo
 
 	void GetBanTypeString(char[] buffer, int maxlen)
 	{
-		GetBanTypeString(this.BanType, buffer, maxlen);
+		GetBanTypeString(this.RestrictionMask, buffer, maxlen);
 	}
 
-	void ApplyBan(int banType, int durationMinutes, const char[] reason, int adminAccountId)
+	void ApplyRestriction(int restrictionMask, int durationMinutes, const char[] reason, int adminAccountId)
 	{
-		this.BanType = banType;
+		this.RestrictionMask = restrictionMask;
 		this.DurationMinutes = durationMinutes;
 		this.SetReason(reason);
 		this.AdminAccountId = adminAccountId;
@@ -118,9 +118,9 @@ enum struct PlayerBanInfo
 		Format(
 			buffer,
 			maxlen,
-			"PlayerBanInfo[AccountID=%d, BanType=%d(%s), Duration=%d, Expires=%s, Reason=%s]",
+			"PlayerRestrictionInfo[AccountID=%d, RestrictionMask=%d(%s), Duration=%d, Expires=%s, Reason=%s]",
 			this.AccountId,
-			this.BanType,
+			this.RestrictionMask,
 			banTypes,
 			this.DurationMinutes,
 			expiration,

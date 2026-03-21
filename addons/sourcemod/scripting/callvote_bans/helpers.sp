@@ -28,7 +28,7 @@ enum struct AsyncContext
 	int AdminUserId;
 	int TargetAccountId;
 	SteamID64_ContinuationType ContinuationType;
-	int BanType;
+	int RestrictionMask;
 	int DurationMinutes;
 	ReplySource CommandReplySource;
 	char TargetSteamId[MAX_AUTHID_LENGTH];
@@ -40,7 +40,7 @@ enum struct AsyncContext
 		this.AdminUserId = -1;
 		this.TargetAccountId = 0;
 		this.ContinuationType = view_as<SteamID64_ContinuationType>(-1);
-		this.BanType = 0;
+		this.RestrictionMask = 0;
 		this.DurationMinutes = 0;
 		this.CommandReplySource = SM_REPLY_TO_CONSOLE;
 		this.TargetSteamId[0] = '\0';
@@ -103,7 +103,7 @@ enum struct AsyncContext
 		return this.IsInitialized()
 			&& this.AdminUserId >= 0
 			&& this.TargetAccountId > 0
-			&& this.BanType > 0
+			&& this.RestrictionMask > 0
 			&& this.ContinuationType == CONTINUE_BAN_IDENTITY;
 	}
 
@@ -298,7 +298,7 @@ void CVB_FormatDurationText(int client, int durationMinutes, char[] buffer, int 
 {
 	if (durationMinutes == 0)
 	{
-		Format(buffer, maxlen, "%T", "BanStatusPermanent", client);
+		Format(buffer, maxlen, "%T", "RestrictionStatusPermanent", client);
 		return;
 	}
 
@@ -361,7 +361,7 @@ AsyncContext CVB_CreateAsyncContext(SteamID64_ContinuationType continuationType,
 	ctx.Reset();
 	ctx.ContinuationType = continuationType;
 	ctx.AdminUserId = adminUserId;
-	ctx.BanType = banType;
+	ctx.RestrictionMask = banType;
 	ctx.DurationMinutes = duration;
 
 	if (reason[0] != '\0')

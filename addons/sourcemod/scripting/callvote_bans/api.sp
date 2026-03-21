@@ -5,7 +5,7 @@
 
 GlobalForward
 	g_gfBlocked,
-	g_gfOnPlayerBanned;
+	g_gfOnPlayerRestricted;
 
 /**
  * Registers global forwards for the CallVote-Manager plugin.
@@ -13,7 +13,7 @@ GlobalForward
 void RegisterForwards()
 {
 	g_gfBlocked			   = CreateGlobalForward("CVB_OnVoteBlocked", ET_Ignore, Param_Cell, Param_Cell, Param_Cell, Param_Cell);
-	g_gfOnPlayerBanned = CreateGlobalForward("CVB_OnPlayerBanned", ET_Ignore, Param_Cell, Param_Cell, Param_Cell, Param_Cell, Param_String);
+	g_gfOnPlayerRestricted = CreateGlobalForward("CVB_OnPlayerRestricted", ET_Ignore, Param_Cell, Param_Cell, Param_Cell, Param_Cell, Param_String);
 }
 
 /**
@@ -31,10 +31,10 @@ void CloseForwards()
 		g_gfBlocked = null;
 	}
 
-	if (g_gfOnPlayerBanned != null)
+	if (g_gfOnPlayerRestricted != null)
 	{
-		delete g_gfOnPlayerBanned;
-		g_gfOnPlayerBanned = null;
+		delete g_gfOnPlayerRestricted;
+		g_gfOnPlayerRestricted = null;
 	}
 }
 
@@ -43,32 +43,32 @@ void CloseForwards()
  */
 void RegisterNatives()
 {
-	CreateNative("CVB_IsPlayerBanned", Native_IsPlayerBanned);
-	CreateNative("CVB_GetPlayerBanType", Native_GetPlayerBanType);
-	CreateNative("CVB_BanPlayer", Native_BanPlayer);
-	CreateNative("CVB_UnbanPlayer", Native_UnbanPlayer);
-	CreateNative("CVB_GetBanInfo", Native_GetBanInfo);
+	CreateNative("CVB_HasActiveRestriction", Native_HasActiveRestriction);
+	CreateNative("CVB_GetPlayerRestrictionMask", Native_GetPlayerRestrictionMask);
+	CreateNative("CVB_RestrictPlayer", Native_RestrictPlayer);
+	CreateNative("CVB_RemoveRestriction", Native_RemoveRestriction);
+	CreateNative("CVB_GetRestrictionInfo", Native_GetRestrictionInfo);
 }
 
-static bool CVB_TryLoadActiveBanInfoForClient(int client, PlayerBanInfo banInfo)
+static bool CVB_TryLoadActiveRestrictionInfoForClient(int client, PlayerRestrictionInfo restrictionInfo)
 {
-	banInfo.Reset(GetClientAccountID(client));
+	restrictionInfo.Reset(GetClientAccountID(client));
 
-	if (CVB_GetMemoryCache(banInfo) && banInfo.IsBanned())
+	if (CVB_GetMemoryCache(restrictionInfo) && restrictionInfo.IsBanned())
 		return true;
 
-	if (CVB_CheckActiveBan(banInfo) == CVBLookup_Found && banInfo.IsBanned())
+	if (CVB_CheckActiveRestriction(restrictionInfo) == CVBLookup_Found && restrictionInfo.IsBanned())
 	{
-		CVB_UpdateMemoryCache(banInfo);
+		CVB_UpdateMemoryCache(restrictionInfo);
 		return true;
 	}
 
-	banInfo.Clear();
-	CVB_UpdateMemoryCache(banInfo);
+	restrictionInfo.Clear();
+	CVB_UpdateMemoryCache(restrictionInfo);
 	return false;
 }
 
-public int Native_IsPlayerBanned(Handle plugin, int numParams)
+public int Native_HasActiveRestriction(Handle plugin, int numParams)
 {
 	int client = GetNativeCell(1);
 	if (!IsValidClient(client))
@@ -77,11 +77,11 @@ public int Native_IsPlayerBanned(Handle plugin, int numParams)
 		return false;
 	}
 
-	PlayerBanInfo banInfo;
-	return IsPlayerBanned(client, banInfo);
+	PlayerRestrictionInfo restrictionInfo;
+	return HasActiveRestriction(client, restrictionInfo);
 }
 
-public int Native_GetPlayerBanType(Handle plugin, int numParams)
+public int Native_GetPlayerRestrictionMask(Handle plugin, int numParams)
 {
 	int client = GetNativeCell(1);
 	if (!IsValidClient(client))
@@ -90,14 +90,14 @@ public int Native_GetPlayerBanType(Handle plugin, int numParams)
 		return 0;
 	}
 
-	PlayerBanInfo banInfo;
-	return CVB_TryLoadActiveBanInfoForClient(client, banInfo) ? banInfo.BanType : 0;
+	PlayerRestrictionInfo restrictionInfo;
+	return CVB_TryLoadActiveRestrictionInfoForClient(client, restrictionInfo) ? restrictionInfo.RestrictionMask : 0;
 }
 
-public int Native_BanPlayer(Handle plugin, int numParams)
+public int Native_RestrictPlayer(Handle plugin, int numParams)
 {
 	int targetClient = GetNativeCell(1);
-	int banType = GetNativeCell(2);
+	int restrictionMask = GetNativeCell(2);
 	int durationMinutes = GetNativeCell(3);
 	int adminClient = GetNativeCell(4);
 
@@ -110,9 +110,9 @@ public int Native_BanPlayer(Handle plugin, int numParams)
 		return false;
 	}
 
-	if (banType <= 0 || banType > view_as<int>(VOTE_ALL))
+	if (restrictionMask <= 0 || restrictionMask > view_as<int>(VOTE_ALL))
 	{
-		ThrowNativeError(SP_ERROR_NATIVE, "Invalid ban type %d", banType);
+		ThrowNativeError(SP_ERROR_NATIVE, "Invalid restriction mask %d", restrictionMask);
 		return false;
 	}
 
@@ -133,10 +133,10 @@ public int Native_BanPlayer(Handle plugin, int numParams)
 
 	char normalizedReason[256];
 	NormalizeBanReason(reason, normalizedReason, sizeof(normalizedReason));
-	return ApplyBanToPlayer(adminClient, targetClient, banType, durationMinutes, normalizedReason);
+	return ApplyBanToPlayer(adminClient, targetClient, restrictionMask, durationMinutes, normalizedReason);
 }
 
-public int Native_UnbanPlayer(Handle plugin, int numParams)
+public int Native_RemoveRestriction(Handle plugin, int numParams)
 {
 	int target = GetNativeCell(1);
 	int admin = GetNativeCell(2);
@@ -159,7 +159,7 @@ public int Native_UnbanPlayer(Handle plugin, int numParams)
 	return ApplyUnbanToPlayer(admin, target);
 }
 
-public int Native_GetBanInfo(Handle plugin, int numParams)
+public int Native_GetRestrictionInfo(Handle plugin, int numParams)
 {
 	int target = GetNativeCell(1);
 
@@ -169,8 +169,8 @@ public int Native_GetBanInfo(Handle plugin, int numParams)
 		return false;
 	}
 
-	PlayerBanInfo banInfo;
-	if (!CVB_TryLoadActiveBanInfoForClient(target, banInfo))
+	PlayerRestrictionInfo restrictionInfo;
+	if (!CVB_TryLoadActiveRestrictionInfoForClient(target, restrictionInfo))
 	{
 		return false;
 	}
@@ -178,13 +178,13 @@ public int Native_GetBanInfo(Handle plugin, int numParams)
 	char reason[256];
 	char adminSteamId[MAX_AUTHID_LENGTH];
 	adminSteamId[0] = '\0';
-	banInfo.GetReason(reason, sizeof(reason));
-	if (banInfo.AdminAccountId > 0)
-		AccountIDToSteamID2(banInfo.AdminAccountId, adminSteamId, sizeof(adminSteamId));
+	restrictionInfo.GetReason(reason, sizeof(reason));
+	if (restrictionInfo.AdminAccountId > 0)
+		AccountIDToSteamID2(restrictionInfo.AdminAccountId, adminSteamId, sizeof(adminSteamId));
 
-	SetNativeCellRef(2, banInfo.BanType);
-	SetNativeCellRef(3, banInfo.ExpiresTimestamp);
-	SetNativeCellRef(4, banInfo.CreatedTimestamp);
+	SetNativeCellRef(2, restrictionInfo.RestrictionMask);
+	SetNativeCellRef(3, restrictionInfo.ExpiresTimestamp);
+	SetNativeCellRef(4, restrictionInfo.CreatedTimestamp);
 	SetNativeString(5, reason, GetNativeCell(6), true);
 	SetNativeString(7, adminSteamId, GetNativeCell(8), true);
 
@@ -193,22 +193,22 @@ public int Native_GetBanInfo(Handle plugin, int numParams)
 }
 
 /**
- * Fires the "OnPlayerBanned" forward if it is registered.
+ * Fires the "OnPlayerRestricted" forward if it is registered.
  *
  * @param target           The client index of the player receiving the restriction.
- * @param banType          The type of ban being applied (e.g., temporary, permanent).
- * @param duration         The duration of the ban in minutes.
- * @param admin            The client index of the admin issuing the ban.
- * @param reason           The reason for the ban.
+ * @param restrictionMask  The restriction mask being applied.
+ * @param duration         The duration of the restriction in minutes.
+ * @param admin            The client index of the admin issuing the restriction.
+ * @param reason           The reason for the restriction.
  */
-void FireOnPlayerBanned(int target, int banType, int duration, int admin, const char[] reason)
+void FireOnPlayerRestricted(int target, int restrictionMask, int duration, int admin, const char[] reason)
 {
-	if (g_gfOnPlayerBanned == null)
+	if (g_gfOnPlayerRestricted == null)
 		return;
 
-	Call_StartForward(g_gfOnPlayerBanned);
+	Call_StartForward(g_gfOnPlayerRestricted);
 	Call_PushCell(target);
-	Call_PushCell(banType);
+	Call_PushCell(restrictionMask);
 	Call_PushCell(duration);
 	Call_PushCell(admin);
 	Call_PushString(reason);

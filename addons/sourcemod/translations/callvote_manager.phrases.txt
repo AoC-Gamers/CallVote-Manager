@@ -86,12 +86,12 @@
 		"en"        "You can only {red}kick{default} players from your {olive}same team{default}"
 		"es"        "Solo puedes {red}expulsar{default} jugadores de tu {olive}mismo equipo{default}"
 	}
-	"Inmunity"
+	"Immunity"
 	{
 		"en"        "You can't {red}kick{default} this player"
 		"es"        "No puedes {red}expulsar{default} a este jugador"
 	}
-	"InmunityTarget"
+	"ImmunityTarget"
 	{
 		"#format" 	"{1:N}"
 		"en"        "{1} tried to {red}kick{default} you"

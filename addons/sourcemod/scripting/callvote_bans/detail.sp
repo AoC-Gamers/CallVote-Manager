@@ -40,7 +40,7 @@ static void CVB_BuildActiveBanLookupQuery(char[] query, int maxLen, SourceDB sou
 	iLen += Format(query[iLen], maxLen - iLen, "ORDER BY created_timestamp DESC LIMIT 1");
 }
 
-static void CVB_BuildFullBanLookupQuery(char[] query, int maxLen, SourceDB source, int accountId)
+static void CVB_BuildFullRestrictionLookupQuery(char[] query, int maxLen, SourceDB source, int accountId)
 {
 	int iLen = 0;
 
@@ -61,49 +61,49 @@ static void CVB_BuildFullBanLookupQuery(char[] query, int maxLen, SourceDB sourc
 	iLen += Format(query[iLen], maxLen - iLen, "ORDER BY created_timestamp DESC LIMIT 1");
 }
 
-static bool CVB_FillActiveBanInfoFromRow(DBResultSet results, SourceDB source, PlayerBanInfo banInfo)
+static bool CVB_FillActiveRestrictionInfoFromRow(DBResultSet results, SourceDB source, PlayerRestrictionInfo restrictionInfo)
 {
 	if (!results.FetchRow())
 		return false;
 
-	banInfo.BanType = results.FetchInt(0);
-	banInfo.CreatedTimestamp = results.FetchInt(1);
-	banInfo.DurationMinutes = results.FetchInt(2);
-	banInfo.ExpiresTimestamp = results.FetchInt(3);
-	banInfo.AdminAccountId = results.FetchInt(4);
+	restrictionInfo.RestrictionMask = results.FetchInt(0);
+	restrictionInfo.CreatedTimestamp = results.FetchInt(1);
+	restrictionInfo.DurationMinutes = results.FetchInt(2);
+	restrictionInfo.ExpiresTimestamp = results.FetchInt(3);
+	restrictionInfo.AdminAccountId = results.FetchInt(4);
 
 	char reason[128];
 	results.FetchString(5, reason, sizeof(reason));
-	banInfo.SetReason(reason);
-	banInfo.DbSource = source;
+	restrictionInfo.SetReason(reason);
+	restrictionInfo.DbSource = source;
 	return true;
 }
 
-static bool CVB_FillFullBanInfoFromRow(DBResultSet results, SourceDB source, PlayerBanInfo banInfo)
+static bool CVB_FillFullRestrictionInfoFromRow(DBResultSet results, SourceDB source, PlayerRestrictionInfo restrictionInfo)
 {
 	if (!results.FetchRow())
 		return false;
 
-	banInfo.BanType = results.FetchInt(0);
-	banInfo.ExpiresTimestamp = results.FetchInt(1);
-	banInfo.CreatedTimestamp = results.FetchInt(2);
-	banInfo.DurationMinutes = results.FetchInt(3);
-	banInfo.AdminAccountId = results.FetchInt(4);
+	restrictionInfo.RestrictionMask = results.FetchInt(0);
+	restrictionInfo.ExpiresTimestamp = results.FetchInt(1);
+	restrictionInfo.CreatedTimestamp = results.FetchInt(2);
+	restrictionInfo.DurationMinutes = results.FetchInt(3);
+	restrictionInfo.AdminAccountId = results.FetchInt(4);
 
 	char reason[128];
 	results.FetchString(5, reason, sizeof(reason));
-	banInfo.SetReason(reason);
-	banInfo.DbSource = source;
+	restrictionInfo.SetReason(reason);
+	restrictionInfo.DbSource = source;
 	return true;
 }
 
-CVBLookupStatus CVB_CheckMysqlActiveBan(PlayerBanInfo banInfo)
+CVBLookupStatus CVB_CheckMysqlActiveRestriction(PlayerRestrictionInfo restrictionInfo)
 {
 	if (g_hMySQLDB == null)
 		return CVBLookup_Error;
 
 	char query[512];
-	CVB_BuildActiveBanLookupQuery(query, sizeof(query), SourceDB_MySQL, banInfo.AccountId);
+	CVB_BuildActiveBanLookupQuery(query, sizeof(query), SourceDB_MySQL, restrictionInfo.AccountId);
 
 	DBResultSet results = SQL_Query(g_hMySQLDB, query);
 	if (results == null)
@@ -114,7 +114,7 @@ CVBLookupStatus CVB_CheckMysqlActiveBan(PlayerBanInfo banInfo)
 		return CVBLookup_Error;
 	}
 
-	if (!CVB_FillActiveBanInfoFromRow(results, SourceDB_MySQL, banInfo))
+	if (!CVB_FillActiveRestrictionInfoFromRow(results, SourceDB_MySQL, restrictionInfo))
 	{
 		delete results;
 		return CVBLookup_NotFound;
@@ -124,13 +124,13 @@ CVBLookupStatus CVB_CheckMysqlActiveBan(PlayerBanInfo banInfo)
 	return CVBLookup_Found;
 }
 
-CVBLookupStatus CVB_CheckSQLiteActiveBan(PlayerBanInfo banInfo)
+CVBLookupStatus CVB_CheckSQLiteActiveRestriction(PlayerRestrictionInfo restrictionInfo)
 {
 	if (g_hSQLiteDB == null)
 		return CVBLookup_Error;
 
 	char query[512];
-	CVB_BuildActiveBanLookupQuery(query, sizeof(query), SourceDB_SQLite, banInfo.AccountId);
+	CVB_BuildActiveBanLookupQuery(query, sizeof(query), SourceDB_SQLite, restrictionInfo.AccountId);
 
 	DBResultSet results = SQL_Query(g_hSQLiteDB, query);
 	if (results == null)
@@ -141,7 +141,7 @@ CVBLookupStatus CVB_CheckSQLiteActiveBan(PlayerBanInfo banInfo)
 		return CVBLookup_Error;
 	}
 
-	if (!CVB_FillActiveBanInfoFromRow(results, SourceDB_SQLite, banInfo))
+	if (!CVB_FillActiveRestrictionInfoFromRow(results, SourceDB_SQLite, restrictionInfo))
 	{
 		delete results;
 		return CVBLookup_NotFound;
@@ -151,17 +151,17 @@ CVBLookupStatus CVB_CheckSQLiteActiveBan(PlayerBanInfo banInfo)
 	return CVBLookup_Found;
 }
 
-CVBLookupStatus CVB_CheckActiveBan(PlayerBanInfo banInfo)
+CVBLookupStatus CVB_CheckActiveRestriction(PlayerRestrictionInfo restrictionInfo)
 {
 	switch (CVB_GetActiveDatabase())
 	{
 		case SourceDB_MySQL:
 		{
-			return CVB_CheckMysqlActiveBan(banInfo);
+			return CVB_CheckMysqlActiveRestriction(restrictionInfo);
 		}
 		case SourceDB_SQLite:
 		{
-			return CVB_CheckSQLiteActiveBan(banInfo);
+			return CVB_CheckSQLiteActiveRestriction(restrictionInfo);
 		}
 	}
 
@@ -197,7 +197,7 @@ static void CVB_ReplyFullLookupDatabaseError(int admin, ReplySource replySource,
 		CVB_ReplyToCommandWithSource(admin, replySource, "%s", detail);
 }
 
-static void CVB_SendFullBanStatusReply(PlayerBanInfo banInfo, int admin, ReplySource replySource, int targetClient, const char[] targetDisplay, bool hasBan)
+static void CVB_SendFullRestrictionStatusReply(PlayerRestrictionInfo restrictionInfo, int admin, ReplySource replySource, int targetClient, const char[] targetDisplay, bool hasRestriction)
 {
 	if (admin == NO_INDEX)
 		return;
@@ -210,69 +210,69 @@ static void CVB_SendFullBanStatusReply(PlayerBanInfo banInfo, int admin, ReplySo
 	if (targetClient != NO_INDEX && IsValidClientIndex(targetClient))
 		GetClientName(targetClient, resolvedTargetDisplay, sizeof(resolvedTargetDisplay));
 
-	CVB_ReplyToCommandWithSource(admin, replySource, "%t %t", "Tag", "BanStatusHeader", resolvedTargetDisplay);
-	CVB_ReplyToCommandWithSource(admin, replySource, "%t %t", "Tag", "BanStatusAccountID", banInfo.AccountId);
+	CVB_ReplyToCommandWithSource(admin, replySource, "%t %t", "Tag", "RestrictionStatusHeader", resolvedTargetDisplay);
+	CVB_ReplyToCommandWithSource(admin, replySource, "%t %t", "Tag", "RestrictionStatusAccountID", restrictionInfo.AccountId);
 
-	if (!hasBan)
+	if (!hasRestriction)
 	{
-		CVB_ReplyToCommandWithSource(admin, replySource, "%t %t", "Tag", "BanStatusUnbanned");
+		CVB_ReplyToCommandWithSource(admin, replySource, "%t %t", "Tag", "RestrictionStatusClear");
 		return;
 	}
 
 	char banTypes[128];
 	char expiration[64];
-	banInfo.GetBanTypeString(banTypes, sizeof(banTypes));
+	restrictionInfo.GetBanTypeString(banTypes, sizeof(banTypes));
 
-	if (banInfo.ExpiresTimestamp == 0)
-		Format(expiration, sizeof(expiration), "%T", "BanStatusPermanent", admin);
+	if (restrictionInfo.ExpiresTimestamp == 0)
+		Format(expiration, sizeof(expiration), "%T", "RestrictionStatusPermanent", admin);
 	else
-		FormatTime(expiration, sizeof(expiration), "%Y-%m-%d %H:%M:%S", banInfo.ExpiresTimestamp);
+		FormatTime(expiration, sizeof(expiration), "%Y-%m-%d %H:%M:%S", restrictionInfo.ExpiresTimestamp);
 
-	CVB_ReplyToCommandWithSource(admin, replySource, "%t %t", "Tag", "BanStatusBanned");
-	CVB_ReplyToCommandWithSource(admin, replySource, "%t %t", "Tag", "BanStatusRestrictedTypes", banTypes);
-	CVB_ReplyToCommandWithSource(admin, replySource, "%t %t", "Tag", "BanStatusExpiration", expiration);
+	CVB_ReplyToCommandWithSource(admin, replySource, "%t %t", "Tag", "RestrictionStatusActive");
+	CVB_ReplyToCommandWithSource(admin, replySource, "%t %t", "Tag", "RestrictionStatusTypes", banTypes);
+	CVB_ReplyToCommandWithSource(admin, replySource, "%t %t", "Tag", "RestrictionStatusExpiration", expiration);
 }
 
-static void CVB_FinalizeFullBanLookup(
+static void CVB_FinalizeFullRestrictionLookup(
 	int adminUserId,
 	ReplySource replySource,
 	int requestedTargetClient,
 	const char[] targetDisplay,
-	PlayerBanInfo banInfo,
-	bool hasBan
+	PlayerRestrictionInfo restrictionInfo,
+	bool hasRestriction
 )
 {
 	int admin;
 	if (!CVB_TryResolveCommandIssuer(adminUserId, admin))
 		return;
 
-	if (hasBan)
+	if (hasRestriction)
 	{
-		CVB_UpdateMemoryCache(banInfo);
+		CVB_UpdateMemoryCache(restrictionInfo);
 	}
 	else
 	{
-		banInfo.Clear();
-		CVB_UpdateMemoryCache(banInfo);
+		restrictionInfo.Clear();
+		CVB_UpdateMemoryCache(restrictionInfo);
 	}
 
 	int liveTarget = NO_INDEX;
-	if (requestedTargetClient > 0 && IsValidClient(requestedTargetClient) && GetSteamAccountID(requestedTargetClient) == banInfo.AccountId)
+	if (requestedTargetClient > 0 && IsValidClient(requestedTargetClient) && GetSteamAccountID(requestedTargetClient) == restrictionInfo.AccountId)
 	{
 		liveTarget = requestedTargetClient;
 	}
 	else
 	{
-		liveTarget = FindClientByAccountID(banInfo.AccountId);
+		liveTarget = FindClientByAccountID(restrictionInfo.AccountId);
 	}
 
 	if (liveTarget != NO_INDEX && IsValidClientIndex(liveTarget))
-		SetClientLoadState(liveTarget, banInfo.AccountId, ClientBanLoad_Ready);
+		SetClientLoadState(liveTarget, restrictionInfo.AccountId, ClientBanLoad_Ready);
 
-	CVB_SendFullBanStatusReply(banInfo, admin, replySource, liveTarget, targetDisplay, hasBan);
+	CVB_SendFullRestrictionStatusReply(restrictionInfo, admin, replySource, liveTarget, targetDisplay, hasRestriction);
 }
 
-static void CVB_ProcessSQLiteFullBanLookup(
+static void CVB_ProcessSQLiteFullRestrictionLookup(
 	int admin,
 	ReplySource replySource,
 	int targetAccountId,
@@ -284,7 +284,7 @@ static void CVB_ProcessSQLiteFullBanLookup(
 		return;
 
 	char query[MAX_QUERY_LENGTH];
-	CVB_BuildFullBanLookupQuery(query, sizeof(query), SourceDB_SQLite, targetAccountId);
+	CVB_BuildFullRestrictionLookupQuery(query, sizeof(query), SourceDB_SQLite, targetAccountId);
 
 	DBResultSet results = SQL_Query(g_hSQLiteDB, query);
 	if (results == null)
@@ -296,23 +296,23 @@ static void CVB_ProcessSQLiteFullBanLookup(
 		return;
 	}
 
-	PlayerBanInfo banInfo;
-	banInfo.Reset(targetAccountId);
-	banInfo.DbSource = SourceDB_SQLite;
+	PlayerRestrictionInfo restrictionInfo;
+	restrictionInfo.Reset(targetAccountId);
+	restrictionInfo.DbSource = SourceDB_SQLite;
 
-	if (CVB_FillFullBanInfoFromRow(results, SourceDB_SQLite, banInfo))
+	if (CVB_FillFullRestrictionInfoFromRow(results, SourceDB_SQLite, restrictionInfo))
 	{
-		CVB_FinalizeFullBanLookup(CVB_GetCommandIssuerUserId(admin), replySource, requestedTargetClient, targetDisplay, banInfo, true);
+		CVB_FinalizeFullRestrictionLookup(CVB_GetCommandIssuerUserId(admin), replySource, requestedTargetClient, targetDisplay, restrictionInfo, true);
 	}
 	else
 	{
-		CVB_FinalizeFullBanLookup(CVB_GetCommandIssuerUserId(admin), replySource, requestedTargetClient, targetDisplay, banInfo, false);
+		CVB_FinalizeFullRestrictionLookup(CVB_GetCommandIssuerUserId(admin), replySource, requestedTargetClient, targetDisplay, restrictionInfo, false);
 	}
 
 	delete results;
 }
 
-void CVB_QueueFullBanLookup(int admin, int targetAccountId, int requestedTargetClient, const char[] targetDisplay, ReplySource replySource)
+void CVB_QueueFullRestrictionLookup(int admin, int targetAccountId, int requestedTargetClient, const char[] targetDisplay, ReplySource replySource)
 {
 	SourceDB activeDb = CVB_GetActiveDatabase();
 	if (activeDb == SourceDB_Unknown)
@@ -323,7 +323,7 @@ void CVB_QueueFullBanLookup(int admin, int targetAccountId, int requestedTargetC
 
 	if (activeDb == SourceDB_SQLite)
 	{
-		CVB_ProcessSQLiteFullBanLookup(admin, replySource, targetAccountId, requestedTargetClient, targetDisplay);
+		CVB_ProcessSQLiteFullRestrictionLookup(admin, replySource, targetAccountId, requestedTargetClient, targetDisplay);
 		return;
 	}
 
@@ -334,14 +334,14 @@ void CVB_QueueFullBanLookup(int admin, int targetAccountId, int requestedTargetC
 	}
 
 	char query[MAX_QUERY_LENGTH];
-	CVB_BuildFullBanLookupQuery(query, sizeof(query), SourceDB_MySQL, targetAccountId);
+	CVB_BuildFullRestrictionLookupQuery(query, sizeof(query), SourceDB_MySQL, targetAccountId);
 
 	DataPack context = CVB_CreateFullLookupContextPack(CVB_GetCommandIssuerUserId(admin), replySource, targetAccountId, requestedTargetClient, targetDisplay);
 
-	SQL_TQuery(g_hMySQLDB, CVB_OnFullBanLookupCompleted, query, context, DBPrio_Normal);
+	SQL_TQuery(g_hMySQLDB, CVB_OnFullRestrictionLookupCompleted, query, context, DBPrio_Normal);
 }
 
-public void CVB_OnFullBanLookupCompleted(Database db, DBResultSet results, const char[] error, any data)
+public void CVB_OnFullRestrictionLookupCompleted(Database db, DBResultSet results, const char[] error, any data)
 {
 	DataPack context = view_as<DataPack>(data);
 
@@ -360,16 +360,16 @@ public void CVB_OnFullBanLookupCompleted(Database db, DBResultSet results, const
 		return;
 	}
 
-	PlayerBanInfo banInfo;
-	banInfo.Reset(lookupContext.TargetAccountId);
-	banInfo.DbSource = SourceDB_MySQL;
+	PlayerRestrictionInfo restrictionInfo;
+	restrictionInfo.Reset(lookupContext.TargetAccountId);
+	restrictionInfo.DbSource = SourceDB_MySQL;
 
-	if (CVB_FillFullBanInfoFromRow(results, SourceDB_MySQL, banInfo))
+	if (CVB_FillFullRestrictionInfoFromRow(results, SourceDB_MySQL, restrictionInfo))
 	{
-		CVB_FinalizeFullBanLookup(lookupContext.AdminUserId, lookupContext.ReplySource, lookupContext.RequestedTargetClient, lookupContext.TargetDisplay, banInfo, true);
+		CVB_FinalizeFullRestrictionLookup(lookupContext.AdminUserId, lookupContext.ReplySource, lookupContext.RequestedTargetClient, lookupContext.TargetDisplay, restrictionInfo, true);
 	}
 	else
 	{
-		CVB_FinalizeFullBanLookup(lookupContext.AdminUserId, lookupContext.ReplySource, lookupContext.RequestedTargetClient, lookupContext.TargetDisplay, banInfo, false);
+		CVB_FinalizeFullRestrictionLookup(lookupContext.AdminUserId, lookupContext.ReplySource, lookupContext.RequestedTargetClient, lookupContext.TargetDisplay, restrictionInfo, false);
 	}
 }

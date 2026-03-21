@@ -8,7 +8,7 @@ La suite se organiza alrededor de un core:
 
 - `callvote_manager`: intercepta y valida votaciones
 - `callvote_kicklimit`: aplica politicas de abuso sobre votekick
-- `callvote_bans`: componente legado, en salida de esta suite
+- `callvote_bans`: aplica restricciones de voto y expone API administrativa simple
 
 El objetivo actual del proyecto es consolidar el core como una API estable para extensiones externas.
 
@@ -17,9 +17,9 @@ El objetivo actual del proyecto es consolidar el core como una API estable para 
 - `AccountID` es la identidad canonica interna
 - `SteamID2` se usa solo para presentacion y logs legibles
 - MySQL persiste `AccountID` y `SteamID64` para analitica externa
-- SQLite se crea automaticamente desde los plugins y no persiste `SteamID64`
+- SQLite se crea automaticamente desde los plugins cuando el entry de `databases.cfg` usa ese motor y mantiene el esquema local minimo
 - el core expone ciclo de vida de votacion y contexto enriquecido
-- las sanciones ya no forman parte del alcance principal de la suite
+- las restricciones de voto se mantienen como componente acotado, no como suite general de sanciones
 
 ## Componentes
 
@@ -45,9 +45,20 @@ Core del sistema. Intercepta `callvote`, clasifica el tipo de voto, valida restr
 
 Extension liviana sobre el core. Usa el contrato publico del manager para limitar la frecuencia de votekicks por jugador.
 
+Superficie publica principal:
+
+- comandos `sm_cvkl_show` y `sm_cvkl_count`
+- convars `sm_cvkl_*`
+
 ### [CallVote Bans](docs/README_BANS.md)
 
-Plugin legado de restricciones. El runtime base queda reducido a API, persistencia y validacion; la UX administrativa puede montarse externamente, por ejemplo con `callvote_bans_adminmenu`.
+Plugin acotado de restricciones de voto. El runtime base queda reducido a API, persistencia y validacion; la UX administrativa puede montarse externamente, por ejemplo con `callvote_bans_adminmenu`.
+
+Superficie publica principal:
+
+- comandos `sm_cvb_restrict`, `sm_cvb_unrestrict` y `sm_cvb_status`
+- paneles `sm_cvb_restrict_panel`, `sm_cvb_unrestrict_panel` y `sm_cvb_status_panel`
+- natives `CVB_HasActiveRestriction`, `CVB_GetPlayerRestrictionMask`, `CVB_RestrictPlayer`, `CVB_RemoveRestriction`, `CVB_GetRestrictionInfo`
 
 ## Documentos tecnicos
 

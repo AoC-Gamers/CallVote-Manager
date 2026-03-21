@@ -6,13 +6,13 @@
 		"es"		"CallVote Bans"
 	}
 
-	"CVBAdminMenuBan"
+	"CVBAdminMenuRestrict"
 	{
 		"en"		"Restrict player"
 		"es"		"Restringir jugador"
 	}
 
-	"CVBAdminMenuUnban"
+	"CVBAdminMenuUnrestrict"
 	{
 		"en"		"Remove restriction"
 		"es"		"Remover restricción"
@@ -49,14 +49,14 @@
 		"es"		"Acción del panel cancelada"
 	}
 
-	"CVBAdminMenuBanApplied"
+	"CVBAdminMenuRestrictionApplied"
 	{
 		"#format"	"{1:s}"
 		"en"		"Restriction applied to {1}"
 		"es"		"Restricción aplicada a {1}"
 	}
 
-	"CVBAdminMenuUnbanApplied"
+	"CVBAdminMenuRestrictionRemoved"
 	{
 		"#format"	"{1:s}"
 		"en"		"Restriction removed from {1}"
@@ -75,19 +75,19 @@
 		"es"		"No hay un prompt de panel activo"
 	}
 
-	"MenuBanManagementTitle"
+	"MenuRestrictionManagementTitle"
 	{
 		"en"		"Restriction management"
 		"es"		"Gestión de restricciones"
 	}
 
-	"MenuUnbanManagementTitle"
+	"MenuUnrestrictManagementTitle"
 	{
 		"en"		"Remove restriction"
 		"es"		"Remover restricción"
 	}
 
-	"MenuCheckBanStatusTitle"
+	"MenuCheckRestrictionStatusTitle"
 	{
 		"en"		"Check restriction status"
 		"es"		"Revisar estado de restricción"
@@ -99,7 +99,7 @@
 		"es"		"No hay jugadores conectados"
 	}
 
-	"MenuNoBannedPlayers"
+	"MenuNoRestrictedPlayers"
 	{
 		"en"		"No restricted players"
 		"es"		"No hay jugadores restringidos"
@@ -111,150 +111,150 @@
 		"es"		"El jugador se desconectó"
 	}
 
-	"MenuBannedPlayerFormat"
+	"MenuRestrictedPlayerFormat"
 	{
 		"#format"	"{1:s},{2:s}"
 		"en"		"{1} [{2}]"
 		"es"		"{1} [{2}]"
 	}
 
-	"MenuUnbanPlayerFormat"
+	"MenuUnrestrictPlayerFormat"
 	{
 		"#format"	"{1:s},{2:s}"
 		"en"		"{1} [{2}]"
 		"es"		"{1} [{2}]"
 	}
 
-	"MenuBanPlayerTitle"
+	"MenuRestrictPlayerTitle"
 	{
 		"#format"	"{1:s}"
 		"en"		"Restrict player: {1}"
 		"es"		"Restringir jugador: {1}"
 	}
 
-	"MenuBanDurationTitle"
+	"MenuRestrictionDurationTitle"
 	{
 		"#format"	"{1:s},{2:s}"
 		"en"		"Duration for {1} ({2})"
 		"es"		"Duración para {1} ({2})"
 	}
 
-	"MenuBanTypeDifficulty"
+	"MenuRestrictionTypeDifficulty"
 	{
 		"en"		"Difficulty"
 		"es"		"Dificultad"
 	}
 
-	"MenuBanTypeRestart"
+	"MenuRestrictionTypeRestart"
 	{
 		"en"		"Restart"
 		"es"		"Reinicio"
 	}
 
-	"MenuBanTypeKick"
+	"MenuRestrictionTypeKick"
 	{
 		"en"		"Kick"
 		"es"		"Expulsión"
 	}
 
-	"MenuBanTypeMission"
+	"MenuRestrictionTypeMission"
 	{
 		"en"		"Mission"
 		"es"		"Misión"
 	}
 
-	"MenuBanTypeLobby"
+	"MenuRestrictionTypeLobby"
 	{
 		"en"		"Lobby"
 		"es"		"Lobby"
 	}
 
-	"MenuBanTypeChapter"
+	"MenuRestrictionTypeChapter"
 	{
 		"en"		"Chapter"
 		"es"		"Capítulo"
 	}
 
-	"MenuBanTypeAllTalk"
+	"MenuRestrictionTypeAllTalk"
 	{
 		"en"		"All talk"
 		"es"		"Hablar con todos"
 	}
 
-	"MenuBanTypeAll"
+	"MenuRestrictionTypeAll"
 	{
 		"en"		"All"
 		"es"		"Todo"
 	}
 
-	"MenuBanDurationPermanent"
+	"MenuRestrictionDurationPermanent"
 	{
 		"en"		"Permanent"
 		"es"		"Permanente"
 	}
 
-	"MenuBanDuration30Min"
+	"MenuRestrictionDuration30Min"
 	{
 		"en"		"30 minutes"
 		"es"		"30 minutos"
 	}
 
-	"MenuBanDuration1Hour"
+	"MenuRestrictionDuration1Hour"
 	{
 		"en"		"1 hour"
 		"es"		"1 hora"
 	}
 
-	"MenuBanDuration3Hours"
+	"MenuRestrictionDuration3Hours"
 	{
 		"en"		"3 hours"
 		"es"		"3 horas"
 	}
 
-	"MenuBanDuration6Hours"
+	"MenuRestrictionDuration6Hours"
 	{
 		"en"		"6 hours"
 		"es"		"6 horas"
 	}
 
-	"MenuBanDuration12Hours"
+	"MenuRestrictionDuration12Hours"
 	{
 		"en"		"12 hours"
 		"es"		"12 horas"
 	}
 
-	"MenuBanDuration1Day"
+	"MenuRestrictionDuration1Day"
 	{
 		"en"		"1 day"
 		"es"		"1 día"
 	}
 
-	"MenuBanDuration3Days"
+	"MenuRestrictionDuration3Days"
 	{
 		"en"		"3 days"
 		"es"		"3 días"
 	}
 
-	"MenuBanDuration1Week"
+	"MenuRestrictionDuration1Week"
 	{
 		"en"		"1 week"
 		"es"		"1 semana"
 	}
 
-	"MenuUnbanConfirmationTitle"
+	"MenuUnrestrictConfirmationTitle"
 	{
 		"#format"	"{1:s},{2:s},{3:s}"
 		"en"		"Remove restriction from {1} ({2}) [{3}]?"
 		"es"		"¿Remover restricción de {1} ({2}) [{3}]?"
 	}
 
-	"MenuUnbanConfirmYes"
+	"MenuUnrestrictConfirmYes"
 	{
 		"en"		"Yes, remove restriction"
 		"es"		"Sí, remover restricción"
 	}
 
-	"MenuBanConfirmCancel"
+	"MenuRestrictionConfirmCancel"
 	{
 		"en"		"Cancel"
 		"es"		"Cancelar"

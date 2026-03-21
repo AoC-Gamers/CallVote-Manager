@@ -5,13 +5,13 @@
 
 static const int CVB_ACTIVE_UNTIL_PERMANENT = 2147483647;
 
-enum struct CVBAddBanContext
+enum struct CVBAddRestrictionContext
 {
 	int AdminUserId;
 	ReplySource ReplySource;
 	int TargetAccountId;
 	int RequestedTargetClient;
-	int BanType;
+	int RestrictionMask;
 	int DurationMinutes;
 	char TargetDisplay[MAX_NAME_LENGTH];
 	char Reason[256];
@@ -49,14 +49,14 @@ static DataPack CVB_CreateAddBanContextPack(
 	return pack;
 }
 
-static void CVB_ReadAddBanContext(DataPack pack, CVBAddBanContext context)
+static void CVB_ReadAddBanContext(DataPack pack, CVBAddRestrictionContext context)
 {
 	pack.Reset();
 	context.AdminUserId = pack.ReadCell();
 	context.ReplySource = view_as<ReplySource>(pack.ReadCell());
 	context.TargetAccountId = pack.ReadCell();
 	context.RequestedTargetClient = pack.ReadCell();
-	context.BanType = pack.ReadCell();
+	context.RestrictionMask = pack.ReadCell();
 	context.DurationMinutes = pack.ReadCell();
 	pack.ReadString(context.TargetDisplay, sizeof(context.TargetDisplay));
 	pack.ReadString(context.Reason, sizeof(context.Reason));
@@ -259,7 +259,7 @@ static void CVB_FinalizeQueuedBanSuccess(
 	int expiresTimestamp = CVB_GetExpirationTimestamp(durationMinutes);
 	if (targetOnline)
 	{
-		SetClientBanInfo(liveTarget, banType, durationMinutes, expiresTimestamp, createdTimestamp, adminAccountId, reason);
+		SetClientRestrictionInfo(liveTarget, banType, durationMinutes, expiresTimestamp, createdTimestamp, adminAccountId, reason);
 	}
 	else
 	{
@@ -280,7 +280,7 @@ static void CVB_FinalizeQueuedBanSuccess(
 		CVB_ReplyToCommandWithSource(admin, replySource, "%t %t", "Tag", "RestrictionApplied", liveTargetDisplay, banTypes, durationText);
 
 	CVBLog.Event(
-		"Ban",
+		"Restrict",
 		"Applied vote restriction to AccountID %d (type=%d duration=%d adminAccountID=%d target=%s)",
 		targetAccountId,
 		banType,
@@ -296,11 +296,11 @@ static void CVB_FinalizeQueuedBanSuccess(
 		else
 			NotifyPlayerRestrictionApplied(liveTarget, SERVER_INDEX, adminSteamId2, banTypes, durationText, durationMinutes);
 
-		FireOnPlayerBanned(liveTarget, banType, durationMinutes, admin, reason);
+		FireOnPlayerRestricted(liveTarget, banType, durationMinutes, admin, reason);
 	}
 
 	CVBLog.Debug(
-		"Ban persisted for AccountID %d (type=%d duration=%d adminUserId=%d liveTarget=%d)",
+		"Restriction persisted for AccountID %d (type=%d duration=%d adminUserId=%d liveTarget=%d)",
 		targetAccountId,
 		banType,
 		durationMinutes,
@@ -332,7 +332,7 @@ static void CVB_FinalizeQueuedBanFailure(
 		error
 	);
 	CVBLog.MySQL(
-		"Ban persist failed for AccountID %d (type=%d duration=%d adminUserId=%d): %s",
+		"Restriction persist failed for AccountID %d (type=%d duration=%d adminUserId=%d): %s",
 		targetAccountId,
 		banType,
 		durationMinutes,
@@ -366,7 +366,7 @@ static void CVB_FinalizeQueuedRemoveSuccess(
 	bool targetOnline = CVB_TryResolveLiveTarget(requestedTargetClient, targetAccountId, liveTarget);
 	if (targetOnline)
 	{
-		SetClientBanInfo(liveTarget, 0, 0, 0, 0, 0, "");
+		SetClientRestrictionInfo(liveTarget, 0, 0, 0, 0, 0, "");
 		CPrintToChat(liveTarget, "%t %t", "Tag", "YourRestrictionRemoved");
 	}
 	else
@@ -383,7 +383,7 @@ static void CVB_FinalizeQueuedRemoveSuccess(
 		CVB_ReplyToCommandWithSource(admin, replySource, "%t %t", "Tag", "RestrictionRemovedSuccess", liveTargetDisplay);
 
 	CVBLog.Event(
-		"Unban",
+		"Unrestrict",
 		"Removed vote restriction for AccountID %d (target=%s)",
 		targetAccountId,
 		liveTargetDisplay
@@ -597,14 +597,14 @@ public void CVB_OnAddBanTxnSuccess(Database db, any data, int numQueries, DBResu
 {
 	DataPack context = view_as<DataPack>(data);
 
-	CVBAddBanContext addContext;
+	CVBAddRestrictionContext addContext;
 	CVB_ReadAddBanContext(context, addContext);
 	delete context;
 
 	CVBLog.SQL(
-		"Ban inserted successfully for AccountID %d (type=%d duration=%d queries=%d)",
+		"Restriction inserted successfully for AccountID %d (type=%d duration=%d queries=%d)",
 		addContext.TargetAccountId,
-		addContext.BanType,
+		addContext.RestrictionMask,
 		addContext.DurationMinutes,
 		numQueries
 	);
@@ -614,7 +614,7 @@ public void CVB_OnAddBanTxnSuccess(Database db, any data, int numQueries, DBResu
 		addContext.ReplySource,
 		addContext.TargetAccountId,
 		addContext.RequestedTargetClient,
-		addContext.BanType,
+		addContext.RestrictionMask,
 		addContext.DurationMinutes,
 		addContext.TargetDisplay,
 		addContext.Reason
@@ -625,14 +625,14 @@ public void CVB_OnAddBanTxnFailure(Database db, any data, int numQueries, const 
 {
 	DataPack context = view_as<DataPack>(data);
 
-	CVBAddBanContext addContext;
+	CVBAddRestrictionContext addContext;
 	CVB_ReadAddBanContext(context, addContext);
 	delete context;
 
 	CVBLog.MySQL(
 		"Insert ban transaction failed for AccountID %d (type=%d duration=%d failIndex=%d numQueries=%d): %s",
 		addContext.TargetAccountId,
-		addContext.BanType,
+		addContext.RestrictionMask,
 		addContext.DurationMinutes,
 		failIndex,
 		numQueries,
@@ -643,7 +643,7 @@ public void CVB_OnAddBanTxnFailure(Database db, any data, int numQueries, const 
 		addContext.AdminUserId,
 		addContext.ReplySource,
 		addContext.TargetAccountId,
-		addContext.BanType,
+		addContext.RestrictionMask,
 		addContext.DurationMinutes,
 		error
 	);

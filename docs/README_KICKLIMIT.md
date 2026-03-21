@@ -66,7 +66,7 @@ El esquema sigue la misma convencion del core:
 
 `SteamID64` se guarda solo para lectura externa de estadisticas. El plugin sigue operando con `AccountID`.
 
-SQLite se bootstrapea desde el plugin. MySQL se provisiona con scripts SQL.
+SQLite se bootstrapea desde el plugin. MySQL se provisiona con scripts SQL. El motor activo se elige desde `databases.cfg`.
 
 ```mermaid
 flowchart LR

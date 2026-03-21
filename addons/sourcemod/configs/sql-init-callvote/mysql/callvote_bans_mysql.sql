@@ -3,7 +3,7 @@
 -- ================================================================
 --
 -- Este schema instala solo la tabla principal y sus indices.
--- El plugin ya no usa stored procedures ni vistas runtime.
+-- Schema base de callvote_bans para runtime directo con SQL.
 -- La logica de lectura y escritura vive en SQL directo desde SourceMod.
 
 CREATE TABLE IF NOT EXISTS `callvote_bans` (

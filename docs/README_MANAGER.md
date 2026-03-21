@@ -91,7 +91,7 @@ El esquema actual usa:
 
 `SteamID2` no se persiste como llave. Si hace falta mostrarlo, se deriva desde `AccountID`.
 
-SQLite se instala automaticamente desde el plugin y mantiene un esquema minimo orientado al runtime local.
+SQLite se instala automaticamente desde el plugin cuando el entry configurado en `databases.cfg` usa ese motor y mantiene un esquema minimo orientado al runtime local.
 
 MySQL se instala solo mediante scripts SQL y agrega `SteamID64` para consumo externo y analitica.
 

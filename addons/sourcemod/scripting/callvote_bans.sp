@@ -302,22 +302,22 @@ public void OnClientPostAdminCheck(int client)
 	if (!TryGetConnectedAccountId(client, accountId))
 		return;
 
-	PlayerBanInfo banInfo;
-	banInfo.Reset(accountId);
+	PlayerRestrictionInfo restrictionInfo;
+	restrictionInfo.Reset(accountId);
 
-	CVBLookupStatus status = CVB_LoadBanInfo(banInfo, false);
+	CVBLookupStatus status = CVB_LoadRestrictionInfo(restrictionInfo, true);
 	SetClientLoadState(client, accountId, ClientBanLoad_Ready);
 
 	if (status == CVBLookup_Found)
 	{
-		CVBLog.Debug("Player %N has active vote restrictions (AccountID: %d banType=%d)", client, banInfo.AccountId, banInfo.BanType);
+		CVBLog.Debug("Player %N has active vote restrictions (AccountID: %d restrictionMask=%d)", client, restrictionInfo.AccountId, restrictionInfo.RestrictionMask);
 		AnnouncerJoin(client);
 		return;
 	}
 
 	if (status == CVBLookup_Error)
 	{
-		CVBLog.SQL("Failed to validate restriction state for %N (AccountID: %d) during post admin check", client, banInfo.AccountId);
+		CVBLog.SQL("Failed to validate restriction state for %N (AccountID: %d) during post admin check", client, restrictionInfo.AccountId);
 	}
 }
 
@@ -377,16 +377,16 @@ public Action CallVote_PreStart(int sessionId, int client, int callerAccountId, 
 	if (!IsValidClient(client))
 		return Plugin_Continue;
 
-	PlayerBanInfo banInfo;
-	banInfo.Reset(GetClientAccountID(client));
+	PlayerRestrictionInfo restrictionInfo;
+	restrictionInfo.Reset(GetClientAccountID(client));
 	VoteType voteFlag = GetVoteFlag(voteType);
 	CVBLog.Debug("CallVote_PreStart: session=%d client=%N callerAccountId=%d voteType=%d targetAccountId=%d argument=%s", sessionId, client, callerAccountId, voteType, targetAccountId, argument);
 
 	if (voteFlag == VOTE_NONE)
 		return Plugin_Continue;
 
-	CVBLookupStatus status = CVB_LoadBanInfo(banInfo, false);
-	SetClientLoadState(client, banInfo.AccountId, ClientBanLoad_Ready);
+	CVBLookupStatus status = CVB_LoadRestrictionInfo(restrictionInfo, true);
+	SetClientLoadState(client, restrictionInfo.AccountId, ClientBanLoad_Ready);
 
 	if (status == CVBLookup_Error)
 	{
@@ -399,12 +399,12 @@ public Action CallVote_PreStart(int sessionId, int client, int callerAccountId, 
 		Call_PushCell(0);
 		Call_Finish();
 
-		CVBLog.Debug("Voto BLOQUEADO por error de validación para %N (AccountID: %d, tipo: %d)", client, banInfo.AccountId, voteType);
-		CVBLog.Event("BlockValidation", "Blocked vote for AccountID %d (type=%d target=%d reason=backend_validation_failed)", banInfo.AccountId, voteType, target);
+		CVBLog.Debug("Voto BLOQUEADO por error de validación para %N (AccountID: %d, tipo: %d)", client, restrictionInfo.AccountId, voteType);
+		CVBLog.Event("BlockValidation", "Blocked vote for AccountID %d (type=%d target=%d reason=backend_validation_failed)", restrictionInfo.AccountId, voteType, target);
 		return Plugin_Handled;
 	}
 
-	if (status == CVBLookup_Found && (banInfo.BanType & view_as<int>(voteFlag)))
+	if (status == CVBLookup_Found && (restrictionInfo.RestrictionMask & view_as<int>(voteFlag)))
 	{
 		ShowVoteBlockedMessage(client, voteType);
 
@@ -412,15 +412,15 @@ public Action CallVote_PreStart(int sessionId, int client, int callerAccountId, 
 		Call_PushCell(client);
 		Call_PushCell(view_as<int>(voteType));
 		Call_PushCell(target);
-		Call_PushCell(banInfo.BanType);
+		Call_PushCell(restrictionInfo.RestrictionMask);
 		Call_Finish();
 
-		CVBLog.Debug("Voto BLOQUEADO para %N (AccountID: %d, tipo: %d, banType: %d)", client, banInfo.AccountId, voteType, banInfo.BanType);
-		CVBLog.Event("Block", "Blocked vote for AccountID %d (type=%d banType=%d target=%d)", banInfo.AccountId, voteType, banInfo.BanType, target);
+		CVBLog.Debug("Voto BLOQUEADO para %N (AccountID: %d, tipo: %d, restrictionMask: %d)", client, restrictionInfo.AccountId, voteType, restrictionInfo.RestrictionMask);
+		CVBLog.Event("Block", "Blocked vote for AccountID %d (type=%d restrictionMask=%d target=%d)", restrictionInfo.AccountId, voteType, restrictionInfo.RestrictionMask, target);
 
 		return Plugin_Handled;
 	}
 
-	CVBLog.Debug("Voto PERMITIDO para %N (AccountID: %d, tipo: %d)", client, banInfo.AccountId, voteType);
+	CVBLog.Debug("Voto PERMITIDO para %N (AccountID: %d, tipo: %d)", client, restrictionInfo.AccountId, voteType);
 	return Plugin_Continue;
 }

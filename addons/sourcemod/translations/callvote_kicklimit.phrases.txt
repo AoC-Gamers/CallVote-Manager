@@ -59,7 +59,7 @@
 		"en" 		"{blue}{1}{default} ({olive}{2}{default}) | Kick: {olive}{3}{default}"
 		"es" 		"{blue}{1}{default} ({olive}{2}{default}) | Kick: {olive}{3}{default}"
 	}
-	"NoFound"
+	"NoKickRecords"
 	{
 		"en" 		"There are {red}no registered{default} kick votes"
 		"es" 		"{red}No hay{default} votos de expulsión registrados"

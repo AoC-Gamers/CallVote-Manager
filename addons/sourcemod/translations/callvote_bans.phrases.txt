@@ -15,7 +15,7 @@
 		"en"		"Supported SteamID formats:"
 		"es"		"Formatos de SteamID soportados:"
 	}
-	"BanTypes"
+	"RestrictionTypes"
 	{
 		"en"		"Available ban types:"
 		"es"		"Tipos de restricción disponibles:"
@@ -72,7 +72,7 @@
 		"en"		"Plugin disabled."
 		"es"		"Plugin desactivado."
 	}
-	"InvalidBanType"
+	"InvalidRestrictionMask"
 	{
 		"#format"	"{1:d},{2:d}"
 		"en"		"Invalid ban type {1} (max {2})."
@@ -100,7 +100,7 @@
 		"en"		"{olive}{1}{default} joined with active vote restrictions"
 		"es"		"{olive}{1}{default} se conectó con restricciones de voto activas"
 	}
-	"PlayerBanRestrictionApplied"
+	"PlayerRestrictionApplied"
 	{
 		"en"		"A vote restriction has been applied to you"
 		"es"		"Se te aplicó una restricción de voto"
@@ -150,80 +150,80 @@
 		"en"		"Your vote was blocked because the restriction backend could not be validated."
 		"es"		"Tu voto fue bloqueado porque no se pudo validar el backend de restricciones."
 	}
-	"BanDetailsHeader"
+	"RestrictionDetailsHeader"
 	{
 		"en"		"Restriction details:"
 		"es"		"Detalles de la restricción:"
 	}
-	"BanDetailsTypes"
+	"RestrictionDetailsTypes"
 	{
 		"#format"	"{1:s}"
 		"en"		"Types: {1}"
 		"es"		"Tipos: {1}"
 	}
-	"BanDetailsDuration"
+	"RestrictionDetailsDuration"
 	{
 		"#format"	"{1:s}"
 		"en"		"Duration: {1}"
 		"es"		"Duración: {1}"
 	}
-	"BanDetailsAdmin"
+	"RestrictionDetailsAdmin"
 	{
 		"#format"	"{1:s}"
 		"en"		"Admin: {1}"
 		"es"		"Admin: {1}"
 	}
-	"BanDetailsExpiration"
+	"RestrictionDetailsExpiration"
 	{
 		"#format"	"{1:s}"
 		"en"		"Expires: {1}"
 		"es"		"Expira: {1}"
 	}
-	"BanStatusHeader"
+	"RestrictionStatusHeader"
 	{
 		"en"		"Restriction status for {1}:"
 		"es"		"Estado de restricción para {1}:"
 	}
-	"BanStatusAccountID"
+	"RestrictionStatusAccountID"
 	{
 		"#format"	"{1:d}"
 		"en"		"AccountID: {1}"
 		"es"		"AccountID: {1}"
 	}
-	"BanStatusUnbanned"
+	"RestrictionStatusClear"
 	{
 		"en"		"No active restriction found."
 		"es"		"No se encontró restricción activa."
 	}
-	"BanStatusBanned"
+	"RestrictionStatusActive"
 	{
 		"en"		"Active restriction:"
 		"es"		"Restricción activa:"
 	}
-	"BanStatusRestrictedTypes"
+	"RestrictionStatusTypes"
 	{
 		"#format"	"{1:s}"
 		"en"		"Restricted types: {1}"
 		"es"		"Tipos restringidos: {1}"
 	}
-	"BanStatusExpiration"
+	"RestrictionStatusExpiration"
 	{
 		"#format"	"{1:s}"
 		"en"		"Expiration: {1}"
 		"es"		"Expiración: {1}"
 	}
-	"BanStatusPermanent"
+	"RestrictionStatusPermanent"
 	{
 		"en"		"Permanent"
 		"es"		"Permanente"
 	}
-	"BanStatusCheckingPlayer"
+	"RestrictionStatusCheckingPlayer"
 	{
 		"#format"	"{1:N}"
 		"en"		"Checking player {1}..."
 		"es"		"Comprobando jugador {1}..."
 	}
-	"BanStatusVerifying"
+	"RestrictionStatusVerifying"
 	{
 		"#format"	"{1:s}"
 		"en"		"Verifying {1}..."

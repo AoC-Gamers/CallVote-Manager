@@ -556,7 +556,7 @@ public void OnPluginStart()
 	g_cvarDebugMask						= CreateConVar("sm_cvm_debug_mask", "0", "Debug mask for callvote_manager. Core=1 SQL=2 Cache=4 Commands=8 Identity=16 Forwards=32 Session=64 Localization=128 All=255.", FCVAR_NONE, true, 0.0, true, 255.0);
 	g_Log									= new CallVoteLogger(CVM_LOG_TAG, CVM_LOG_FILE, g_cvarLogMode, g_cvarDebugMask);
 	g_cvarEnable							= CreateConVar("sm_cvm_enable", "1", "Enable plugin", FCVAR_NOTIFY, true, 0.0, true, 1.0);
-	g_cvarRegLog							= CreateConVar("sm_cvm_log_flags", "0", "logging flags <dificulty:1, restartgame:2, kick:4, changemission:8, lobby:16, chapter:32, alltalk:64, ALL:127>", FCVAR_NOTIFY, true, 0.0, true, 127.0);
+	g_cvarRegLog							= CreateConVar("sm_cvm_log_flags", "0", "logging flags <difficulty:1, restartgame:2, kick:4, changemission:8, lobby:16, chapter:32, alltalk:64, ALL:127>", FCVAR_NOTIFY, true, 0.0, true, 127.0);
 	g_cvarBuiltinVote						= CreateConVar("sm_cvm_builtin_vote", "1", "<builtinvotes> support", FCVAR_NOTIFY, true, 0.0, true, 1.0);
 	g_cvarAnnouncer							= CreateConVar("sm_cvm_announcer", "1", "Announce voting calls", FCVAR_NOTIFY, true, 0.0, true, 1.0);
 	g_cvarProgress							= CreateConVar("sm_cvm_progress", "1", "Show voting progress", FCVAR_NOTIFY, true, 0.0, true, 1.0);
@@ -1115,8 +1115,8 @@ void SendRestrictionFeedback(int client, VoteRestrictionType restrictionType, Ty
 							CPrintToChat(client, "%t %t", "Tag", "KickSelf");
 						else if (IsAdmin(target))
 						{
-							CPrintToChat(client, "%t %t", "Tag", "Inmunity");
-							CPrintToChat(target, "%t %t", "Tag", "InmunityTarget", client);
+							CPrintToChat(client, "%t %t", "Tag", "Immunity");
+							CPrintToChat(target, "%t %t", "Tag", "ImmunityTarget", client);
 						}
 					}
 				}

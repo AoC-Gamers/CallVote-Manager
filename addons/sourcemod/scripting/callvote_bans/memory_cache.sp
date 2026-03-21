@@ -21,14 +21,14 @@ void InitMemoryCache()
 /**
  * Retrieves restriction information for a player from the in-memory cache.
  *
- * @param banInfo      Reference to a PlayerBanInfo structure to populate with cached data.
- * @return             True if the cache was successfully retrieved and banInfo populated, false otherwise.
+ * @param restrictionInfo Reference to a PlayerRestrictionInfo structure to populate with cached data.
+ * @return             True if the cache was successfully retrieved and restrictionInfo populated, false otherwise.
  *
  * The function checks if the in-memory cache is enabled and available. If the cache exists,
  * it attempts to retrieve the restriction information for the specified account ID. If retrieval fails,
- * banInfo is reset to default values.
+ * restrictionInfo is reset to default values.
  */
-bool CVB_GetMemoryCache(PlayerBanInfo banInfo)
+bool CVB_GetMemoryCache(PlayerRestrictionInfo restrictionInfo)
 {
 	if (!g_cvarMemoryCache.BoolValue)
 		return false;
@@ -39,55 +39,55 @@ bool CVB_GetMemoryCache(PlayerBanInfo banInfo)
 		return false;
 	}
 
-	if (banInfo.AccountId <= 0)
+	if (restrictionInfo.AccountId <= 0)
 	{
 		CVBLog.Cache("GetMemoryCache: Invalid structure, AccountID <= 0");
 		return false;
 	}
 
 	char sAccountId[16];
-	IntToString(banInfo.AccountId, sAccountId, sizeof(sAccountId));
+	IntToString(restrictionInfo.AccountId, sAccountId, sizeof(sAccountId));
 	
-	PlayerBanInfo cachedInfo;
-	if (g_smClientCache.GetArray(sAccountId, cachedInfo, sizeof(PlayerBanInfo)))
+	PlayerRestrictionInfo cachedInfo;
+	if (g_smClientCache.GetArray(sAccountId, cachedInfo, sizeof(PlayerRestrictionInfo)))
 	{
-		banInfo.BanType = cachedInfo.BanType;
-		banInfo.CreatedTimestamp = cachedInfo.CreatedTimestamp;
-		banInfo.DurationMinutes = cachedInfo.DurationMinutes;
-		banInfo.ExpiresTimestamp = cachedInfo.ExpiresTimestamp;
-		banInfo.AdminAccountId = cachedInfo.AdminAccountId;
-		banInfo.DbSource = cachedInfo.DbSource;
-		banInfo.CommandReplySource = cachedInfo.CommandReplySource;
+		restrictionInfo.RestrictionMask = cachedInfo.RestrictionMask;
+		restrictionInfo.CreatedTimestamp = cachedInfo.CreatedTimestamp;
+		restrictionInfo.DurationMinutes = cachedInfo.DurationMinutes;
+		restrictionInfo.ExpiresTimestamp = cachedInfo.ExpiresTimestamp;
+		restrictionInfo.AdminAccountId = cachedInfo.AdminAccountId;
+		restrictionInfo.DbSource = cachedInfo.DbSource;
+		restrictionInfo.CommandReplySource = cachedInfo.CommandReplySource;
 		
 		char tempReason[128];
 		cachedInfo.GetReason(tempReason, sizeof(tempReason));
-		banInfo.SetReason(tempReason);
+		restrictionInfo.SetReason(tempReason);
 
-		if (banInfo.BanType > 0 && banInfo.IsExpired())
+		if (restrictionInfo.RestrictionMask > 0 && restrictionInfo.IsExpired())
 		{
 			g_smClientCache.Remove(sAccountId);
-			banInfo.Clear();
-			CVBLog.Cache("GetMemoryCache: removed expired entry for AccountID=%d", banInfo.AccountId);
+			restrictionInfo.Clear();
+			CVBLog.Cache("GetMemoryCache: removed expired entry for AccountID=%d", restrictionInfo.AccountId);
 			return false;
 		}
 		
 		return true;
 	}
 
-	banInfo.Clear();
+	restrictionInfo.Clear();
 	return false;
 }
 
 /**
- * Updates the in-memory cache with the provided PlayerBanInfo data.
+ * Updates the in-memory cache with the provided PlayerRestrictionInfo data.
  *
  * This function checks for valid input and updates the global in-memory cache
  * with the restriction information for a player, identified by their AccountID.
  * Logs are generated for invalid structures and for the result of the cache update.
  *
- * @param banInfo      The PlayerBanInfo structure containing ban details for a player.
+ * @param restrictionInfo The PlayerRestrictionInfo structure containing restriction details for a player.
  */
-void CVB_UpdateMemoryCache(PlayerBanInfo banInfo)
+void CVB_UpdateMemoryCache(PlayerRestrictionInfo restrictionInfo)
 {
 	if (g_smClientCache == null)
 	{
@@ -95,55 +95,55 @@ void CVB_UpdateMemoryCache(PlayerBanInfo banInfo)
 		return;
 	}
 
-	if (banInfo.AccountId <= 0)
+	if (restrictionInfo.AccountId <= 0)
 	{
 		CVBLog.Cache("UpdateMemoryCache: Invalid structure, AccountID <= 0");
 		return;
 	}
-	else if (banInfo.BanType < 0)
+	else if (restrictionInfo.RestrictionMask < 0)
 	{
-		CVBLog.Cache("UpdateMemoryCache: Invalid structure, banType < 0");
+		CVBLog.Cache("UpdateMemoryCache: Invalid structure, restrictionMask < 0");
 		return;
 	}
 
 	char sAccountId[16];
-	IntToString(banInfo.AccountId, sAccountId, sizeof(sAccountId));
+	IntToString(restrictionInfo.AccountId, sAccountId, sizeof(sAccountId));
 
-	PlayerBanInfo cacheInfo;
-	cacheInfo.Reset(banInfo.AccountId);
-	cacheInfo.BanType = banInfo.BanType;
-	cacheInfo.CreatedTimestamp = banInfo.CreatedTimestamp;
-	cacheInfo.DurationMinutes = banInfo.DurationMinutes;
-	cacheInfo.ExpiresTimestamp = banInfo.ExpiresTimestamp;
-	cacheInfo.AdminAccountId = banInfo.AdminAccountId;
-	cacheInfo.DbSource = banInfo.DbSource;
-	cacheInfo.CommandReplySource = banInfo.CommandReplySource;
+	PlayerRestrictionInfo cacheInfo;
+	cacheInfo.Reset(restrictionInfo.AccountId);
+	cacheInfo.RestrictionMask = restrictionInfo.RestrictionMask;
+	cacheInfo.CreatedTimestamp = restrictionInfo.CreatedTimestamp;
+	cacheInfo.DurationMinutes = restrictionInfo.DurationMinutes;
+	cacheInfo.ExpiresTimestamp = restrictionInfo.ExpiresTimestamp;
+	cacheInfo.AdminAccountId = restrictionInfo.AdminAccountId;
+	cacheInfo.DbSource = restrictionInfo.DbSource;
+	cacheInfo.CommandReplySource = restrictionInfo.CommandReplySource;
 	
 	char tempReason[128];
-	banInfo.GetReason(tempReason, sizeof(tempReason));
+	restrictionInfo.GetReason(tempReason, sizeof(tempReason));
 	cacheInfo.SetReason(tempReason);
 
-	bool setResult = g_smClientCache.SetArray(sAccountId, cacheInfo, sizeof(PlayerBanInfo));
-	CVBLog.Cache("UpdateMemoryCache: AccountID=%d, banType=%d, expires=%d, setResult=%d", banInfo.AccountId, banInfo.BanType, banInfo.ExpiresTimestamp, setResult);
+	bool setResult = g_smClientCache.SetArray(sAccountId, cacheInfo, sizeof(PlayerRestrictionInfo));
+	CVBLog.Cache("UpdateMemoryCache: AccountID=%d, restrictionMask=%d, expires=%d, setResult=%d", restrictionInfo.AccountId, restrictionInfo.RestrictionMask, restrictionInfo.ExpiresTimestamp, setResult);
 }
 
-CVBLookupStatus CVB_LoadBanInfo(PlayerBanInfo banInfo, bool forceDatabase)
+CVBLookupStatus CVB_LoadRestrictionInfo(PlayerRestrictionInfo restrictionInfo, bool forceDatabase)
 {
-	if (!forceDatabase && CVB_GetMemoryCache(banInfo))
-		return banInfo.IsBanned() ? CVBLookup_Found : CVBLookup_NotFound;
+	if (!forceDatabase && CVB_GetMemoryCache(restrictionInfo))
+		return restrictionInfo.IsBanned() ? CVBLookup_Found : CVBLookup_NotFound;
 
-	CVBLookupStatus status = CVB_CheckActiveBan(banInfo);
+	CVBLookupStatus status = CVB_CheckActiveRestriction(restrictionInfo);
 	if (status == CVBLookup_Found)
 	{
-		CVB_UpdateMemoryCache(banInfo);
+		CVB_UpdateMemoryCache(restrictionInfo);
 		return CVBLookup_Found;
 	}
 
 	if (status == CVBLookup_Error)
 		return CVBLookup_Error;
 
-	banInfo.Clear();
-	CVB_UpdateMemoryCache(banInfo);
+	restrictionInfo.Clear();
+	CVB_UpdateMemoryCache(restrictionInfo);
 	return CVBLookup_NotFound;
 }
 
@@ -152,9 +152,9 @@ static void CVB_PrimeClientBanState(int client, int accountId, bool forceDatabas
 	if (!IsValidClientIndex(client) || accountId <= 0)
 		return;
 
-	PlayerBanInfo banInfo;
-	banInfo.Reset(accountId);
-	CVBLookupStatus status = CVB_LoadBanInfo(banInfo, forceDatabase);
+	PlayerRestrictionInfo restrictionInfo;
+	restrictionInfo.Reset(accountId);
+	CVBLookupStatus status = CVB_LoadRestrictionInfo(restrictionInfo, forceDatabase);
 	SetClientLoadState(client, accountId, ClientBanLoad_Ready);
 
 	CVBLog.Cache(
@@ -179,24 +179,24 @@ static void CVB_PrimeClientBanState(int client, int accountId, bool forceDatabas
  * If no restriction is found, the function logs the result and allows the vote.
  *
  * @param client    The client index of the player to check.
- * @param banInfo   The PlayerBanInfo structure containing ban details for the player.
+ * @param restrictionInfo The PlayerRestrictionInfo structure containing restriction details for the player.
  * @return          True if the player has active restrictions or backend validation failed, false otherwise.
  */
-bool IsPlayerBanned(int client, PlayerBanInfo banInfo)
+bool HasActiveRestriction(int client, PlayerRestrictionInfo restrictionInfo)
 {
-	CVBLookupStatus status = CVB_LoadBanInfo(banInfo, false);
-	SetClientLoadState(client, banInfo.AccountId, ClientBanLoad_Ready);
+	CVBLookupStatus status = CVB_LoadRestrictionInfo(restrictionInfo, false);
+	SetClientLoadState(client, restrictionInfo.AccountId, ClientBanLoad_Ready);
 
 	if (status == CVBLookup_Found)
 		return true;
 
 	if (status == CVBLookup_Error)
 	{
-		CVBLog.Cache("IsPlayerBanned: Backend lookup failed for AccountID=%d - denying vote", banInfo.AccountId);
+		CVBLog.Cache("HasActiveRestriction: Backend lookup failed for AccountID=%d - denying vote", restrictionInfo.AccountId);
 		return true;
 	}
 
-	CVBLog.Cache("IsPlayerBanned: No active restriction found for AccountID=%d - allowing vote", banInfo.AccountId);
+	CVBLog.Cache("HasActiveRestriction: No active restriction found for AccountID=%d - allowing vote", restrictionInfo.AccountId);
 	return false;
 }
 
@@ -293,9 +293,9 @@ bool IsClientBannedWithInfo(int client)
 	if (!IsValidClientIndex(client))
 		return false;
 	
-	PlayerBanInfo banInfo;
-	banInfo.Reset(GetClientAccountID(client));
-	return (CVB_LoadBanInfo(banInfo, false) == CVBLookup_Found);
+	PlayerRestrictionInfo restrictionInfo;
+	restrictionInfo.Reset(GetClientAccountID(client));
+	return (CVB_LoadRestrictionInfo(restrictionInfo, false) == CVBLookup_Found);
 }
 
 /**
@@ -303,13 +303,13 @@ bool IsClientBannedWithInfo(int client)
  * @param client    Client index
  * @return          Restriction mask (0 = no active restriction)
  */
-int GetClientBanType(int client)
+int GetClientRestrictionMask(int client)
 {
-	PlayerBanInfo banInfo;
-	banInfo.Reset(GetClientAccountID(client));
-	if (CVB_GetMemoryCache(banInfo))
+	PlayerRestrictionInfo restrictionInfo;
+	restrictionInfo.Reset(GetClientAccountID(client));
+	if (CVB_GetMemoryCache(restrictionInfo))
 	{
-		return banInfo.BanType;
+		return restrictionInfo.RestrictionMask;
 	}
 	return 0;
 }
@@ -324,12 +324,12 @@ int GetClientBanExpiration(int client)
 	if (!IsValidClientIndex(client))
 		return 0;
 
-	PlayerBanInfo banInfo;
-	banInfo.Reset(GetClientAccountID(client));
+	PlayerRestrictionInfo restrictionInfo;
+	restrictionInfo.Reset(GetClientAccountID(client));
 
-	if (CVB_GetMemoryCache(banInfo))
+	if (CVB_GetMemoryCache(restrictionInfo))
 	{
-		return banInfo.ExpiresTimestamp;
+		return restrictionInfo.ExpiresTimestamp;
 	}
 	return 0;
 }
@@ -344,12 +344,12 @@ int GetClientBanCreationTime(int client)
 	if (!IsValidClientIndex(client))
 		return 0;
 
-	PlayerBanInfo banInfo;
-	banInfo.Reset(GetClientAccountID(client));
+	PlayerRestrictionInfo restrictionInfo;
+	restrictionInfo.Reset(GetClientAccountID(client));
 	
-	if (CVB_GetMemoryCache(banInfo))
+	if (CVB_GetMemoryCache(restrictionInfo))
 	{
-		return banInfo.CreatedTimestamp;
+		return restrictionInfo.CreatedTimestamp;
 	}
 	return 0;
 }
@@ -357,11 +357,11 @@ int GetClientBanCreationTime(int client)
 /**
  * Set restriction information for a connected client.
  * @param client           Client index
- * @param banType          Ban type
+ * @param restrictionMask  Restriction mask
  * @param durationMinutes  Duration in minutes
  * @param expiresTimestamp Expiration timestamp
  */
-void SetClientBanInfo(int client, int banType, int durationMinutes, int expiresTimestamp, int createdTimestamp = 0, int adminAccountId = 0, const char[] reason = "")
+void SetClientRestrictionInfo(int client, int restrictionMask, int durationMinutes, int expiresTimestamp, int createdTimestamp = 0, int adminAccountId = 0, const char[] reason = "")
 {
 	if (!IsValidClientIndex(client))
 		return;
@@ -370,14 +370,14 @@ void SetClientBanInfo(int client, int banType, int durationMinutes, int expiresT
 	if (accountId == 0)
 		return;
 
-	PlayerBanInfo banInfo;
-	banInfo.Reset(accountId);
-	banInfo.BanType = banType;
-	banInfo.CreatedTimestamp = (createdTimestamp > 0) ? createdTimestamp : GetTime();
-	banInfo.DurationMinutes = durationMinutes;
-	banInfo.ExpiresTimestamp = expiresTimestamp;
-	banInfo.AdminAccountId = adminAccountId;
-	banInfo.SetReason(reason);
+	PlayerRestrictionInfo restrictionInfo;
+	restrictionInfo.Reset(accountId);
+	restrictionInfo.RestrictionMask = restrictionMask;
+	restrictionInfo.CreatedTimestamp = (createdTimestamp > 0) ? createdTimestamp : GetTime();
+	restrictionInfo.DurationMinutes = durationMinutes;
+	restrictionInfo.ExpiresTimestamp = expiresTimestamp;
+	restrictionInfo.AdminAccountId = adminAccountId;
+	restrictionInfo.SetReason(reason);
 
-	CVB_UpdateMemoryCache(banInfo);
+	CVB_UpdateMemoryCache(restrictionInfo);
 }

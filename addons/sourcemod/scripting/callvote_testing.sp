@@ -234,6 +234,38 @@ Action Cmd_Connected(int iClient, int iArgs)
 	return Plugin_Handled;
 }
 
+Action Cmd_TestConVar(int client, int args)
+{
+	if (!g_cvarNativesTest.BoolValue)
+		return Plugin_Handled;
+
+	char arg[32];
+	GetCmdArg(1, arg, sizeof(arg));
+	TypeVotes voteType = ChangeDifficulty;
+	if (args >= 1)
+		voteType = view_as<TypeVotes>(StringToInt(arg));
+
+	CReplyToCommand(client, "%s ConVar check for voteType %d: %s", TAG, view_as<int>(voteType),
+		CallVoteManager_IsVoteAllowedByConVar(voteType) ? "ALLOWED" : "BLOCKED");
+	return Plugin_Handled;
+}
+
+Action Cmd_TestGameMode(int client, int args)
+{
+	if (!g_cvarNativesTest.BoolValue)
+		return Plugin_Handled;
+
+	char arg[32];
+	GetCmdArg(1, arg, sizeof(arg));
+	TypeVotes voteType = ChangeDifficulty;
+	if (args >= 1)
+		voteType = view_as<TypeVotes>(StringToInt(arg));
+
+	CReplyToCommand(client, "%s GameMode check for voteType %d: %s", TAG, view_as<int>(voteType),
+		CallVoteManager_IsVoteAllowedByGameMode(voteType) ? "ALLOWED" : "BLOCKED");
+	return Plugin_Handled;
+}
+
 public void OnConfigsExecuted()
 {
 	if (!g_cvarEnable.BoolValue)
@@ -245,28 +277,36 @@ public void OnConfigsExecuted()
 	ConnectDB("callvote");
 }
 
-public void CallVote_Start(int iClient, TypeVotes votes, int iTarget)
+public void CallVote_Start(int sessionId)
 {
 	if (!g_cvarForwardManager.BoolValue)
 		return;
 
-	// Get the client's SteamID
+	int iClient;
+	int iCallerAccountId;
+	TypeVotes votes;
+	int iTarget;
+	int iTargetAccountId;
+	char sArgument[64];
+	if (!CallVoteManager_GetSessionInfo(sessionId, iClient, iCallerAccountId, votes, iTarget, iTargetAccountId, sArgument, sizeof(sArgument)))
+		return;
+
 	char sSteamID[MAX_STEAM_ID_LENGTH];
-	GetClientAuthId(iClient, AuthId_Engine, sSteamID, MAX_STEAM_ID_LENGTH);
+	CallVoteManager_GetClientSteamID2(iClient, sSteamID, sizeof(sSteamID));
 
 	char
 		sMessage[255];
 
 	if (votes == Kick)
 	{
-		Format(sMessage, sizeof(sMessage), "%s [CallVote_Start] {green}%s{default}: {blue}%N{default} ({blue}%s{default}) ({blue}%N{default}) called the vote.", TAG, sTypeVotes[votes], iClient, sSteamID, iTarget);
+		Format(sMessage, sizeof(sMessage), "%s [CallVote_Start] session=%d {green}%s{default}: {blue}%N{default} ({blue}%s{default}) ({blue}%N{default}) called the vote.", TAG, sessionId, sTypeVotes[votes], iClient, sSteamID, iTarget);
 		CPrintToChatAll(sMessage);
 		CRemoveTags(sMessage, sizeof(sMessage));
 		log(false, sMessage);
 	}
 	else
 	{
-		Format(sMessage, sizeof(sMessage), "%s [CallVote_Start] {green}%s{default}: {blue}%N{default} ({blue}%s{default}) called the vote.", TAG, sTypeVotes[votes], iClient, sSteamID);
+		Format(sMessage, sizeof(sMessage), "%s [CallVote_Start] session=%d {green}%s{default}: {blue}%N{default} ({blue}%s{default}) called the vote.", TAG, sessionId, sTypeVotes[votes], iClient, sSteamID);
 		CPrintToChatAll(sMessage);
 		CRemoveTags(sMessage, sizeof(sMessage));
 		log(false, sMessage);
@@ -718,22 +758,22 @@ public Action Listener_CallVote(int iClient, const char[] sCommand, int iArgc)
 /**
  * Forward para CallVote_PreStart - permite bloquear votos antes de la validación
  */
-public Action CallVote_PreStart(int iClient, TypeVotes voteType, int iTarget)
+public Action CallVote_PreStart(int sessionId, int iClient, int iCallerAccountId, TypeVotes voteType, int iTarget, int iTargetAccountId, const char[] sArgument)
 {
 	if (!g_cvarForwardPreStart.BoolValue)
 		return Plugin_Continue;
 
 	char sSteamID[MAX_STEAM_ID_LENGTH];
-	GetClientAuthId(iClient, AuthId_Engine, sSteamID, MAX_STEAM_ID_LENGTH);
+	CallVoteManager_GetClientSteamID2(iClient, sSteamID, sizeof(sSteamID));
 
 	char sMessage[255];
 	if (voteType == Kick)
 	{
-		Format(sMessage, sizeof(sMessage), "%s [CallVote_PreStart] {green}%s{default}: {blue}%N{default} ({blue}%s{default}) targeting {blue}%N{default}", TAG, sTypeVotes[voteType], iClient, sSteamID, iTarget);
+		Format(sMessage, sizeof(sMessage), "%s [CallVote_PreStart] session=%d {green}%s{default}: {blue}%N{default} ({blue}%s{default}) targeting {blue}%N{default}", TAG, sessionId, sTypeVotes[voteType], iClient, sSteamID, iTarget);
 	}
 	else
 	{
-		Format(sMessage, sizeof(sMessage), "%s [CallVote_PreStart] {green}%s{default}: {blue}%N{default} ({blue}%s{default})", TAG, sTypeVotes[voteType], iClient, sSteamID);
+		Format(sMessage, sizeof(sMessage), "%s [CallVote_PreStart] session=%d {green}%s{default}: {blue}%N{default} ({blue}%s{default}) arg={olive}%s{default}", TAG, sessionId, sTypeVotes[voteType], iClient, sSteamID, sArgument);
 	}
 	
 	CPrintToChatAll(sMessage);
@@ -747,22 +787,22 @@ public Action CallVote_PreStart(int iClient, TypeVotes voteType, int iTarget)
 /**
  * Forward para CallVote_PreExecute - última oportunidad para bloquear antes de la ejecución
  */
-public Action CallVote_PreExecute(int iClient, TypeVotes voteType, int iTarget)
+public Action CallVote_PreExecute(int sessionId, int iClient, int iCallerAccountId, TypeVotes voteType, int iTarget, int iTargetAccountId, const char[] sArgument)
 {
 	if (!g_cvarForwardPreExecute.BoolValue)
 		return Plugin_Continue;
 
 	char sSteamID[MAX_STEAM_ID_LENGTH];
-	GetClientAuthId(iClient, AuthId_Engine, sSteamID, MAX_STEAM_ID_LENGTH);
+	CallVoteManager_GetClientSteamID2(iClient, sSteamID, sizeof(sSteamID));
 
 	char sMessage[255];
 	if (voteType == Kick)
 	{
-		Format(sMessage, sizeof(sMessage), "%s [CallVote_PreExecute] {green}%s{default}: {blue}%N{default} ({blue}%s{default}) targeting {blue}%N{default}", TAG, sTypeVotes[voteType], iClient, sSteamID, iTarget);
+		Format(sMessage, sizeof(sMessage), "%s [CallVote_PreExecute] session=%d {green}%s{default}: {blue}%N{default} ({blue}%s{default}) targeting {blue}%N{default}", TAG, sessionId, sTypeVotes[voteType], iClient, sSteamID, iTarget);
 	}
 	else
 	{
-		Format(sMessage, sizeof(sMessage), "%s [CallVote_PreExecute] {green}%s{default}: {blue}%N{default} ({blue}%s{default})", TAG, sTypeVotes[voteType], iClient, sSteamID);
+		Format(sMessage, sizeof(sMessage), "%s [CallVote_PreExecute] session=%d {green}%s{default}: {blue}%N{default} ({blue}%s{default}) arg={olive}%s{default}", TAG, sessionId, sTypeVotes[voteType], iClient, sSteamID, sArgument);
 	}
 	
 	CPrintToChatAll(sMessage);
@@ -775,13 +815,13 @@ public Action CallVote_PreExecute(int iClient, TypeVotes voteType, int iTarget)
 /**
  * Forward para CallVote_Blocked - información sobre votos bloqueados
  */
-public void CallVote_Blocked(int iClient, TypeVotes voteType, VoteRestrictionType restriction, int iTarget)
+public void CallVote_Blocked(int sessionId, int iClient, int iCallerAccountId, TypeVotes voteType, VoteRestrictionType restriction, int iTarget, int iTargetAccountId, const char[] sArgument)
 {
 	if (!g_cvarForwardBlocked.BoolValue)
 		return;
 
 	char sSteamID[MAX_STEAM_ID_LENGTH];
-	GetClientAuthId(iClient, AuthId_Engine, sSteamID, MAX_STEAM_ID_LENGTH);
+	CallVoteManager_GetClientSteamID2(iClient, sSteamID, sizeof(sSteamID));
 
 	char sRestriction[64];
 	GetRestrictionName(restriction, sRestriction, sizeof(sRestriction));
@@ -789,11 +829,11 @@ public void CallVote_Blocked(int iClient, TypeVotes voteType, VoteRestrictionTyp
 	char sMessage[255];
 	if (voteType == Kick)
 	{
-		Format(sMessage, sizeof(sMessage), "%s [CallVote_Blocked] {green}%s{default}: {blue}%N{default} ({blue}%s{default}) targeting {blue}%N{default} - Restriction: {red}%s{default}", TAG, sTypeVotes[voteType], iClient, sSteamID, iTarget, sRestriction);
+		Format(sMessage, sizeof(sMessage), "%s [CallVote_Blocked] session=%d {green}%s{default}: {blue}%N{default} ({blue}%s{default}) targeting {blue}%N{default} - Restriction: {red}%s{default}", TAG, sessionId, sTypeVotes[voteType], iClient, sSteamID, iTarget, sRestriction);
 	}
 	else
 	{
-		Format(sMessage, sizeof(sMessage), "%s [CallVote_Blocked] {green}%s{default}: {blue}%N{default} ({blue}%s{default}) - Restriction: {red}%s{default}", TAG, sTypeVotes[voteType], iClient, sSteamID, sRestriction);
+		Format(sMessage, sizeof(sMessage), "%s [CallVote_Blocked] session=%d {green}%s{default}: {blue}%N{default} ({blue}%s{default}) - Restriction: {red}%s{default}", TAG, sessionId, sTypeVotes[voteType], iClient, sSteamID, sRestriction);
 	}
 	
 	CPrintToChatAll(sMessage);
@@ -1074,7 +1114,7 @@ public void TestCheckBan_Results(Handle owner, Handle hndl, const char[] error, 
         return;
     }
     
-    bool hasBan = SQL_FetchBool(hndl, 0);
+    bool hasBan = (SQL_FetchInt(hndl, 0) != 0);
     
     CReplyToCommand(client, "%s {green}sp_CheckActiveBan Results{default} for Account ID %d:", TAG, accountId);
     CReplyToCommand(client, "%s Has Ban: {blue}%s{default}", TAG, hasBan ? "YES" : "NO");
@@ -1082,7 +1122,6 @@ public void TestCheckBan_Results(Handle owner, Handle hndl, const char[] error, 
     if (hasBan) {
         int banType = SQL_FetchInt(hndl, 1);
         int expiresTimestamp = SQL_FetchInt(hndl, 2);
-        int createdTimestamp = SQL_FetchInt(hndl, 3);
         int durationMinutes = SQL_FetchInt(hndl, 4);
         int adminAccountId = SQL_FetchInt(hndl, 5);
         
@@ -1145,6 +1184,12 @@ Action Cmd_TestInsertBan(int client, int args)
     return Plugin_Handled;
 }
 
+Action Cmd_TestRemoveBan(int client, int args)
+{
+	CReplyToCommand(client, "%s Remove-ban procedure test is not available in the current testing plugin revision.", TAG);
+	return Plugin_Handled;
+}
+
 /**
  * Prueba el procedimiento almacenado sp_InsertBanWithValidation
  */
@@ -1182,8 +1227,8 @@ public void TestInsertBan_Callback(Handle owner, Handle hndl, const char[] error
     int targetAccountId = dp.ReadCell();
     char targetSteamId2[32];
     dp.ReadString(targetSteamId2, sizeof(targetSteamId2));
-    int banType = dp.ReadCell();
-    int durationMinutes = dp.ReadCell();
+    dp.ReadCell();
+    dp.ReadCell();
     char reason[256];
     dp.ReadString(reason, sizeof(reason));
     delete dp;
@@ -1210,7 +1255,7 @@ public void TestInsertBan_Results(Handle owner, Handle hndl, const char[] error,
 {
     dp.Reset();
     int userId = dp.ReadCell();
-    int targetAccountId = dp.ReadCell();
+    dp.ReadCell();
     delete dp;
     
     int client = GetClientOfUserId(userId);
@@ -1349,7 +1394,7 @@ public void TestCleanExpired_Callback(Handle owner, Handle hndl, const char[] er
 {
     dp.Reset();
     int userId = dp.ReadCell();
-    int batchSize = dp.ReadCell();
+    dp.ReadCell();
     delete dp;
     
     int client = GetClientOfUserId(userId);
@@ -1522,16 +1567,14 @@ Action Cmd_TestBanInfo(int client, int args)
     // Crear datos de ban de prueba
     int banType = 3;
     int expiresTimestamp = GetTime() + 3600; // Expira en 1 hora
-    int createdTimestamp = GetTime() - 300;  // Creado hace 5 minutos
-    int adminAccountId = 123456;
     char reason[] = "Test ban reason from callvote_testing";
     char adminSteamId2[] = "STEAM_1:0:123456";
     
-    TestDisplayBanInfo(client, banType, expiresTimestamp, createdTimestamp, adminAccountId, reason, adminSteamId2);
+    TestDisplayBanInfo(client, banType, expiresTimestamp, reason, adminSteamId2);
     
     // Probar también con ban permanente
     CReplyToCommand(client, "%s Testing permanent ban display:", TAG);
-    TestDisplayBanInfo(client, banType, 0, createdTimestamp, adminAccountId, reason, adminSteamId2);
+    TestDisplayBanInfo(client, banType, 0, reason, adminSteamId2);
     
     return Plugin_Handled;
 }
@@ -1539,7 +1582,7 @@ Action Cmd_TestBanInfo(int client, int args)
 /**
  * Prueba la visualización de información de ban
  */
-void TestDisplayBanInfo(int client, int banType, int expiresTimestamp, int createdTimestamp, int adminAccountId, const char[] reason, const char[] steamId2)
+void TestDisplayBanInfo(int client, int banType, int expiresTimestamp, const char[] reason, const char[] steamId2)
 {
     CReplyToCommand(client, "%s {red}=== BAN INFORMATION ==={default}", TAG);
     

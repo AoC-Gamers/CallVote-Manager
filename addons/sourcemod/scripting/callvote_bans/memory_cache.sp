@@ -19,13 +19,13 @@ void InitMemoryCache()
 }
 
 /**
- * Retrieves ban information for a player from the in-memory cache.
+ * Retrieves restriction information for a player from the in-memory cache.
  *
  * @param banInfo      Reference to a PlayerBanInfo structure to populate with cached data.
  * @return             True if the cache was successfully retrieved and banInfo populated, false otherwise.
  *
  * The function checks if the in-memory cache is enabled and available. If the cache exists,
- * it attempts to retrieve the ban information for the specified account ID. If retrieval fails,
+ * it attempts to retrieve the restriction information for the specified account ID. If retrieval fails,
  * banInfo is reset to default values.
  */
 bool CVB_GetMemoryCache(PlayerBanInfo banInfo)
@@ -82,7 +82,7 @@ bool CVB_GetMemoryCache(PlayerBanInfo banInfo)
  * Updates the in-memory cache with the provided PlayerBanInfo data.
  *
  * This function checks for valid input and updates the global in-memory cache
- * with the ban information for a player, identified by their AccountID.
+ * with the restriction information for a player, identified by their AccountID.
  * Logs are generated for invalid structures and for the result of the cache update.
  *
  * @param banInfo      The PlayerBanInfo structure containing ban details for a player.
@@ -127,20 +127,24 @@ void CVB_UpdateMemoryCache(PlayerBanInfo banInfo)
 	CVBLog.Cache("UpdateMemoryCache: AccountID=%d, banType=%d, expires=%d, setResult=%d", banInfo.AccountId, banInfo.BanType, banInfo.ExpiresTimestamp, setResult);
 }
 
-static bool CVB_LoadBanInfo(PlayerBanInfo banInfo, bool forceDatabase = false)
+CVBLookupStatus CVB_LoadBanInfo(PlayerBanInfo banInfo, bool forceDatabase)
 {
 	if (!forceDatabase && CVB_GetMemoryCache(banInfo))
-		return banInfo.IsBanned();
+		return banInfo.IsBanned() ? CVBLookup_Found : CVBLookup_NotFound;
 
-	if (CVB_CheckActiveBan(banInfo))
+	CVBLookupStatus status = CVB_CheckActiveBan(banInfo);
+	if (status == CVBLookup_Found)
 	{
 		CVB_UpdateMemoryCache(banInfo);
-		return true;
+		return CVBLookup_Found;
 	}
+
+	if (status == CVBLookup_Error)
+		return CVBLookup_Error;
 
 	banInfo.Clear();
 	CVB_UpdateMemoryCache(banInfo);
-	return false;
+	return CVBLookup_NotFound;
 }
 
 static void CVB_PrimeClientBanState(int client, int accountId, bool forceDatabase = false)
@@ -150,42 +154,49 @@ static void CVB_PrimeClientBanState(int client, int accountId, bool forceDatabas
 
 	PlayerBanInfo banInfo;
 	banInfo.Reset(accountId);
-	bool hasBan = CVB_LoadBanInfo(banInfo, forceDatabase);
+	CVBLookupStatus status = CVB_LoadBanInfo(banInfo, forceDatabase);
 	SetClientLoadState(client, accountId, ClientBanLoad_Ready);
 
 	CVBLog.Cache(
-		"Primed client state for %N (AccountID: %d, forceDatabase=%d, hasBan=%d)",
+		"Primed client state for %N (AccountID: %d, forceDatabase=%d, status=%d)",
 		client,
 		accountId,
 		forceDatabase ? 1 : 0,
-		hasBan ? 1 : 0
+		view_as<int>(status)
 	);
 
 }
 
 /**
- * Checks if a player is banned based on their ban information.
+ * Checks if a player has active vote restrictions based on their restriction information.
  *
- * This function verifies the ban status of a player by checking multiple sources:
- *  - First, it checks the in-memory cache for ban info.
- *  - If not found, it checks the SQLite database for an active ban.
- *  - If still not found, it checks the MySQL database for an active ban.
- * If a ban is confirmed from any source, the player's state is updated and relevant caches are refreshed.
- * If no ban is found, the function logs the result and allows the vote.
+ * This function verifies the restriction status of a player by checking multiple sources:
+ *  - First, it checks the in-memory cache for restriction info.
+ *  - If not found, it checks the SQLite database for an active restriction.
+ *  - If still not found, it checks the MySQL database for an active restriction.
+ * If a restriction is confirmed from any source, the player's state is updated and relevant caches are refreshed.
+ * If backend validation fails, this function fails closed and denies the vote.
+ * If no restriction is found, the function logs the result and allows the vote.
  *
  * @param client    The client index of the player to check.
  * @param banInfo   The PlayerBanInfo structure containing ban details for the player.
- * @return          True if the player is banned, false otherwise.
+ * @return          True if the player has active restrictions or backend validation failed, false otherwise.
  */
 bool IsPlayerBanned(int client, PlayerBanInfo banInfo)
 {
-	bool isBanned = CVB_LoadBanInfo(banInfo);
+	CVBLookupStatus status = CVB_LoadBanInfo(banInfo, false);
 	SetClientLoadState(client, banInfo.AccountId, ClientBanLoad_Ready);
 
-	if (isBanned)
+	if (status == CVBLookup_Found)
 		return true;
 
-	CVBLog.Cache("IsPlayerBanned: No confirmed ban info for AccountID=%d - allowing vote (innocent until proven guilty)", banInfo.AccountId);
+	if (status == CVBLookup_Error)
+	{
+		CVBLog.Cache("IsPlayerBanned: Backend lookup failed for AccountID=%d - denying vote", banInfo.AccountId);
+		return true;
+	}
+
+	CVBLog.Cache("IsPlayerBanned: No active restriction found for AccountID=%d - allowing vote", banInfo.AccountId);
 	return false;
 }
 
@@ -273,9 +284,9 @@ void CloseMemoryCache()
 }
 
 /**
- * Enhanced version that checks if client is banned with info from any source
+ * Enhanced version that checks if client has active restriction info from any source.
  * @param client    Client index
- * @return          True if client has ban info available and is banned
+ * @return          True if client has active restriction info available
  */
 bool IsClientBannedWithInfo(int client)
 {
@@ -284,14 +295,13 @@ bool IsClientBannedWithInfo(int client)
 	
 	PlayerBanInfo banInfo;
 	banInfo.Reset(GetClientAccountID(client));
-	bool isBanned = CVB_LoadBanInfo(banInfo);
-	return isBanned;
+	return (CVB_LoadBanInfo(banInfo, false) == CVBLookup_Found);
 }
 
 /**
- * Get ban type for a connected client
+ * Get restriction mask for a connected client.
  * @param client    Client index
- * @return          Ban type (0 = no ban, >0 = banned)
+ * @return          Restriction mask (0 = no active restriction)
  */
 int GetClientBanType(int client)
 {
@@ -345,13 +355,13 @@ int GetClientBanCreationTime(int client)
 }
 
 /**
- * Set ban information for a connected client (for menu operations)
+ * Set restriction information for a connected client.
  * @param client           Client index
  * @param banType          Ban type
  * @param durationMinutes  Duration in minutes
  * @param expiresTimestamp Expiration timestamp
  */
-void SetClientBanInfo(int client, int banType, int durationMinutes, int expiresTimestamp)
+void SetClientBanInfo(int client, int banType, int durationMinutes, int expiresTimestamp, int createdTimestamp = 0, int adminAccountId = 0, const char[] reason = "")
 {
 	if (!IsValidClientIndex(client))
 		return;
@@ -363,9 +373,11 @@ void SetClientBanInfo(int client, int banType, int durationMinutes, int expiresT
 	PlayerBanInfo banInfo;
 	banInfo.Reset(accountId);
 	banInfo.BanType = banType;
-	banInfo.CreatedTimestamp = GetTime();
+	banInfo.CreatedTimestamp = (createdTimestamp > 0) ? createdTimestamp : GetTime();
 	banInfo.DurationMinutes = durationMinutes;
 	banInfo.ExpiresTimestamp = expiresTimestamp;
+	banInfo.AdminAccountId = adminAccountId;
+	banInfo.SetReason(reason);
 
 	CVB_UpdateMemoryCache(banInfo);
 }

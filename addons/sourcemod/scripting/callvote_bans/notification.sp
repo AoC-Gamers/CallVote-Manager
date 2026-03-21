@@ -49,7 +49,7 @@ static void CVB_PrintBanApplicationDetails(int target, const char[] adminIdentif
 	PrintToConsole(target, "=====================================");
 }
 
-void NotifyPlayerBanApplied(int target, int admin, const char[] adminIdentifier, const char[] banTypes, const char[] durationText, int durationMinutes)
+void NotifyPlayerRestrictionApplied(int target, int admin, const char[] adminIdentifier, const char[] banTypes, const char[] durationText, int durationMinutes)
 {
 	if (!IsValidClient(target))
 		return;
@@ -96,6 +96,17 @@ void ShowVoteBlockedMessage(int client, TypeVotes voteType)
 
 	if (hasLoadedBanState)
 		ShowVoteBlockedDetailsInConsole(client);
+}
+
+void ShowVoteBlockedValidationMessage(int client)
+{
+	if (!IsValidClient(client))
+		return;
+
+	CPrintToChat(client, "%t %t", "Tag", "VoteBlockedValidation");
+	PrintToConsole(client, "========================================");
+	PrintToConsole(client, "%T", "ConsoleVoteBlockedValidation", client);
+	PrintToConsole(client, "========================================");
 }
 
 void ShowVoteBlockedDetailsInConsole(int client)

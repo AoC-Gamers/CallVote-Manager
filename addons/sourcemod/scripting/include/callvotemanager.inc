@@ -56,71 +56,6 @@ enum VoteRestrictionType
 }
 
 /**
- * Called when a vote call is about to begin (before validation).
- * 
- * This forward is triggered before any vote validation is performed,
- * allowing other plugins to block votes before they are processed.
- *
- * @param client    Client index who initiated the vote (1-MaxClients)
- * @param voteType  Type of vote being called (see TypeVotes enum)
- * @param target    Target client index for kick votes, 0 for other vote types
- * @return          Plugin_Continue to allow the vote, Plugin_Handled to block it
- *
- * @note This forward is called before vote validation and restrictions are applied
- * @note The target parameter is only valid for Kick votes (voteType == Kick)
- * @note To block a vote, return Plugin_Handled from this forward
- */
-forward Action CallVote_PreStart(int client, TypeVotes voteType, int target);
-
-/**
- * Called when a vote call begins.
- * 
- * This forward is triggered after validation passes and the vote has started,
- * allowing other plugins to react to successful vote initiations.
- *
- * @param client    Client index who initiated the vote (1-MaxClients)
- * @param voteType  Type of vote being called (see TypeVotes enum)
- * @param target    Target client index for kick votes, 0 for other vote types
- *
- * @note This forward is informational only and cannot block the vote
- * @note The target parameter is only valid for Kick votes (voteType == Kick)
- * @note The vote has already been validated and started when this is called
- */
-forward void CallVote_Start(int client, TypeVotes voteType, int target);
-
-/**
- * Called after a vote is validated but before it's executed by the game.
- * 
- * This forward is triggered after all validation checks pass but before
- * the vote is actually sent to players, allowing final modifications.
- *
- * @param client    Client index who initiated the vote (1-MaxClients)
- * @param voteType  Type of vote being called (see TypeVotes enum)
- * @param target    Target client index for kick votes, 0 for other vote types
- * @return          Plugin_Continue to allow execution, Plugin_Handled to block
- *
- * @note This forward is called after validation but before vote execution
- * @note Use this for last-minute vote modifications or logging
- */
-forward Action CallVote_PreExecute(int client, TypeVotes voteType, int target);
-
-/**
- * Called when a vote is blocked due to restrictions.
- * 
- * This forward is triggered whenever a vote attempt is blocked by the
- * validation system, providing detailed information about the restriction.
- *
- * @param client        Client index who attempted the vote (1-MaxClients)
- * @param voteType      Type of vote that was blocked (see TypeVotes enum)
- * @param restriction   Type of restriction that blocked the vote
- * @param target        Target client index for kick votes, 0 for other vote types
- *
- * @note This forward is informational only and cannot change the blocking
- * @note Use this for custom logging, statistics, or user feedback
- */
-forward void CallVote_Blocked(int client, TypeVotes voteType, VoteRestrictionType restriction, int target);
-
-/**
  * Called when a vote call is about to begin (extended contract).
  *
  * This forward provides the current session id plus canonical AccountID-based
@@ -135,14 +70,14 @@ forward void CallVote_Blocked(int client, TypeVotes voteType, VoteRestrictionTyp
  * @param argument          Raw vote argument captured from callvote
  * @return                  Plugin_Continue to allow the vote, Plugin_Handled to block it
  */
-forward Action CallVote_PreStartEx(int sessionId, int client, int callerAccountId, TypeVotes voteType, int target, int targetAccountId, const char[] argument);
+forward Action CallVote_PreStart(int sessionId, int client, int callerAccountId, TypeVotes voteType, int target, int targetAccountId, const char[] argument);
 
 /**
  * Called when the engine confirms the vote has started.
  *
  * @param sessionId         Unique session id assigned by the core
  */
-forward void CallVote_StartEx(int sessionId);
+forward void CallVote_Start(int sessionId);
 
 /**
  * Called after validation passes but before the command is handed back to the engine.
@@ -156,7 +91,7 @@ forward void CallVote_StartEx(int sessionId);
  * @param argument          Raw vote argument captured from callvote
  * @return                  Plugin_Continue to allow execution, Plugin_Handled to block it
  */
-forward Action CallVote_PreExecuteEx(int sessionId, int client, int callerAccountId, TypeVotes voteType, int target, int targetAccountId, const char[] argument);
+forward Action CallVote_PreExecute(int sessionId, int client, int callerAccountId, TypeVotes voteType, int target, int targetAccountId, const char[] argument);
 
 /**
  * Called when a vote session is blocked.
@@ -173,7 +108,7 @@ forward Action CallVote_PreExecuteEx(int sessionId, int client, int callerAccoun
  * @param targetAccountId   Steam AccountID of the target, 0 if not applicable
  * @param argument          Raw vote argument captured from callvote
  */
-forward void CallVote_BlockedEx(int sessionId, int client, int callerAccountId, TypeVotes voteType, VoteRestrictionType restriction, int target, int targetAccountId, const char[] argument);
+forward void CallVote_Blocked(int sessionId, int client, int callerAccountId, TypeVotes voteType, VoteRestrictionType restriction, int target, int targetAccountId, const char[] argument);
 
 /**
  * Called when the current vote session ends.
@@ -184,7 +119,7 @@ forward void CallVote_BlockedEx(int sessionId, int client, int callerAccountId, 
  * @param noCount           Final no votes seen by the core
  * @param potentialVotes    Final potential votes seen by the core
  */
-forward void CallVote_EndEx(int sessionId, CallVoteEndReason result, int yesCount, int noCount, int potentialVotes);
+forward void CallVote_End(int sessionId, CallVoteEndReason result, int yesCount, int noCount, int potentialVotes);
 
 /**
  * Verifies if a vote type is allowed by ConVar settings.
@@ -289,6 +224,18 @@ native bool CallVoteManager_GetSessionSteamID64Info(int sessionId, char[] caller
 native bool CallVoteManager_GetSessionIssueInfo(int sessionId, char[] issue, int issueMaxLen, char[] param1, int param1MaxLen, char[] param2, int param2MaxLen, int &team, int &initiatorClient);
 
 /**
+ * Returns raw CallVoteFailed information captured for a session.
+ *
+ * These values are meaningful when the session ended with CallVoteEnd_Cancelled.
+ *
+ * @param sessionId         Session id to query
+ * @param reason            Receives the CallVoteFailed reason code
+ * @param time              Receives the CallVoteFailed time value
+ * @return                  True if the session exists
+ */
+native bool CallVoteManager_GetSessionFailureInfo(int sessionId, int &reason, int &time);
+
+/**
  * Returns the last tally known by the core for a session.
  *
  * @param sessionId         Session id to query
@@ -314,15 +261,6 @@ public SharedPlugin __pl_callvotemanager = {
 
 public void __pl_callvotemanager_SetNTVOptional()
 {
-	MarkNativeAsOptional("CallVote_PreStart");
-	MarkNativeAsOptional("CallVote_Start");
-	MarkNativeAsOptional("CallVote_PreExecute");
-	MarkNativeAsOptional("CallVote_Blocked");
-	MarkNativeAsOptional("CallVote_PreStartEx");
-	MarkNativeAsOptional("CallVote_StartEx");
-	MarkNativeAsOptional("CallVote_PreExecuteEx");
-	MarkNativeAsOptional("CallVote_BlockedEx");
-	MarkNativeAsOptional("CallVote_EndEx");
 	MarkNativeAsOptional("CallVoteManager_IsVoteAllowedByConVar");
 	MarkNativeAsOptional("CallVoteManager_IsVoteAllowedByGameMode");
 	MarkNativeAsOptional("CallVoteManager_GetClientAccountID");
@@ -331,6 +269,7 @@ public void __pl_callvotemanager_SetNTVOptional()
 	MarkNativeAsOptional("CallVoteManager_GetSessionInfo");
 	MarkNativeAsOptional("CallVoteManager_GetSessionSteamID64Info");
 	MarkNativeAsOptional("CallVoteManager_GetSessionIssueInfo");
+	MarkNativeAsOptional("CallVoteManager_GetSessionFailureInfo");
 	MarkNativeAsOptional("CallVoteManager_GetSessionTally");
 }
 #endif

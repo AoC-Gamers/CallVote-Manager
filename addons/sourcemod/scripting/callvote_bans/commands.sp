@@ -5,9 +5,9 @@
 
 void RegisterCommands()
 {
-	RegAdminCmd("sm_cvb_ban", Command_Ban, ADMFLAG_BAN, "Ban players from voting: sm_cvb_ban <target|steamid|accountid> <bantype> [duration] [reason]");
-	RegAdminCmd("sm_cvb_unban", Command_Unban, ADMFLAG_UNBAN, "Unban players from voting: sm_cvb_unban <target|steamid|accountid>");
-	RegAdminCmd("sm_cvb_check", Command_Check, ADMFLAG_GENERIC, "Check player ban status: sm_cvb_check <target|steamid|accountid>");
+	RegAdminCmd("sm_cvb_ban", Command_Ban, ADMFLAG_BAN, "Apply vote restrictions: sm_cvb_ban <target|steamid|accountid> <bantype> [duration] [reason]");
+	RegAdminCmd("sm_cvb_unban", Command_Unban, ADMFLAG_UNBAN, "Remove vote restrictions: sm_cvb_unban <target|steamid|accountid>");
+	RegAdminCmd("sm_cvb_check", Command_Check, ADMFLAG_GENERIC, "Check player restriction status: sm_cvb_check <target|steamid|accountid>");
 }
 
 bool CVB_IsIntegerArgument(const char[] value)

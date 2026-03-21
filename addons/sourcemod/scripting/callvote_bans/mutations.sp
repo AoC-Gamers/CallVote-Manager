@@ -255,10 +255,11 @@ static void CVB_FinalizeQueuedBanSuccess(
 
 	int liveTarget;
 	bool targetOnline = CVB_TryResolveLiveTarget(requestedTargetClient, targetAccountId, liveTarget);
+	int createdTimestamp = GetTime();
 	int expiresTimestamp = CVB_GetExpirationTimestamp(durationMinutes);
 	if (targetOnline)
 	{
-		SetClientBanInfo(liveTarget, banType, durationMinutes, expiresTimestamp);
+		SetClientBanInfo(liveTarget, banType, durationMinutes, expiresTimestamp, createdTimestamp, adminAccountId, reason);
 	}
 	else
 	{
@@ -276,7 +277,7 @@ static void CVB_FinalizeQueuedBanSuccess(
 	CVB_FormatDurationText(admin, durationMinutes, durationText, sizeof(durationText));
 
 	if (canReply)
-		CVB_ReplyToCommandWithSource(admin, replySource, "%t %t", "Tag", "BanApplied", liveTargetDisplay, banTypes, durationText);
+		CVB_ReplyToCommandWithSource(admin, replySource, "%t %t", "Tag", "RestrictionApplied", liveTargetDisplay, banTypes, durationText);
 
 	CVBLog.Event(
 		"Ban",
@@ -291,9 +292,9 @@ static void CVB_FinalizeQueuedBanSuccess(
 	if (targetOnline)
 	{
 		if (admin > 0 && IsValidClient(admin))
-			NotifyPlayerBanApplied(liveTarget, admin, "", banTypes, durationText, durationMinutes);
+			NotifyPlayerRestrictionApplied(liveTarget, admin, "", banTypes, durationText, durationMinutes);
 		else
-			NotifyPlayerBanApplied(liveTarget, SERVER_INDEX, adminSteamId2, banTypes, durationText, durationMinutes);
+			NotifyPlayerRestrictionApplied(liveTarget, SERVER_INDEX, adminSteamId2, banTypes, durationText, durationMinutes);
 
 		FireOnPlayerBanned(liveTarget, banType, durationMinutes, admin, reason);
 	}
@@ -355,9 +356,9 @@ static void CVB_FinalizeQueuedRemoveSuccess(
 	if (!hadBan)
 	{
 		if (canReply)
-			CVB_ReplyToCommandWithSource(admin, replySource, "%t %t", "Tag", "NoBanFound");
+			CVB_ReplyToCommandWithSource(admin, replySource, "%t %t", "Tag", "NoRestrictionFound");
 
-		CVBLog.SQL("No active ban found for AccountID %d", targetAccountId);
+		CVBLog.SQL("No active restriction found for AccountID %d", targetAccountId);
 		return;
 	}
 
@@ -365,8 +366,8 @@ static void CVB_FinalizeQueuedRemoveSuccess(
 	bool targetOnline = CVB_TryResolveLiveTarget(requestedTargetClient, targetAccountId, liveTarget);
 	if (targetOnline)
 	{
-		SetClientBanInfo(liveTarget, 0, 0, 0);
-		CPrintToChat(liveTarget, "%t %t", "Tag", "YourBanRemoved");
+		SetClientBanInfo(liveTarget, 0, 0, 0, 0, 0, "");
+		CPrintToChat(liveTarget, "%t %t", "Tag", "YourRestrictionRemoved");
 	}
 	else
 	{
@@ -379,7 +380,7 @@ static void CVB_FinalizeQueuedRemoveSuccess(
 		GetClientName(liveTarget, liveTargetDisplay, sizeof(liveTargetDisplay));
 
 	if (canReply)
-		CVB_ReplyToCommandWithSource(admin, replySource, "%t %t", "Tag", "BanRemovedSuccess", liveTargetDisplay);
+		CVB_ReplyToCommandWithSource(admin, replySource, "%t %t", "Tag", "RestrictionRemovedSuccess", liveTargetDisplay);
 
 	CVBLog.Event(
 		"Unban",
@@ -388,7 +389,7 @@ static void CVB_FinalizeQueuedRemoveSuccess(
 		liveTargetDisplay
 	);
 
-	CVBLog.SQL("Ban removed successfully for AccountID %d", targetAccountId);
+	CVBLog.SQL("Restriction removed successfully for AccountID %d", targetAccountId);
 }
 
 static void CVB_FinalizeQueuedRemoveFailure(
@@ -409,7 +410,7 @@ static void CVB_FinalizeQueuedRemoveFailure(
 		adminUserId,
 		error
 	);
-	CVBLog.MySQL("Remove ban failed for AccountID %d: %s", targetAccountId, error);
+	CVBLog.MySQL("Remove restriction failed for AccountID %d: %s", targetAccountId, error);
 }
 
 bool CVB_QueueAddBan(int admin, int targetAccountId, int requestedTargetClient, int banType, int durationMinutes, const char[] targetDisplay, const char[] reasonText, ReplySource replySource)

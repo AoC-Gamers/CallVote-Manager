@@ -17,7 +17,6 @@
 #define PLUGIN_VERSION "1.5.0"
 #define CVKL_LOG_TAG "CVKL"
 #define CVKL_LOG_FILE "callvote_kicklimit.log"
-#define CVKL_DB_CONFIG "callvote"
 #define CVKL_SQL_QUERY_LENGTH 600
 
 enum KickCountLoadState
@@ -41,12 +40,12 @@ enum struct PlayerInfo
 PlayerInfo g_Players[MAXPLAYERS + 1];
 
 ConVar
-	g_cvarDebug,
 	g_cvarEnable,
 	g_cvarLogMode,
 	g_cvarDebugMask,
 	g_cvarKickLimit,
-	g_cvarSQL;
+	g_cvarSQL,
+	g_cvarSQLConfig;
 
 char
 	g_sTable[] = "callvote_kicklimit";
@@ -73,6 +72,10 @@ enum SQLDriver
 
 enum struct KickInsertQueryContext
 {
+	int SessionId;
+	int CallerAccountId;
+	int TargetAccountId;
+	int ExpectedKickCount;
 	char Query[CVKL_SQL_QUERY_LENGTH];
 }
 
@@ -85,13 +88,20 @@ enum struct KickCountRequestContext
 SQLDriver
 	g_SQLDriver;
 
-DataPack CreateKickInsertQueryDataPack(const char[] query)
+DataPack CreateKickInsertQueryDataPack(int sessionId, int callerAccountId, int targetAccountId, int expectedKickCount, const char[] query)
 {
 	KickInsertQueryContext context;
+	context.SessionId = sessionId;
+	context.CallerAccountId = callerAccountId;
+	context.TargetAccountId = targetAccountId;
+	context.ExpectedKickCount = expectedKickCount;
 	strcopy(context.Query, sizeof(context.Query), query);
 
 	DataPack pack = new DataPack();
-	pack.WriteCell(sizeof(KickInsertQueryContext));
+	pack.WriteCell(context.SessionId);
+	pack.WriteCell(context.CallerAccountId);
+	pack.WriteCell(context.TargetAccountId);
+	pack.WriteCell(context.ExpectedKickCount);
 	pack.WriteString(context.Query);
 	return pack;
 }
@@ -99,7 +109,10 @@ DataPack CreateKickInsertQueryDataPack(const char[] query)
 void ReadKickInsertQueryDataPack(DataPack pack, KickInsertQueryContext context)
 {
 	pack.Reset();
-	pack.ReadCell();
+	context.SessionId = pack.ReadCell();
+	context.CallerAccountId = pack.ReadCell();
+	context.TargetAccountId = pack.ReadCell();
+	context.ExpectedKickCount = pack.ReadCell();
 	pack.ReadString(context.Query, sizeof(context.Query));
 }
 
@@ -129,6 +142,7 @@ void ReadKickCountRequestDataPack(DataPack pack, KickCountRequestContext context
 public void OnPluginStart_SQL()
 {
 	g_cvarSQL = CreateConVar("sm_cvkl_sql", "0", "Enables kick counter registration to the database, if disabled it uses local memory.", FCVAR_NOTIFY, true, 0.0, true, 1.0);
+	g_cvarSQLConfig = CreateConVar("sm_cvkl_sql_config", "callvote", "Database config name from databases.cfg for callvote_kicklimit", FCVAR_NONE);
 }
 
 void OnConfigsExecuted_SQL()
@@ -139,7 +153,9 @@ void OnConfigsExecuted_SQL()
 	if (g_db != null)
 		return;
 
-	ConnectDB(CVKL_DB_CONFIG, g_sTable);
+	char sConfigName[64];
+	g_cvarSQLConfig.GetString(sConfigName, sizeof(sConfigName));
+	ConnectDB(sConfigName, g_sTable);
 }
 
 void EnsureSQLiteSchema()
@@ -182,7 +198,7 @@ bool CanUseKickLimitSQL()
 	);
 }
 
-void InsertKickRecordSQL(int iSessionId, int iClientAccountId, int iTargetAccountId)
+void InsertKickRecordSQL(int iSessionId, int iClientAccountId, int iTargetAccountId, int iExpectedKickCount)
 {
 	if (!CanUseKickLimitSQL())
 		return;
@@ -227,24 +243,37 @@ void InsertKickRecordSQL(int iSessionId, int iClientAccountId, int iTargetAccoun
 	}
 
 	log(true, "[sqlinsert] Driver: %s | Query: %s", g_SQLDriver == SQL_MySQL ? "MySQL" : "SQLite", sQuery);
-	g_db.Query(SQLInsertCallback, sQuery, CreateKickInsertQueryDataPack(sQuery));
+	g_db.Query(SQLInsertCallback, sQuery, CreateKickInsertQueryDataPack(iSessionId, iClientAccountId, iTargetAccountId, iExpectedKickCount, sQuery));
 }
 
 public void SQLInsertCallback(Database db, DBResultSet results, const char[] error, any data)
 {
 	DataPack pack = view_as<DataPack>(data);
+	KickInsertQueryContext context;
+	ReadKickInsertQueryDataPack(pack, context);
 
 	if (results == null)
 	{
-		KickInsertQueryContext context;
-		ReadKickInsertQueryDataPack(pack, context);
-
 		log(false, "[CallBack_SQLInsert] SQL failed: %s", error);
 		log(false, "[CallBack_SQLInsert] Query dump: %s", context.Query);
 		delete pack;
 		return;
 	}
 
+	UpdateConnectedClientKickCount(context.CallerAccountId, context.ExpectedKickCount);
+	log(false, "[CallBack_SQLInsert] Session:%d | CallerAID:%d | TargetAID:%d | Kicks:%d",
+		context.SessionId,
+		context.CallerAccountId,
+		context.TargetAccountId,
+		context.ExpectedKickCount);
+
+	char sCallerSteamID2[MAX_AUTHID_LENGTH];
+	char sTargetSteamID2[MAX_AUTHID_LENGTH];
+	FormatAccountIDAsSteamID2(context.CallerAccountId, sCallerSteamID2, sizeof(sCallerSteamID2));
+	FormatAccountIDAsSteamID2(context.TargetAccountId, sTargetSteamID2, sizeof(sTargetSteamID2));
+
+	if (g_Log != null)
+		g_Log.Normal("Kick", "Kick vote passed from %s to %s (%d/%d)", sCallerSteamID2, sTargetSteamID2, context.ExpectedKickCount, g_cvarKickLimit.IntValue);
 	delete pack;
 }
 
@@ -359,7 +388,6 @@ public void OnPluginStart()
 	LoadTranslation("callvote_kicklimit.phrases");
 	LoadTranslation("callvote_common.phrases");
 	LoadTranslation("common.phrases");
-	g_cvarDebug		= CreateConVar("sm_cvkl_debug", "0", "Enable debug", FCVAR_NONE, true, 0.0, true, 1.0);
 	g_cvarEnable	= CreateConVar("sm_cvkl_enable", "1", "Enable plugin", FCVAR_NOTIFY, true, 0.0, true, 1.0);
 	g_cvarLogMode	= CallVoteEnsureLogModeConVar();
 	g_cvarDebugMask = CreateConVar("sm_cvkl_debug_mask", "0", "Debug mask for callvote_kicklimit. Core=1 SQL=2 Cache=4 Commands=8 Identity=16 Forwards=32 Session=64 Localization=128 All=255.", FCVAR_NONE, true, 0.0, true, 255.0);
@@ -521,7 +549,7 @@ public void OnClientDisconnect(int iClient)
 			F O R W A R D   P L U G I N S
 *****************************************************************/
 
-public Action CallVote_PreStartEx(int iSessionId, int iClient, int iCallerAccountId, TypeVotes iVotes, int iTarget, int iTargetAccountId, const char[] sArgument)
+public Action CallVote_PreStart(int iSessionId, int iClient, int iCallerAccountId, TypeVotes iVotes, int iTarget, int iTargetAccountId, const char[] sArgument)
 {
 	if (!g_cvarEnable.BoolValue || !g_bCallVoteManager)
 		return Plugin_Continue;
@@ -532,11 +560,14 @@ public Action CallVote_PreStartEx(int iSessionId, int iClient, int iCallerAccoun
 	int iKickCount = 0;
 	if (!TryGetKickCount(iClient, iCallerAccountId, iKickCount))
 	{
-		CPrintToChat(iClient, "%t %t", "Tag", "KickDataPending");
+		if (IsKickCountLoadPending(iClient, iCallerAccountId))
+			CPrintToChat(iClient, "%t %t", "Tag", "KickDataPending");
+		else
+			CPrintToChat(iClient, "%t %t", "Tag", "KickDataUnavailable");
 		return Plugin_Handled;
 	}
 
-	log(false, "[CallVote_PreStartEx] Session:%d | Caller:%N (AID:%d) | Target:%N (AID:%d) | Kicks:%d/%d | Arg:%s",
+	log(false, "[CallVote_PreStart] Session:%d | Caller:%N (AID:%d) | Target:%N (AID:%d) | Kicks:%d/%d | Arg:%s",
 		iSessionId,
 		iClient,
 		iCallerAccountId,
@@ -563,7 +594,7 @@ public Action CallVote_PreStartEx(int iSessionId, int iClient, int iCallerAccoun
 			C A L L B A C K   F U N C T I O N S
 ****************************************************************/
 
-public void CallVote_EndEx(int iSessionId, CallVoteEndReason iResult, int iYesCount, int iNoCount, int iPotentialVotes)
+public void CallVote_End(int iSessionId, CallVoteEndReason iResult, int iYesCount, int iNoCount, int iPotentialVotes)
 {
 	if (!g_cvarEnable.BoolValue || !g_bCallVoteManager)
 		return;
@@ -585,7 +616,7 @@ public void CallVote_EndEx(int iSessionId, CallVoteEndReason iResult, int iYesCo
 	int iKnownKickCount = 0;
 	bool bHasKickCount = TryGetKickCount(iLiveCaller, iCallerAccountId, iKnownKickCount);
 
-	log(false, "[CallVote_EndEx] Session:%d | Result:%d | CallerAID:%d | TargetAID:%d | Votes:%d/%d/%d | Current:%d | Arg:%s",
+	log(false, "[CallVote_End] Session:%d | Result:%d | CallerAID:%d | TargetAID:%d | Votes:%d/%d/%d | Current:%d | Arg:%s",
 		iSessionId,
 		iResult,
 		iCallerAccountId,
@@ -604,13 +635,12 @@ public void CallVote_EndEx(int iSessionId, CallVoteEndReason iResult, int iYesCo
 	{
 		if (!bHasKickCount)
 		{
-			log(false, "[CallVote_EndEx] Skipping SQL increment because caller AccountID %d is still loading.", iCallerAccountId);
+			log(false, "[CallVote_End] Skipping SQL increment because caller AccountID %d is still loading.", iCallerAccountId);
 			return;
 		}
 
 		iNewKickCount = iKnownKickCount + 1;
-		UpdateConnectedClientKickCount(iCallerAccountId, iNewKickCount);
-		InsertKickRecordSQL(iSessionId, iCallerAccountId, iTargetAccountId);
+		InsertKickRecordSQL(iSessionId, iCallerAccountId, iTargetAccountId, iNewKickCount);
 	}
 	else
 	{
@@ -622,12 +652,12 @@ public void CallVote_EndEx(int iSessionId, CallVoteEndReason iResult, int iYesCo
 	FormatAccountIDAsSteamID2(iCallerAccountId, sCallerSteamID2, sizeof(sCallerSteamID2));
 	FormatAccountIDAsSteamID2(iTargetAccountId, sTargetSteamID2, sizeof(sTargetSteamID2));
 
-	log(false, "[CallVote_EndEx] Kick vote passed from %s to %s (%d/%d)",
+	log(false, "[CallVote_End] Kick vote passed from %s to %s (%d/%d)",
 		sCallerSteamID2,
 		sTargetSteamID2,
 		iNewKickCount,
 		g_cvarKickLimit.IntValue);
-	if (g_Log != null)
+	if (g_Log != null && !CanUseKickLimitSQL())
 		g_Log.Normal("Kick", "Kick vote passed from %s to %s (%d/%d)", sCallerSteamID2, sTargetSteamID2, iNewKickCount, g_cvarKickLimit.IntValue);
 
 	if (iLiveCaller > 0)
@@ -737,25 +767,17 @@ bool TryGetKickCount(int iClient, int iAccountId, int &iKickCount)
 		return true;
 	}
 
-	if (iClient > 0 && iClient <= MaxClients && g_Players[iClient].AccountID == iAccountId)
-	{
-		if (g_Players[iClient].LoadState == KickCount_Ready)
-		{
-			iKickCount = g_Players[iClient].Kick;
-			return true;
-		}
-
-		if (g_Players[iClient].LoadState == KickCount_Pending)
-			return false;
-	}
-
-	if (GetLocalKickCount(iAccountId) > 0)
-	{
-		iKickCount = GetLocalKickCount(iAccountId);
-		return true;
-	}
-
 	return false;
+}
+
+bool IsKickCountLoadPending(int iClient, int iAccountId)
+{
+	return (
+		iClient > 0
+		&& iClient <= MaxClients
+		&& g_Players[iClient].AccountID == iAccountId
+		&& g_Players[iClient].LoadState == KickCount_Pending
+	);
 }
 
 int IncrementLocalKickCount(int iAccountId)
@@ -806,17 +828,14 @@ void log(bool error, const char[] format, any ...)
 		debugMask = CVLogMask_SQL;
 		category = "SQL";
 	}
-	else if (strncmp(message, "[CallVote_PreStartEx]", 21, false) == 0
-		|| strncmp(message, "[CallVote_EndEx]", 17, false) == 0)
+	else if (strncmp(message, "[CallVote_PreStart]", 20, false) == 0
+		|| strncmp(message, "[CallVote_End]", 14, false) == 0)
 	{
 		debugMask = CVLogMask_Session;
 		category = "Session";
 	}
 
 	g_Log.Debug(debugMask, category, "%s", message);
-
-	if (g_cvarDebug != null && g_cvarDebug.BoolValue)
-		PrintToServer("[CallVote Kick Limit] %s", message);
 }
 
 void logErrorSQL(Database db, const char[] query, const char[] context)

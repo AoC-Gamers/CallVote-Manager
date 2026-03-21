@@ -19,14 +19,14 @@ Eso evita reconstruir el estado del voto desde hooks dispersos del motor.
 
 ```mermaid
 flowchart TD
-    A[CallVote_PreStartEx] --> B{Es votekick?}
+    A[CallVote_PreStart] --> B{Es votekick?}
     B -- No --> C[Ignorar]
     B -- Si --> D[Resolver caller AccountID]
     D --> E[Leer contador local o SQL]
     E --> F{Limite alcanzado?}
     F -- Si --> G[Bloquear voto]
     F -- No --> H[Permitir voto]
-    H --> I[CallVote_EndEx]
+    H --> I[CallVote_End]
     I --> J{Resultado Passed?}
     J -- No --> K[Sin cambios]
     J -- Si --> L[Incrementar contador y persistir]

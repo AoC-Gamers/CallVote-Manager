@@ -8,6 +8,7 @@
 #undef REQUIRE_PLUGIN
 #include <adminmenu>
 #include <callvote_bans>
+#include <l4d2_commcore>
 #define REQUIRE_PLUGIN
 
 #define CALLVOTE_BANS_ADMINMENU_VERSION "1.0.0"
@@ -96,8 +97,9 @@ public void OnPluginStart()
 	RegAdminCmd("sm_cvb_ban_panel", Command_CVBAdminBanPanel, ADMFLAG_BAN, "Open the CallVote Bans admin panel.");
 	RegAdminCmd("sm_cvb_unban_panel", Command_CVBAdminUnbanPanel, ADMFLAG_UNBAN, "Open the CallVote Bans unban panel.");
 	RegAdminCmd("sm_cvb_check_panel", Command_CVBAdminCheckPanel, ADMFLAG_GENERIC, "Open the CallVote Bans check panel.");
-	RegAdminCmd("sm_cvb_panel_abort", Command_CVBAdminAbort, ADMFLAG_GENERIC, "Abort the current CallVote Bans panel prompt.");
-	RegAdminCmd("sm_cvb_panel_status", Command_CVBAdminStatus, ADMFLAG_GENERIC, "Show CallVote Bans admin menu runtime status.");
+RegAdminCmd("sm_cvb_panel_abort", Command_CVBAdminAbort, ADMFLAG_GENERIC, "Abort the current CallVote Bans panel prompt.");
+RegAdminCmd("sm_cvb_panel_status", Command_CVBAdminStatus, ADMFLAG_GENERIC, "Show CallVote Bans admin menu runtime status.");
+	RegAdminCmd("sm_cvb_reason", Command_CVBAdminReason, ADMFLAG_BAN, "Submit the active CallVote Bans reason prompt without public chat.");
 
 	CallVoteAutoExecConfig(true, "callvote_bans_adminmenu");
 
@@ -125,50 +127,22 @@ public Action OnClientSayCommand(int iClient, const char[] szCommand, const char
 	if (!CVBAdminMenu_HasActivePrompt(iClient))
 		return Plugin_Continue;
 
-	char szReason[CALLVOTE_BANS_ADMINMENU_MAX_REASON_LENGTH];
-	strcopy(szReason, sizeof(szReason), szArgs);
-	TrimString(szReason);
-	StripQuotes(szReason);
+	if (LibraryExists(L4D2_COMMCORE_LIBRARY) && L4D2Comm_IsCoreReady())
+		return Plugin_Continue;
 
-	if (szReason[0] == '\0')
-	{
-		CPrintToChat(iClient, "%t %t", "Tag", "CVBAdminMenuReasonRequired");
-		CVBAdminMenu_ShowReasonPrompt(iClient);
-		return Plugin_Handled;
-	}
+	return CVBAdminMenu_ConsumeReasonInput(iClient, szArgs) ? Plugin_Handled : Plugin_Handled;
+}
 
-	if (StrEqual(szReason, "cancel", false) || StrEqual(szReason, "!cancel", false))
-	{
-		CVBAdminMenu_ResetState(iClient);
-		CPrintToChat(iClient, "%t %t", "Tag", "CVBAdminMenuCancelled");
-		return Plugin_Handled;
-	}
+public Action L4D2Comm_OnChatMessage(int client, L4D2CommChannel channel, const char[] text)
+{
+	if (!CVBAdminMenu_HasActivePrompt(client))
+		return Plugin_Continue;
 
-	if (!LibraryExists(CALLVOTE_BANS_LIBRARY))
-	{
-		CVBAdminMenu_ResetState(iClient);
-		CPrintToChat(iClient, "%t %t", "Tag", "CVBAdminMenuModuleUnavailable");
-		return Plugin_Handled;
-	}
+	if (!LibraryExists(L4D2_COMMCORE_LIBRARY) || !L4D2Comm_IsCoreReady())
+		return Plugin_Continue;
 
-	int iTarget = GetClientOfUserId(g_eCVBAdminState[iClient].targetUserId);
-	if (!CVBAdminMenu_IsValidTarget(iTarget))
-	{
-		CVBAdminMenu_ResetState(iClient);
-		CPrintToChat(iClient, "%t %t", "Tag", "MenuPlayerDisconnected");
-		return Plugin_Handled;
-	}
-
-	if (!CVB_BanPlayer(iTarget, g_eCVBAdminState[iClient].banType, g_eCVBAdminState[iClient].durationMinutes, iClient, szReason))
-	{
-		CVBAdminMenu_ResetState(iClient);
-		CPrintToChat(iClient, "%t %t", "Tag", "CVBAdminMenuActionFailed");
-		return Plugin_Handled;
-	}
-
-	CPrintToChat(iClient, "%t %t", "Tag", "CVBAdminMenuBanApplied", g_eCVBAdminState[iClient].targetName);
-	CVBAdminMenu_ResetState(iClient);
-	return Plugin_Handled;
+	CVBAMLog.Commands("Captured prompt reason through l4d2_commcore from client %d channel=%d", client, view_as<int>(channel));
+	return CVBAdminMenu_ConsumeReasonInput(client, text) ? Plugin_Handled : Plugin_Handled;
 }
 
 public void OnLibraryAdded(const char[] szName)
@@ -302,25 +276,52 @@ Action Command_CVBAdminAbort(int iClient, int iArgs)
 	return Plugin_Handled;
 }
 
+Action Command_CVBAdminReason(int iClient, int iArgs)
+{
+	if (!CVBAdminMenu_HasActivePrompt(iClient))
+	{
+		CReplyToCommand(iClient, "%t %t", "Tag", "CVBAdminMenuNoActivePrompt");
+		return Plugin_Handled;
+	}
+
+	if (iArgs < 1)
+	{
+		CReplyToCommand(iClient, "%t %t sm_cvb_reason <text>", "Tag", "Usage");
+		return Plugin_Handled;
+	}
+
+	char reason[CALLVOTE_BANS_ADMINMENU_MAX_REASON_LENGTH];
+	GetCmdArgString(reason, sizeof(reason));
+	TrimString(reason);
+	StripQuotes(reason);
+
+	CVBAMLog.Commands("Received prompt reason through sm_cvb_reason from client %d", iClient);
+	CVBAdminMenu_ConsumeReasonInput(iClient, reason);
+	return Plugin_Handled;
+}
+
 Action Command_CVBAdminStatus(int iClient, int iArgs)
 {
 	bool hasAdminMenu = LibraryExists("adminmenu");
 	bool hasBans = LibraryExists(CALLVOTE_BANS_LIBRARY);
+	bool hasCommCore = LibraryExists(L4D2_COMMCORE_LIBRARY);
 	bool hasPrompt = CVBAdminMenu_HasActivePrompt(iClient);
 
-	CReplyToCommand(iClient, "[CVBAM] adminmenu=%s callvote_bans=%s topmenu=%s prompt=%s targetUserId=%d panelType=%d promptStage=%d",
+	CReplyToCommand(iClient, "[CVBAM] adminmenu=%s callvote_bans=%s commcore=%s topmenu=%s prompt=%s targetUserId=%d panelType=%d promptStage=%d",
 		hasAdminMenu ? "yes" : "no",
 		hasBans ? "yes" : "no",
+		hasCommCore ? "yes" : "no",
 		g_hCVBAdminTopMenu != null ? "ready" : "null",
 		hasPrompt ? "yes" : "no",
 		(iClient > 0 && iClient <= MaxClients) ? g_eCVBAdminState[iClient].targetUserId : 0,
 		(iClient > 0 && iClient <= MaxClients) ? view_as<int>(g_eCVBAdminState[iClient].panelType) : 0,
 		(iClient > 0 && iClient <= MaxClients) ? view_as<int>(g_eCVBAdminState[iClient].promptStage) : 0);
 
-	CVBAMLog.Commands("Status requested by client %d (adminmenu=%d callvote_bans=%d topmenu=%d prompt=%d)",
+	CVBAMLog.Commands("Status requested by client %d (adminmenu=%d callvote_bans=%d commcore=%d topmenu=%d prompt=%d)",
 		iClient,
 		hasAdminMenu,
 		hasBans,
+		hasCommCore,
 		g_hCVBAdminTopMenu != null,
 		hasPrompt);
 	return Plugin_Handled;
@@ -564,6 +565,54 @@ public int CVBAdminMenu_MenuHandlerBanDuration(Menu hMenu, MenuAction eAction, i
 void CVBAdminMenu_ShowReasonPrompt(int iClient)
 {
 	CPrintToChat(iClient, "%t %t", "Tag", "CVBAdminMenuReasonPrompt", g_eCVBAdminState[iClient].targetName);
+}
+
+static bool CVBAdminMenu_ConsumeReasonInput(int iClient, const char[] input)
+{
+	char szReason[CALLVOTE_BANS_ADMINMENU_MAX_REASON_LENGTH];
+	strcopy(szReason, sizeof(szReason), input);
+	TrimString(szReason);
+	StripQuotes(szReason);
+
+	if (szReason[0] == '\0')
+	{
+		CPrintToChat(iClient, "%t %t", "Tag", "CVBAdminMenuReasonRequired");
+		CVBAdminMenu_ShowReasonPrompt(iClient);
+		return false;
+	}
+
+	if (StrEqual(szReason, "cancel", false) || StrEqual(szReason, "!cancel", false))
+	{
+		CVBAdminMenu_ResetState(iClient);
+		CPrintToChat(iClient, "%t %t", "Tag", "CVBAdminMenuCancelled");
+		return true;
+	}
+
+	if (!LibraryExists(CALLVOTE_BANS_LIBRARY))
+	{
+		CVBAdminMenu_ResetState(iClient);
+		CPrintToChat(iClient, "%t %t", "Tag", "CVBAdminMenuModuleUnavailable");
+		return false;
+	}
+
+	int iTarget = GetClientOfUserId(g_eCVBAdminState[iClient].targetUserId);
+	if (!CVBAdminMenu_IsValidTarget(iTarget))
+	{
+		CVBAdminMenu_ResetState(iClient);
+		CPrintToChat(iClient, "%t %t", "Tag", "MenuPlayerDisconnected");
+		return false;
+	}
+
+	if (!CVB_BanPlayer(iTarget, g_eCVBAdminState[iClient].banType, g_eCVBAdminState[iClient].durationMinutes, iClient, szReason))
+	{
+		CVBAdminMenu_ResetState(iClient);
+		CPrintToChat(iClient, "%t %t", "Tag", "CVBAdminMenuActionFailed");
+		return false;
+	}
+
+	CPrintToChat(iClient, "%t %t", "Tag", "CVBAdminMenuBanApplied", g_eCVBAdminState[iClient].targetName);
+	CVBAdminMenu_ResetState(iClient);
+	return true;
 }
 
 void CVBAdminMenu_ShowUnbanTargetPanel(int iClient)

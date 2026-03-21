@@ -70,19 +70,26 @@ addons/sourcemod/plugins/callvote/
     callvotemanager.smx
     callvote_kicklimit.smx
     callvote_bans.smx
+    callvote_bans_adminmenu.smx
 
 addons/sourcemod/scripting/include/
     callvotemanager.inc
     callvote_stock.inc
     callvote_bans.inc
 
+addons/sourcemod/scripting/
+    callvote_manager.sp
+    callvote_kicklimit.sp
+    callvote_bans.sp
+    callvote_bans_adminmenu.sp
+    callvote_manager/
+    callvote_bans/
+
 addons/sourcemod/configs/
-    callvote_ban_reasons.cfg
     sql-init-callvote/
 
 addons/sourcemod/translations/
     callvote*.phrases.txt
-    es/callvote*.phrases.txt
 ```
 
 Los binarios publicos de la suite viven en `addons/sourcemod/plugins/callvote/`.

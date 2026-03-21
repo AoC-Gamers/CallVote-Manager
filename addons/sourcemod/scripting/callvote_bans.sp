@@ -11,8 +11,8 @@
 #define REQUIRE_PLUGIN
 
 #define PLUGIN_VERSION	 "2.0.0"
-#define CVB_LOG_TAG "CVB"
-#define CVB_LOG_FILE "callvote_bans.log"
+#define CVB_LOG_TAG		 "CVB"
+#define CVB_LOG_FILE	 "callvote_bans.log"
 
 #define MAX_QUERY_LENGTH 2048
 
@@ -20,11 +20,12 @@ ConVar
 	g_cvarEnable,
 	g_cvarMemoryCache,
 	g_cvarAnnounceJoin,
+	g_cvarSQLConfig,
 	g_cvarLogMode,
 	g_cvarDebugMask;
 
 // Unified in-memory cache using AccountID as key
-StringMap g_smClientCache;		  // Unified in-memory cache for ban information
+StringMap g_smClientCache;	  // Unified in-memory cache for restriction information
 ArrayList g_aPendingIdentityRequestIds;
 ArrayList g_aPendingIdentityRequestContexts;
 
@@ -39,7 +40,6 @@ bool
 
 CallVoteLogger g_Log = null;
 
-
 /**
  * Client state structure for connected players only
  */
@@ -51,13 +51,13 @@ enum ClientBanLoadState
 
 enum struct ClientState
 {
-	int accountId;			  // Player's AccountID
+	int				   accountId;	 // Player's AccountID
 	ClientBanLoadState loadState;
 }
 
 ClientState g_ClientStates[MAXPLAYERS + 1];
 
-void ResetClientState(int client)
+void		ResetClientState(int client)
 {
 	if (!IsValidClientIndex(client))
 		return;
@@ -77,7 +77,8 @@ void SetClientLoadState(int client, int accountId, ClientBanLoadState loadState)
 
 methodmap CVBLog
 {
-	public static void Event(const char[] eventTag, const char[] message, any...)
+
+	public 	static void Event(const char[] eventTag, const char[] message, any...)
 	{
 		if (g_Log == null)
 			return;
@@ -137,7 +138,7 @@ methodmap CVBLog
 		g_Log.Debug(CVLogMask_Cache, "Cache", "%s", sFormat);
 	}
 
-	public static void Commands(const char[] message, any...)
+	public 	static void Commands(const char[] message, any...)
 	{
 		if (g_Log == null)
 			return;
@@ -147,7 +148,7 @@ methodmap CVBLog
 		g_Log.Debug(CVLogMask_Commands, "Commands", "%s", sFormat);
 	}
 
-	public static void Identity(const char[] message, any...)
+	public 	static void Identity(const char[] message, any...)
 	{
 		if (g_Log == null)
 			return;
@@ -157,7 +158,7 @@ methodmap CVBLog
 		g_Log.Debug(CVLogMask_Identity, "Identity", "%s", sFormat);
 	}
 
-	public static void Core(const char[] message, any...)
+	public 	static void Core(const char[] message, any...)
 	{
 		if (g_Log == null)
 			return;
@@ -193,13 +194,15 @@ public Plugin myinfo =
 	version		= PLUGIN_VERSION,
 	url			= "https://github.com/lechuga16/callvote_manager"
 
+
 }
 
 /*****************************************************************
 			F O R W A R D   P U B L I C S
 *****************************************************************/
 
-public APLRes AskPluginLoad2(Handle hMyself, bool bLate, char[] sError, int iErr_max)
+public APLRes
+	AskPluginLoad2(Handle hMyself, bool bLate, char[] sError, int iErr_max)
 {
 	RegisterForwards();
 	RegisterNatives();
@@ -241,12 +244,13 @@ public void OnPluginStart()
 	LoadTranslations("callvote_common.phrases");
 	LoadTranslations("common.phrases");
 
-	g_cvarEnable				 = CreateConVar("sm_cvb_enable", "1", "Enable plugin", FCVAR_NOTIFY, true, 0.0, true, 1.0);
-	g_cvarMemoryCache			 = CreateConVar("sm_cvb_memory_cache", "1", "Enable in-memory cache for ban lookups", FCVAR_NOTIFY, true, 0.0, true, 1.0);
-	g_cvarAnnounceJoin			 = CreateConVar("sm_cvb_announce_join", "1", "0=off, 1=admins, 2=everyone", FCVAR_NOTIFY, true, 0.0, true, 2.0);
-	g_cvarLogMode				 = CallVoteEnsureLogModeConVar();
-	g_cvarDebugMask			 = CreateConVar("sm_cvb_debug_mask", "0", "Debug mask for callvote_bans. Core=1 SQL=2 Cache=4 Commands=8 Identity=16 All=255.", FCVAR_NONE, true, 0.0, true, 255.0);
-	g_Log						 = new CallVoteLogger(CVB_LOG_TAG, CVB_LOG_FILE, g_cvarLogMode, g_cvarDebugMask);
+	g_cvarEnable	   = CreateConVar("sm_cvb_enable", "1", "Enable plugin", FCVAR_NOTIFY, true, 0.0, true, 1.0);
+	g_cvarMemoryCache  = CreateConVar("sm_cvb_memory_cache", "1", "Enable in-memory cache for ban lookups", FCVAR_NOTIFY, true, 0.0, true, 1.0);
+	g_cvarAnnounceJoin = CreateConVar("sm_cvb_announce_join", "1", "0=off, 1=admins, 2=everyone", FCVAR_NOTIFY, true, 0.0, true, 2.0);
+	g_cvarSQLConfig	   = CreateConVar("sm_cvb_sql_config", "callvote_bans", "Database config name from databases.cfg for the MySQL backend", FCVAR_NOTIFY);
+	g_cvarLogMode	   = CallVoteEnsureLogModeConVar();
+	g_cvarDebugMask	   = CreateConVar("sm_cvb_debug_mask", "0", "Debug mask for callvote_bans. Core=1 SQL=2 Cache=4 Commands=8 Identity=16 All=255.", FCVAR_NONE, true, 0.0, true, 255.0);
+	g_Log			   = new CallVoteLogger(CVB_LOG_TAG, CVB_LOG_FILE, g_cvarLogMode, g_cvarDebugMask);
 
 	CallVoteAutoExecConfig(true, "callvote_bans");
 
@@ -301,11 +305,19 @@ public void OnClientPostAdminCheck(int client)
 	PlayerBanInfo banInfo;
 	banInfo.Reset(accountId);
 
-	if (IsPlayerBanned(client, banInfo))
+	CVBLookupStatus status = CVB_LoadBanInfo(banInfo, false);
+	SetClientLoadState(client, accountId, ClientBanLoad_Ready);
+
+	if (status == CVBLookup_Found)
 	{
-		CVBLog.Debug("Player %N is banned (AccountID: %d)", client, banInfo.AccountId);
+		CVBLog.Debug("Player %N has active vote restrictions (AccountID: %d banType=%d)", client, banInfo.AccountId, banInfo.BanType);
 		AnnouncerJoin(client);
 		return;
+	}
+
+	if (status == CVBLookup_Error)
+	{
+		CVBLog.SQL("Failed to validate restriction state for %N (AccountID: %d) during post admin check", client, banInfo.AccountId);
 	}
 }
 
@@ -346,7 +358,7 @@ public void OnClientDisconnect(int client)
 {
 	if (!g_cvarEnable.BoolValue)
 		return;
-	
+
 	OnClientMemoryCacheDisconnect(client);
 }
 
@@ -357,7 +369,7 @@ public void OnClientDisconnect(int client)
 /**
  * Forward del CallVoteManager - Intercepta intentos de voto antes de validación
  */
-public Action CallVote_PreStart(int client, TypeVotes voteType, int target)
+public Action CallVote_PreStart(int sessionId, int client, int callerAccountId, TypeVotes voteType, int target, int targetAccountId, const char[] argument)
 {
 	if (!g_cvarEnable.BoolValue)
 		return Plugin_Continue;
@@ -367,9 +379,32 @@ public Action CallVote_PreStart(int client, TypeVotes voteType, int target)
 
 	PlayerBanInfo banInfo;
 	banInfo.Reset(GetClientAccountID(client));
-	CVBLog.Debug("CallVote_PreStart: %N (AccountID: %d) attempting %d vote", client, banInfo.AccountId, voteType);
+	VoteType voteFlag = GetVoteFlag(voteType);
+	CVBLog.Debug("CallVote_PreStart: session=%d client=%N callerAccountId=%d voteType=%d targetAccountId=%d argument=%s", sessionId, client, callerAccountId, voteType, targetAccountId, argument);
 
-	if (IsPlayerBanned(client, banInfo))
+	if (voteFlag == VOTE_NONE)
+		return Plugin_Continue;
+
+	CVBLookupStatus status = CVB_LoadBanInfo(banInfo, false);
+	SetClientLoadState(client, banInfo.AccountId, ClientBanLoad_Ready);
+
+	if (status == CVBLookup_Error)
+	{
+		ShowVoteBlockedValidationMessage(client);
+
+		Call_StartForward(g_gfBlocked);
+		Call_PushCell(client);
+		Call_PushCell(view_as<int>(voteType));
+		Call_PushCell(target);
+		Call_PushCell(0);
+		Call_Finish();
+
+		CVBLog.Debug("Voto BLOQUEADO por error de validación para %N (AccountID: %d, tipo: %d)", client, banInfo.AccountId, voteType);
+		CVBLog.Event("BlockValidation", "Blocked vote for AccountID %d (type=%d target=%d reason=backend_validation_failed)", banInfo.AccountId, voteType, target);
+		return Plugin_Handled;
+	}
+
+	if (status == CVBLookup_Found && (banInfo.BanType & view_as<int>(voteFlag)))
 	{
 		ShowVoteBlockedMessage(client, voteType);
 

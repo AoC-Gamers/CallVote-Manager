@@ -57,9 +57,9 @@ La regla queda asi:
 
 La direccion del contrato publico es:
 
-- mantener compatibilidad con el contrato historico
-- mover nuevas integraciones al contrato `Ex`
 - exponer sesiones, lifecycle e identidad por `AccountID`
+- usar `sessionId` como referencia publica de contexto
+- evitar contratos duplicados para el mismo ciclo de voto
 
 ## Modelo del core
 
@@ -97,7 +97,7 @@ El core no debe encargarse de:
 Esta direccion ya se refleja en el proyecto:
 
 - el core expone `sessionId`
-- existe contrato `Ex`
+- existe un contrato publico unico orientado a sesion
 - `kicklimit` ya consume el core con identidad por `AccountID`
 - el almacenamiento SQL ya usa columnas por `AccountID`
 

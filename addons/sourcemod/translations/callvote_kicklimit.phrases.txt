@@ -69,4 +69,9 @@
 		"en" 		"Your kick limit data is still loading. Try again in a moment."
 		"es" 		"Los datos de tu límite de expulsión aún se están cargando. Intenta nuevamente en un momento."
 	}
+	"KickDataUnavailable"
+	{
+		"en" 		"Your kick limit data could not be validated right now. Try again in a moment."
+		"es" 		"No se pudieron validar los datos de tu límite de expulsión en este momento. Intenta nuevamente en un momento."
+	}
 }

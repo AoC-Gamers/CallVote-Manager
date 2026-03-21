@@ -102,7 +102,6 @@
 	}
 	"PlayerBanRestrictionApplied"
 	{
-		"#format"	"{1:N}"
 		"en"		"A vote restriction has been applied to you"
 		"es"		"Se te aplicó una restricción de voto"
 	}
@@ -141,35 +140,44 @@
 		"en"		"Vote blocked: lobby restriction. {1}"
 		"es"		"Voto bloqueado: restricción de lobby. {1}"
 	}
+	"VoteBlockedValidation"
+	{
+		"en"		"Vote blocked: your restriction status could not be validated right now."
+		"es"		"Voto bloqueado: no se pudo validar tu estado de restricción en este momento."
+	}
+	"ConsoleVoteBlockedValidation"
+	{
+		"en"		"Your vote was blocked because the restriction backend could not be validated."
+		"es"		"Tu voto fue bloqueado porque no se pudo validar el backend de restricciones."
+	}
 	"BanDetailsHeader"
 	{
-		"#format"	"{1:N}"
-		"en"		"Restriction details for {1}:"
-		"es"		"Detalles de la restricción para {1}:"
+		"en"		"Restriction details:"
+		"es"		"Detalles de la restricción:"
 	}
 	"BanDetailsTypes"
 	{
-		"#format"	"{1:N},{2:s}"
-		"en"		"Types: {2}"
-		"es"		"Tipos: {2}"
+		"#format"	"{1:s}"
+		"en"		"Types: {1}"
+		"es"		"Tipos: {1}"
 	}
 	"BanDetailsDuration"
 	{
-		"#format"	"{1:N},{2:s}"
-		"en"		"Duration: {2}"
-		"es"		"Duración: {2}"
+		"#format"	"{1:s}"
+		"en"		"Duration: {1}"
+		"es"		"Duración: {1}"
 	}
 	"BanDetailsAdmin"
 	{
-		"#format"	"{1:N},{2:s}"
-		"en"		"Admin: {2}"
-		"es"		"Admin: {2}"
+		"#format"	"{1:s}"
+		"en"		"Admin: {1}"
+		"es"		"Admin: {1}"
 	}
 	"BanDetailsExpiration"
 	{
-		"#format"	"{1:N},{2:s}"
-		"en"		"Expires: {2}"
-		"es"		"Expira: {2}"
+		"#format"	"{1:s}"
+		"en"		"Expires: {1}"
+		"es"		"Expira: {1}"
 	}
 	"BanStatusHeader"
 	{
@@ -221,23 +229,23 @@
 		"en"		"Verifying {1}..."
 		"es"		"Verificando {1}..."
 	}
-	"BanApplied"
+	"RestrictionApplied"
 	{
 		"#format"	"{1:s},{2:s},{3:s}"
 		"en"		"Vote restriction applied to {1} ({2}) for {3}"
 		"es"		"Restricción aplicada a {1} ({2}) por {3}"
 	}
-	"NoBanFound"
+	"NoRestrictionFound"
 	{
 		"en"		"No active restriction found."
 		"es"		"No se encontró restricción activa."
 	}
-	"YourBanRemoved"
+	"YourRestrictionRemoved"
 	{
 		"en"		"Your restriction was removed."
 		"es"		"Tu restricción fue removida."
 	}
-	"BanRemovedSuccess"
+	"RestrictionRemovedSuccess"
 	{
 		"#format"	"{1:s}"
 		"en"		"Successfully removed the restriction from {1}"

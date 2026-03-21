@@ -18,7 +18,9 @@
  * @param client        Client index that attempted to start the vote
  * @param voteType      Vote type that was blocked
  * @param target        Vote target client index, if any
- * @param banType       Active ban mask that caused the block
+ * @param banType       Active restriction mask that caused the block.
+ *                      This is 0 when the vote was blocked because the
+ *                      backend restriction state could not be validated.
  * @noreturn
  */
 forward void CVB_OnVoteBlocked(int client, int voteType, int target, int banType);
@@ -40,19 +42,21 @@ forward void CVB_OnPlayerBanned(int target, int banType, int durationMinutes, in
 *****************************************************************/
 
 /**
- * Checks whether a connected player currently has any active callvote ban.
+ * Checks whether a connected player currently has any active vote restriction.
  *
  * @param client        Client index
- * @return              true if an active ban exists, false otherwise
+ * @return              true if an active restriction exists.
+ *                      This native is fail-closed and may also return true
+ *                      when the backend state could not be validated.
  * @error               Invalid client index
  */
 native bool CVB_IsPlayerBanned(int client);
 
 /**
- * Returns the active ban mask for a connected player.
+ * Returns the active restriction mask for a connected player.
  *
  * @param client        Client index
- * @return              Active ban mask, or 0 when no active ban exists
+ * @return              Active restriction mask, or 0 when no active restriction exists
  * @error               Invalid client index
  */
 native int CVB_GetPlayerBanType(int client);
@@ -74,7 +78,7 @@ native int CVB_GetPlayerBanType(int client);
 native bool CVB_BanPlayer(int target, int banType, int duration, int admin, const char[] reason);
 
 /**
- * Queues removal of the active ban for a connected player.
+ * Queues removal of the active restriction for a connected player.
  *
  * This native confirms that the request was accepted by the plugin.
  * Persistence may complete synchronously on SQLite or asynchronously on MySQL.
@@ -86,17 +90,17 @@ native bool CVB_BanPlayer(int target, int banType, int duration, int admin, cons
 native bool CVB_UnbanPlayer(int target, int admin);
 
 /**
- * Loads information about the active ban of a connected player.
+ * Loads information about the active restriction of a connected player.
  *
  * @param client            Client index
- * @param banType           Receives the active ban mask
+ * @param banType           Receives the active restriction mask
  * @param expiration        Receives the expiration timestamp
  * @param createdTime       Receives the creation timestamp
  * @param reason            Receives the stored reason text
  * @param reasonMaxLen      Size of the reason buffer
  * @param adminSteamId      Receives the admin SteamID2 string when available
  * @param adminMaxLen       Size of the admin SteamID2 buffer
- * @return                  true only when an active ban exists and was loaded
+ * @return                  true only when an active restriction exists and was loaded
  * @error                   Invalid client index
  */
 native bool CVB_GetBanInfo(int client, int &banType, int &expiration, int &createdTime, char[] reason, int reasonMaxLen, char[] adminSteamId, int adminMaxLen);

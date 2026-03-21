@@ -156,9 +156,12 @@ bool TryGetConnectedAccountId(int client, int &accountId)
 
 void CVB_ReplyToCommandWithSource(int client, ReplySource replySource, const char[] format, any ...)
 {
+	char buffer[512];
+	VFormat(buffer, sizeof(buffer), format, 4);
+
 	ReplySource previousReplySource = GetCmdReplySource();
 	SetCmdReplySource(replySource);
-	CReplyToCommand(client, format, 4);
+	CReplyToCommand(client, "%s", buffer);
 	SetCmdReplySource(previousReplySource);
 }
 

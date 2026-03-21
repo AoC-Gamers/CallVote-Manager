@@ -20,7 +20,7 @@ void RegisterForwards()
  * Closes and cleans up all registered forwards by deleting their handles and setting them to null.
  *
  * This function ensures that any global forward handles used for event notifications
- * (such as vote blocking and player banned events) are properly deleted
+ * (such as vote blocking and player restriction events) are properly deleted
  * to prevent memory leaks or dangling references.
  */
 void CloseForwards()
@@ -57,7 +57,7 @@ static bool CVB_TryLoadActiveBanInfoForClient(int client, PlayerBanInfo banInfo)
 	if (CVB_GetMemoryCache(banInfo) && banInfo.IsBanned())
 		return true;
 
-	if (CVB_CheckActiveBan(banInfo) && banInfo.IsBanned())
+	if (CVB_CheckActiveBan(banInfo) == CVBLookup_Found && banInfo.IsBanned())
 	{
 		CVB_UpdateMemoryCache(banInfo);
 		return true;
@@ -195,7 +195,7 @@ public int Native_GetBanInfo(Handle plugin, int numParams)
 /**
  * Fires the "OnPlayerBanned" forward if it is registered.
  *
- * @param target           The client index of the player being banned.
+ * @param target           The client index of the player receiving the restriction.
  * @param banType          The type of ban being applied (e.g., temporary, permanent).
  * @param duration         The duration of the ban in minutes.
  * @param admin            The client index of the admin issuing the ban.

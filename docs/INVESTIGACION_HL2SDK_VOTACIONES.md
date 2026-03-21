@@ -79,4 +79,4 @@ La mejora correcta del proyecto no es acercarse mas al motor, sino aislarlo mejo
 
 - motor como capa de entrada
 - core como capa de dominio
-- API `Ex` como contrato para terceros
+- API del core como contrato para terceros

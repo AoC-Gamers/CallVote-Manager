@@ -24,10 +24,24 @@ SourceDB CVB_GetActiveDatabase()
 
 void ConnectMySQL()
 {
-	if (SQL_CheckConfig(TABLE_BANS))
-		SQL_TConnect(MySQL_ConnectCallback, TABLE_BANS);
+	char sqlConfig[64];
+	g_cvarSQLConfig.GetString(sqlConfig, sizeof(sqlConfig));
+
+	if (sqlConfig[0] == '\0')
+	{
+		CVBLog.SQL("MySQL configuration name is empty, using SQLite only");
+		return;
+	}
+
+	if (SQL_CheckConfig(sqlConfig))
+	{
+		CVBLog.SQL("Connecting MySQL backend using config '%s'", sqlConfig);
+		SQL_TConnect(MySQL_ConnectCallback, sqlConfig);
+	}
 	else
-		CVBLog.SQL("MySQL configuration '%s' not found, using SQLite only", TABLE_BANS);
+	{
+		CVBLog.SQL("MySQL configuration '%s' not found, using SQLite only", sqlConfig);
+	}
 }
 
 public void MySQL_ConnectCallback(Handle owner, Handle hndl, const char[] error, any data)

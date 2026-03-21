@@ -12,64 +12,53 @@ enum struct CVBFullLookupContext
 	char TargetDisplay[MAX_NAME_LENGTH];
 }
 
+enum CVBLookupStatus
+{
+	CVBLookup_NotFound = 0,
+	CVBLookup_Found,
+	CVBLookup_Error
+}
+
 static void CVB_BuildActiveBanLookupQuery(char[] query, int maxLen, SourceDB source, int accountId)
 {
+	int iLen = 0;
+
 	if (source == SourceDB_MySQL)
 	{
-		FormatEx(
-			query,
-			maxLen,
-			"SELECT `ban_type`, `created_timestamp`, `duration_minutes`, `expires_timestamp`, COALESCE(`admin_account_id`, 0), COALESCE(`reason`, '') "
-			... "FROM `%s` WHERE `account_id` = %d AND `is_active` = 1 "
-			... "AND `active_until_timestamp` > %d "
-			... "ORDER BY `created_timestamp` DESC LIMIT 1",
-			TABLE_BANS,
-			accountId,
-			GetTime()
-		);
+		iLen += Format(query[iLen], maxLen - iLen, "SELECT `ban_type`, `created_timestamp`, `duration_minutes`, `expires_timestamp`, ");
+		iLen += Format(query[iLen], maxLen - iLen, "COALESCE(`admin_account_id`, 0), COALESCE(`reason`, '') ");
+		iLen += Format(query[iLen], maxLen - iLen, "FROM `%s` WHERE `account_id` = %d AND `is_active` = 1 ", TABLE_BANS, accountId);
+		iLen += Format(query[iLen], maxLen - iLen, "AND `active_until_timestamp` > %d ", GetTime());
+		iLen += Format(query[iLen], maxLen - iLen, "ORDER BY `created_timestamp` DESC LIMIT 1");
 		return;
 	}
 
-	FormatEx(
-		query,
-		maxLen,
-		"SELECT ban_type, created_timestamp, duration_minutes, expires_timestamp, COALESCE(admin_account_id, 0), COALESCE(reason, '') "
-		... "FROM %s WHERE account_id = %d AND is_active = 1 "
-		... "AND (expires_timestamp = 0 OR expires_timestamp > %d) "
-		... "ORDER BY created_timestamp DESC LIMIT 1",
-		TABLE_BANS,
-		accountId,
-		GetTime()
-	);
+	iLen += Format(query[iLen], maxLen - iLen, "SELECT ban_type, created_timestamp, duration_minutes, expires_timestamp, ");
+	iLen += Format(query[iLen], maxLen - iLen, "COALESCE(admin_account_id, 0), COALESCE(reason, '') ");
+	iLen += Format(query[iLen], maxLen - iLen, "FROM %s WHERE account_id = %d AND is_active = 1 ", TABLE_BANS, accountId);
+	iLen += Format(query[iLen], maxLen - iLen, "AND (expires_timestamp = 0 OR expires_timestamp > %d) ", GetTime());
+	iLen += Format(query[iLen], maxLen - iLen, "ORDER BY created_timestamp DESC LIMIT 1");
 }
 
 static void CVB_BuildFullBanLookupQuery(char[] query, int maxLen, SourceDB source, int accountId)
 {
+	int iLen = 0;
+
 	if (source == SourceDB_MySQL)
 	{
-		FormatEx(
-			query,
-			maxLen,
-			"SELECT `ban_type`, `expires_timestamp`, `created_timestamp`, `duration_minutes`, COALESCE(`admin_account_id`, 0), COALESCE(`reason`, '') "
-			... "FROM `%s` WHERE `account_id` = %d AND `is_active` = 1 AND `active_until_timestamp` > %d "
-			... "ORDER BY `created_timestamp` DESC LIMIT 1",
-			TABLE_BANS,
-			accountId,
-			GetTime()
-		);
+		iLen += Format(query[iLen], maxLen - iLen, "SELECT `ban_type`, `expires_timestamp`, `created_timestamp`, `duration_minutes`, ");
+		iLen += Format(query[iLen], maxLen - iLen, "COALESCE(`admin_account_id`, 0), COALESCE(`reason`, '') ");
+		iLen += Format(query[iLen], maxLen - iLen, "FROM `%s` WHERE `account_id` = %d AND `is_active` = 1 ", TABLE_BANS, accountId);
+		iLen += Format(query[iLen], maxLen - iLen, "AND `active_until_timestamp` > %d ", GetTime());
+		iLen += Format(query[iLen], maxLen - iLen, "ORDER BY `created_timestamp` DESC LIMIT 1");
 		return;
 	}
 
-	FormatEx(
-		query,
-		maxLen,
-		"SELECT ban_type, expires_timestamp, created_timestamp, duration_minutes, COALESCE(admin_account_id, 0), COALESCE(reason, '') "
-		... "FROM %s WHERE account_id = %d AND is_active = 1 AND (expires_timestamp = 0 OR expires_timestamp > %d) "
-		... "ORDER BY created_timestamp DESC LIMIT 1",
-		TABLE_BANS,
-		accountId,
-		GetTime()
-	);
+	iLen += Format(query[iLen], maxLen - iLen, "SELECT ban_type, expires_timestamp, created_timestamp, duration_minutes, ");
+	iLen += Format(query[iLen], maxLen - iLen, "COALESCE(admin_account_id, 0), COALESCE(reason, '') ");
+	iLen += Format(query[iLen], maxLen - iLen, "FROM %s WHERE account_id = %d AND is_active = 1 ", TABLE_BANS, accountId);
+	iLen += Format(query[iLen], maxLen - iLen, "AND (expires_timestamp = 0 OR expires_timestamp > %d) ", GetTime());
+	iLen += Format(query[iLen], maxLen - iLen, "ORDER BY created_timestamp DESC LIMIT 1");
 }
 
 static bool CVB_FillActiveBanInfoFromRow(DBResultSet results, SourceDB source, PlayerBanInfo banInfo)
@@ -108,10 +97,10 @@ static bool CVB_FillFullBanInfoFromRow(DBResultSet results, SourceDB source, Pla
 	return true;
 }
 
-bool CVB_CheckMysqlActiveBan(PlayerBanInfo banInfo)
+CVBLookupStatus CVB_CheckMysqlActiveBan(PlayerBanInfo banInfo)
 {
 	if (g_hMySQLDB == null)
-		return false;
+		return CVBLookup_Error;
 
 	char query[512];
 	CVB_BuildActiveBanLookupQuery(query, sizeof(query), SourceDB_MySQL, banInfo.AccountId);
@@ -121,24 +110,24 @@ bool CVB_CheckMysqlActiveBan(PlayerBanInfo banInfo)
 	{
 		char error[256];
 		SQL_GetError(g_hMySQLDB, error, sizeof(error));
-		CVBLog.MySQL("Error checking MySQL active ban: %s", error);
-		return false;
+		CVBLog.MySQL("Error checking MySQL active restriction: %s", error);
+		return CVBLookup_Error;
 	}
 
 	if (!CVB_FillActiveBanInfoFromRow(results, SourceDB_MySQL, banInfo))
 	{
 		delete results;
-		return false;
+		return CVBLookup_NotFound;
 	}
 
 	delete results;
-	return true;
+	return CVBLookup_Found;
 }
 
-bool CVB_CheckSQLiteActiveBan(PlayerBanInfo banInfo)
+CVBLookupStatus CVB_CheckSQLiteActiveBan(PlayerBanInfo banInfo)
 {
 	if (g_hSQLiteDB == null)
-		return false;
+		return CVBLookup_Error;
 
 	char query[512];
 	CVB_BuildActiveBanLookupQuery(query, sizeof(query), SourceDB_SQLite, banInfo.AccountId);
@@ -148,21 +137,21 @@ bool CVB_CheckSQLiteActiveBan(PlayerBanInfo banInfo)
 	{
 		char error[256];
 		SQL_GetError(g_hSQLiteDB, error, sizeof(error));
-		CVBLog.SQLite("Error checking SQLite active ban: %s", error);
-		return false;
+		CVBLog.SQLite("Error checking SQLite active restriction: %s", error);
+		return CVBLookup_Error;
 	}
 
 	if (!CVB_FillActiveBanInfoFromRow(results, SourceDB_SQLite, banInfo))
 	{
 		delete results;
-		return false;
+		return CVBLookup_NotFound;
 	}
 
 	delete results;
-	return true;
+	return CVBLookup_Found;
 }
 
-bool CVB_CheckActiveBan(PlayerBanInfo banInfo)
+CVBLookupStatus CVB_CheckActiveBan(PlayerBanInfo banInfo)
 {
 	switch (CVB_GetActiveDatabase())
 	{
@@ -176,7 +165,7 @@ bool CVB_CheckActiveBan(PlayerBanInfo banInfo)
 		}
 	}
 
-	return false;
+	return CVBLookup_Error;
 }
 
 static DataPack CVB_CreateFullLookupContextPack(int adminUserId, ReplySource replySource, int targetAccountId, int requestedTargetClient, const char[] targetDisplay)

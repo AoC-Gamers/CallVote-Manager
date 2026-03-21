@@ -20,14 +20,4 @@ CREATE TABLE IF NOT EXISTS `callvote_log` (
     KEY `idx_callvote_log_target_steamid64_created` (`target_steamid64`, `created`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE IF NOT EXISTS `callvote_cleanup_control` (
-    `id` TINYINT UNSIGNED NOT NULL DEFAULT 1,
-    `last_cleanup` INT NOT NULL DEFAULT 0,
-    `cleanup_count` INT NOT NULL DEFAULT 0,
-    PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-INSERT IGNORE INTO `callvote_cleanup_control` (`id`, `last_cleanup`, `cleanup_count`)
-VALUES (1, 0, 0);
-
 SELECT 'CallVote Manager MySQL base schema installed successfully' AS `status`;

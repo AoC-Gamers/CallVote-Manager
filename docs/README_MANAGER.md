@@ -46,13 +46,13 @@ De forma resumida, el flujo es:
 flowchart TD
     A[Jugador ejecuta callvote] --> B[callvote_manager crea VoteSession]
     B --> C[Clasificacion de voteType y argumento]
-    C --> D[Forwards PreStart y PreStartEx]
+    C --> D[Forward PreStart]
     D --> E{Bloqueado por plugin?}
     E -- Si --> F[Session bloqueada y feedback]
     E -- No --> G[Validacion comun del core]
     G --> H{Restriccion?}
     H -- Si --> F
-    H -- No --> I[Forwards PreExecute y PreExecuteEx]
+    H -- No --> I[Forward PreExecute]
     I --> J{Bloqueado?}
     J -- Si --> F
     J -- No --> K[Motor inicia la votacion]
@@ -63,12 +63,11 @@ flowchart TD
 
 ## Contrato publico
 
-El plugin expone dos niveles de contrato:
+El plugin expone un contrato publico unico, orientado a:
 
-- contrato historico, mantenido por compatibilidad
-- contrato `Ex`, orientado a `sessionId`, `AccountID` y lifecycle completo
-
-La direccion del proyecto es que nuevas extensiones dependan del contrato `Ex`.
+- `sessionId`
+- `AccountID`
+- lifecycle completo de la votacion
 
 ## Convencion publica
 

@@ -33,8 +33,8 @@
 	"CVBAdminMenuReasonPrompt"
 	{
 		"#format"	"{1:s}"
-		"en"		"Type the restriction reason for {1} in chat. Use !cancel to abort."
-		"es"		"Escribe en el chat la razón de la restricción para {1}. Usa !cancel para cancelar."
+		"en"		"Type the restriction reason for {1} in chat or use sm_cvb_reason <text>. Use !cancel to abort."
+		"es"		"Escribe en el chat la razón de la restricción para {1} o usa sm_cvb_reason <texto>. Usa !cancel para cancelar."
 	}
 
 	"CVBAdminMenuReasonRequired"

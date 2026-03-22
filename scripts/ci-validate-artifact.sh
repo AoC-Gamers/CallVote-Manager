@@ -18,7 +18,8 @@ artifact_dir = sys.argv[1]
 
 plugin_dir = os.path.join(artifact_dir, "addons", "sourcemod", "plugins", "callvote")
 expected_plugins = {
-    "callvotemanager.smx",
+    "callvote_core.smx",
+    "callvote_manager.smx",
     "callvote_kicklimit.smx",
     "callvote_bans.smx",
     "callvote_bans_adminmenu.smx",
@@ -37,7 +38,7 @@ for plugin_name in expected_plugins:
         raise SystemExit(f"Plugin should not exist at root plugins directory: {plugin_name}")
 
 include_dir = os.path.join(artifact_dir, "addons", "sourcemod", "scripting", "include")
-expected_includes = ["callvote_bans.inc", "callvote_stock.inc", "callvotemanager.inc"]
+expected_includes = ["callvote_bans.inc", "callvote_core.inc", "callvote_stock.inc"]
 include_entries = sorted(entry for entry in os.listdir(include_dir) if os.path.isfile(os.path.join(include_dir, entry)))
 if include_entries != expected_includes:
     raise SystemExit(f"Unexpected public includes: {include_entries}")
@@ -47,6 +48,8 @@ expected_source_entries = {
     "callvote_bans",
     "callvote_bans.sp",
     "callvote_bans_adminmenu.sp",
+    "callvote_core",
+    "callvote_core.sp",
     "callvote_kicklimit.sp",
     "callvote_manager",
     "callvote_manager.sp",

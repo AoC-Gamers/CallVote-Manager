@@ -1,7 +1,7 @@
-#if defined _callvotemanager_sql_included
+#if defined _callvote_core_sql_included
 	#endinput
 #endif
-#define _callvotemanager_sql_included
+#define _callvote_core_sql_included
 
 /*****************************************************************
 			G L O B A L   V A R S
@@ -75,12 +75,12 @@ static void ReadSQLClientDaysContext(DataPack pack, SQLClientDaysContext context
 
 public void OnPluginStart_SQL()
 {
-	g_cvarRegLogSQL = CreateConVar("sm_cvm_sql_log_flags", "0", "SQL logging flags <difficulty:1, restartgame:2, kick:4, changemission:8, lobby:16, chapter:32, alltalk:64, ALL:127, NONE:0>", FCVAR_NOTIFY, true, 0.0, true, 127.0);
-	g_cvarSQLConfig = CreateConVar("sm_cvm_sql_config", "callvote", "Database config name from databases.cfg for callvote_manager", FCVAR_NONE);
+	g_cvarRegLogSQL = CreateConVar("sm_cvc_sql_log_flags", "0", "SQL logging flags <difficulty:1, restartgame:2, kick:4, changemission:8, lobby:16, chapter:32, alltalk:64, ALL:127, NONE:0>", FCVAR_NOTIFY, true, 0.0, true, 127.0);
+	g_cvarSQLConfig = CreateConVar("sm_cvc_sql_config", "callvote", "Database config name from databases.cfg for callvote_core", FCVAR_NONE);
 	
-	RegAdminCmd("sm_cvm_sql_cleanup", Command_CleanupDB, ADMFLAG_ROOT, "Clean up database records");
-	RegAdminCmd("sm_cvm_sql_truncate", Command_TruncateDB, ADMFLAG_ROOT, "Completely clear database table");
-	RegAdminCmd("sm_cvm_sql_stats", Command_DBStats, ADMFLAG_GENERIC, "Show database statistics");
+	RegAdminCmd("sm_cvc_sql_cleanup", Command_CleanupDB, ADMFLAG_ROOT, "Clean up database records");
+	RegAdminCmd("sm_cvc_sql_truncate", Command_TruncateDB, ADMFLAG_ROOT, "Completely clear database table");
+	RegAdminCmd("sm_cvc_sql_stats", Command_DBStats, ADMFLAG_GENERIC, "Show database statistics");
 }
 
 public void OnPluginEnd_SQL()
@@ -277,7 +277,7 @@ public void SQLVoteLogCallback(Database db, DBResultSet results, const char[] er
 
 /**
  * Command to clean up old database records
- * Usage: sm_cvm_sql_cleanup [days] - Clean records older than X days (default: 30)
+ * Usage: sm_cvc_sql_cleanup [days] - Clean records older than X days (default: 30)
  */
 Action Command_CleanupDB(int iClient, int iArgs)
 {
@@ -342,7 +342,7 @@ Action Command_CleanupDB(int iClient, int iArgs)
 
 /**
  * Command to completely truncate (empty) the database table
- * Usage: sm_cvm_sql_truncate - Requires confirmation
+ * Usage: sm_cvc_sql_truncate - Requires confirmation
  */
 Action Command_TruncateDB(int iClient, int iArgs)
 {
@@ -403,7 +403,7 @@ Action Command_TruncateDB(int iClient, int iArgs)
 
 /**
  * Command to show database statistics
- * Usage: sm_cvm_sql_stats - Show total records and breakdown by vote type
+ * Usage: sm_cvc_sql_stats - Show total records and breakdown by vote type
  */
 Action Command_DBStats(int iClient, int iArgs)
 {
@@ -470,18 +470,26 @@ public void CleanupDB_Callback(Database db, DBResultSet results, const char[] er
 	if (results == null)
 	{
 		if (client == SERVER_INDEX)
-			LogError("[CleanupDB_Callback] Database cleanup failed: %s", error);
+		{
+			char sMessage[256];
+			FormatEx(sMessage, sizeof(sMessage), "%T", "DatabaseCleanupFailed", LANG_SERVER, error);
+			LogError("[CleanupDB_Callback] %s", sMessage);
+		}
 		else
-			CReplyToCommand(client, "%t Database cleanup failed: %s", "Tag", error);
+			CReplyToCommand(client, "%t %t", "Tag", "DatabaseCleanupFailed", error);
 		CVLog.Debug("[CleanupDB_Callback] Error: %s", error);
 		return;
 	}
 
 	int affectedRows = results.AffectedRows;
 	if (client == SERVER_INDEX)
-		PrintToServer("[CallVote] Database cleanup completed: %d records older than %d days removed.", affectedRows, context.Days);
+	{
+		char sMessage[256];
+		FormatEx(sMessage, sizeof(sMessage), "%T", "DatabaseCleanupCompleted", LANG_SERVER, affectedRows, context.Days);
+		PrintToServer("[CallVote] %s", sMessage);
+	}
 	else
-		CReplyToCommand(client, "%t Database cleanup completed: %d records older than %d days removed.", "Tag", affectedRows, context.Days);
+		CReplyToCommand(client, "%t %t", "Tag", "DatabaseCleanupCompleted", affectedRows, context.Days);
 	CVLog.Debug("[CleanupDB_Callback] Cleanup completed: %d rows affected", affectedRows);
 }
 
@@ -505,17 +513,25 @@ public void TruncateDB_Callback(Database db, DBResultSet results, const char[] e
 	if (results == null)
 	{
 		if (client == SERVER_INDEX)
-			LogError("[TruncateDB_Callback] Database truncate failed: %s", error);
+		{
+			char sMessage[256];
+			FormatEx(sMessage, sizeof(sMessage), "%T", "DatabaseTruncateFailed", LANG_SERVER, error);
+			LogError("[TruncateDB_Callback] %s", sMessage);
+		}
 		else
-			CReplyToCommand(client, "%t Database truncate failed: %s", "Tag", error);
+			CReplyToCommand(client, "%t %t", "Tag", "DatabaseTruncateFailed", error);
 		CVLog.Debug("[TruncateDB_Callback] Error: %s", error);
 		return;
 	}
 
 	if (client == SERVER_INDEX)
-		PrintToServer("[CallVote] Database table truncated successfully. All vote records removed.");
+	{
+		char sMessage[256];
+		FormatEx(sMessage, sizeof(sMessage), "%T", "DatabaseTruncateCompleted", LANG_SERVER);
+		PrintToServer("[CallVote] %s", sMessage);
+	}
 	else
-		CReplyToCommand(client, "%t Database table truncated successfully. All vote records removed.", "Tag");
+		CReplyToCommand(client, "%t %t", "Tag", "DatabaseTruncateCompleted");
 	CVLog.Debug("[TruncateDB_Callback] Table truncated successfully");
 }
 
@@ -539,9 +555,13 @@ public void DBStats_Callback(Database db, DBResultSet results, const char[] erro
 	if (results == null)
 	{
 		if (client == SERVER_INDEX)
-			LogError("[DBStats_Callback] Database stats query failed: %s", error);
+		{
+			char sMessage[256];
+			FormatEx(sMessage, sizeof(sMessage), "%T", "DatabaseStatsFailed", LANG_SERVER, error);
+			LogError("[DBStats_Callback] %s", sMessage);
+		}
 		else
-			CReplyToCommand(client, "%t Database stats query failed: %s", "Tag", error);
+			CReplyToCommand(client, "%t %t", "Tag", "DatabaseStatsFailed", error);
 		CVLog.Debug("[DBStats_Callback] Error: %s", error);
 		return;
 	}
@@ -549,9 +569,13 @@ public void DBStats_Callback(Database db, DBResultSet results, const char[] erro
 	if (!results.FetchRow())
 	{
 		if (client == SERVER_INDEX)
-			PrintToServer("[CallVote] No data found in database.");
+		{
+			char sMessage[256];
+			FormatEx(sMessage, sizeof(sMessage), "%T", "DatabaseNoData", LANG_SERVER);
+			PrintToServer("[CallVote] %s", sMessage);
+		}
 		else
-			CReplyToCommand(client, "%t No data found in database.", "Tag");
+			CReplyToCommand(client, "%t %t", "Tag", "DatabaseNoData");
 		return;
 	}
 
@@ -566,29 +590,37 @@ public void DBStats_Callback(Database db, DBResultSet results, const char[] erro
 
 	if (client == SERVER_INDEX)
 	{
-		// Print to server console
-		PrintToServer("[CallVote] === Database Statistics ===");
-		PrintToServer("[CallVote] Total Records: %d", total);
-		PrintToServer("[CallVote] ChangeDifficulty: %d", difficulty);
-		PrintToServer("[CallVote] RestartGame: %d", restart);
-		PrintToServer("[CallVote] Kick: %d", kick);
-		PrintToServer("[CallVote] ChangeMission: %d", mission);
-		PrintToServer("[CallVote] ReturnToLobby: %d", lobby);
-		PrintToServer("[CallVote] ChangeChapter: %d", chapter);
-		PrintToServer("[CallVote] ChangeAllTalk: %d", alltalk);
+		char sMessage[256];
+		FormatEx(sMessage, sizeof(sMessage), "%T", "DatabaseStatsHeader", LANG_SERVER);
+		PrintToServer("[CallVote] %s", sMessage);
+		FormatEx(sMessage, sizeof(sMessage), "%T", "DatabaseStatsTotal", LANG_SERVER, total);
+		PrintToServer("[CallVote] %s", sMessage);
+		FormatEx(sMessage, sizeof(sMessage), "%T", "DatabaseStatsChangeDifficulty", LANG_SERVER, difficulty);
+		PrintToServer("[CallVote] %s", sMessage);
+		FormatEx(sMessage, sizeof(sMessage), "%T", "DatabaseStatsRestartGame", LANG_SERVER, restart);
+		PrintToServer("[CallVote] %s", sMessage);
+		FormatEx(sMessage, sizeof(sMessage), "%T", "DatabaseStatsKick", LANG_SERVER, kick);
+		PrintToServer("[CallVote] %s", sMessage);
+		FormatEx(sMessage, sizeof(sMessage), "%T", "DatabaseStatsChangeMission", LANG_SERVER, mission);
+		PrintToServer("[CallVote] %s", sMessage);
+		FormatEx(sMessage, sizeof(sMessage), "%T", "DatabaseStatsReturnToLobby", LANG_SERVER, lobby);
+		PrintToServer("[CallVote] %s", sMessage);
+		FormatEx(sMessage, sizeof(sMessage), "%T", "DatabaseStatsChangeChapter", LANG_SERVER, chapter);
+		PrintToServer("[CallVote] %s", sMessage);
+		FormatEx(sMessage, sizeof(sMessage), "%T", "DatabaseStatsChangeAllTalk", LANG_SERVER, alltalk);
+		PrintToServer("[CallVote] %s", sMessage);
 	}
 	else
 	{
-		// Print to client
-		CReplyToCommand(client, "%t === Database Statistics ===", "Tag");
-		CReplyToCommand(client, "%t Total Records: %d", "Tag", total);
-		CReplyToCommand(client, "%t ChangeDifficulty: %d", "Tag", difficulty);
-		CReplyToCommand(client, "%t RestartGame: %d", "Tag", restart);
-		CReplyToCommand(client, "%t Kick: %d", "Tag", kick);
-		CReplyToCommand(client, "%t ChangeMission: %d", "Tag", mission);
-		CReplyToCommand(client, "%t ReturnToLobby: %d", "Tag", lobby);
-		CReplyToCommand(client, "%t ChangeChapter: %d", "Tag", chapter);
-		CReplyToCommand(client, "%t ChangeAllTalk: %d", "Tag", alltalk);
+		CReplyToCommand(client, "%t %t", "Tag", "DatabaseStatsHeader");
+		CReplyToCommand(client, "%t %t", "Tag", "DatabaseStatsTotal", total);
+		CReplyToCommand(client, "%t %t", "Tag", "DatabaseStatsChangeDifficulty", difficulty);
+		CReplyToCommand(client, "%t %t", "Tag", "DatabaseStatsRestartGame", restart);
+		CReplyToCommand(client, "%t %t", "Tag", "DatabaseStatsKick", kick);
+		CReplyToCommand(client, "%t %t", "Tag", "DatabaseStatsChangeMission", mission);
+		CReplyToCommand(client, "%t %t", "Tag", "DatabaseStatsReturnToLobby", lobby);
+		CReplyToCommand(client, "%t %t", "Tag", "DatabaseStatsChangeChapter", chapter);
+		CReplyToCommand(client, "%t %t", "Tag", "DatabaseStatsChangeAllTalk", alltalk);
 	}
 }
 

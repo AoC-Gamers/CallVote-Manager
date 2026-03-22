@@ -7,7 +7,7 @@
 #include <steamidtools_helpers>
 
 #undef REQUIRE_PLUGIN
-#include <callvotemanager>
+#include <callvote_core>
 #define REQUIRE_PLUGIN
 
 /*****************************************************************
@@ -53,14 +53,15 @@ char
 bool
 	g_bSQLConnected,
 	g_bSQLTableExists,
-	g_bCallVoteManager,
+	g_bCallVoteCore,
 	g_bLateLoad = false;
 
 Database
 	g_db;
 
 StringMap
-	g_hLocalKickCounts;
+	g_hLocalKickCounts,
+	g_hSessionKickCounts;
 
 CallVoteLogger g_Log = null;
 
@@ -213,7 +214,7 @@ void InsertKickRecordSQL(int iSessionId, int iClientAccountId, int iTargetAccoun
 	{
 		case SQL_MySQL:
 		{
-			if (!CallVoteManager_GetSessionSteamID64Info(iSessionId, sCallerSteamID64, sizeof(sCallerSteamID64), sTargetSteamID64, sizeof(sTargetSteamID64)))
+			if (!CallVoteCore_GetSessionSteamID64Info(iSessionId, sCallerSteamID64, sizeof(sCallerSteamID64), sTargetSteamID64, sizeof(sTargetSteamID64)))
 			{
 				log(false, "[InsertKickRecordSQL] Failed to resolve frozen SteamID64 values for session %d", iSessionId);
 				return;
@@ -368,19 +369,19 @@ public APLRes AskPluginLoad2(Handle hMyself, bool bLate, char[] sError, int iErr
 
 public void OnAllPluginsLoaded()
 {
-	g_bCallVoteManager = LibraryExists(CALLVOTEMANAGER_LIBRARY);
+	g_bCallVoteCore = LibraryExists(CALLVOTECORE_LIBRARY);
 }
 
 public void OnLibraryRemoved(const char[] sName)
 {
-	if (StrEqual(sName, CALLVOTEMANAGER_LIBRARY))
-		g_bCallVoteManager = false;
+	if (StrEqual(sName, CALLVOTECORE_LIBRARY))
+		g_bCallVoteCore = false;
 }
 
 public void OnLibraryAdded(const char[] sName)
 {
-	if (StrEqual(sName, CALLVOTEMANAGER_LIBRARY))
-		g_bCallVoteManager = true;
+	if (StrEqual(sName, CALLVOTECORE_LIBRARY))
+		g_bCallVoteCore = true;
 }
 
 public void OnPluginStart()
@@ -398,6 +399,7 @@ public void OnPluginStart()
 	RegConsoleCmd("sm_cvkl_count", Command_KickCount, "Shows the current kick count for a player");
 
 	g_hLocalKickCounts = new StringMap();
+	g_hSessionKickCounts = new StringMap();
 
 	OnPluginStart_SQL();
 
@@ -406,7 +408,7 @@ public void OnPluginStart()
 	if(!g_bLateLoad)
 		return;
 	
-	g_bCallVoteManager = LibraryExists(CALLVOTEMANAGER_LIBRARY);
+	g_bCallVoteCore = LibraryExists(CALLVOTECORE_LIBRARY);
 }
 
 Action Command_KickCount(int iClient, int sArgs)
@@ -493,6 +495,8 @@ public void OnPluginEnd()
 {
 	if (g_hLocalKickCounts != null)
 		delete g_hLocalKickCounts;
+	if (g_hSessionKickCounts != null)
+		delete g_hSessionKickCounts;
 
 	if (g_db == null)
 	{
@@ -551,7 +555,7 @@ public void OnClientDisconnect(int iClient)
 
 public Action CallVote_PreStart(int iSessionId, int iClient, int iCallerAccountId, TypeVotes iVotes, int iTarget, int iTargetAccountId, const char[] sArgument)
 {
-	if (!g_cvarEnable.BoolValue || !g_bCallVoteManager)
+	if (!g_cvarEnable.BoolValue || !g_bCallVoteCore)
 		return Plugin_Continue;
 
 	if (iVotes != Kick)
@@ -560,6 +564,7 @@ public Action CallVote_PreStart(int iSessionId, int iClient, int iCallerAccountI
 	int iKickCount = 0;
 	if (!TryGetKickCount(iClient, iCallerAccountId, iKickCount))
 	{
+		CallVoteCore_SetPendingRestriction(VoteRestriction_Plugin);
 		if (IsKickCountLoadPending(iClient, iCallerAccountId))
 			CPrintToChat(iClient, "%t %t", "Tag", "KickDataPending");
 		else
@@ -577,8 +582,11 @@ public Action CallVote_PreStart(int iSessionId, int iClient, int iCallerAccountI
 		g_cvarKickLimit.IntValue,
 		sArgument);
 
+	SetSessionKickCountSnapshot(iSessionId, iKickCount);
+
 	if (g_cvarKickLimit.IntValue <= iKickCount)
 	{
+		CallVoteCore_SetPendingRestriction(VoteRestriction_Plugin);
 		char sBuffer[128];
 		Format(sBuffer, sizeof(sBuffer), "%t", "KickReached", iKickCount, g_cvarKickLimit.IntValue);
 		CPrintToChat(iClient, "%t %s", "Tag", sBuffer);
@@ -596,7 +604,7 @@ public Action CallVote_PreStart(int iSessionId, int iClient, int iCallerAccountI
 
 public void CallVote_End(int iSessionId, CallVoteEndReason iResult, int iYesCount, int iNoCount, int iPotentialVotes)
 {
-	if (!g_cvarEnable.BoolValue || !g_bCallVoteManager)
+	if (!g_cvarEnable.BoolValue || !g_bCallVoteCore)
 		return;
 
 	int iCallerClient;
@@ -606,15 +614,18 @@ public void CallVote_End(int iSessionId, CallVoteEndReason iResult, int iYesCoun
 	int iTargetAccountId;
 	char sArgument[64];
 
-	if (!CallVoteManager_GetSessionInfo(iSessionId, iCallerClient, iCallerAccountId, iVoteType, iTargetClient, iTargetAccountId, sArgument, sizeof(sArgument)))
+	if (!CallVoteCore_GetSessionInfo(iSessionId, iCallerClient, iCallerAccountId, iVoteType, iTargetClient, iTargetAccountId, sArgument, sizeof(sArgument)))
 		return;
 
 	if (iVoteType != Kick)
 		return;
 
-	int iLiveCaller = FindClientByAccountID(iCallerAccountId);
 	int iKnownKickCount = 0;
-	bool bHasKickCount = TryGetKickCount(iLiveCaller, iCallerAccountId, iKnownKickCount);
+	bool bHasKickCount = TryGetSessionKickCountSnapshot(iSessionId, iKnownKickCount);
+
+	int iLiveCaller = FindClientByAccountID(iCallerAccountId);
+	if (!bHasKickCount)
+		bHasKickCount = TryGetKickCount(iLiveCaller, iCallerAccountId, iKnownKickCount);
 
 	log(false, "[CallVote_End] Session:%d | Result:%d | CallerAID:%d | TargetAID:%d | Votes:%d/%d/%d | Current:%d | Arg:%s",
 		iSessionId,
@@ -628,7 +639,10 @@ public void CallVote_End(int iSessionId, CallVoteEndReason iResult, int iYesCoun
 		sArgument);
 
 	if (iResult != CallVoteEnd_Passed)
+	{
+		ClearSessionKickCountSnapshot(iSessionId);
 		return;
+	}
 
 	int iNewKickCount;
 	if (CanUseKickLimitSQL())
@@ -636,6 +650,7 @@ public void CallVote_End(int iSessionId, CallVoteEndReason iResult, int iYesCoun
 		if (!bHasKickCount)
 		{
 			log(false, "[CallVote_End] Skipping SQL increment because caller AccountID %d is still loading.", iCallerAccountId);
+			ClearSessionKickCountSnapshot(iSessionId);
 			return;
 		}
 
@@ -660,8 +675,16 @@ public void CallVote_End(int iSessionId, CallVoteEndReason iResult, int iYesCoun
 	if (g_Log != null && !CanUseKickLimitSQL())
 		g_Log.Normal("Kick", "Kick vote passed from %s to %s (%d/%d)", sCallerSteamID2, sTargetSteamID2, iNewKickCount, g_cvarKickLimit.IntValue);
 
+	ClearSessionKickCountSnapshot(iSessionId);
+
 	if (iLiveCaller > 0)
 		CreateTimer(1.0, Timer_KickLimit, GetClientUserId(iLiveCaller), TIMER_FLAG_NO_MAPCHANGE);
+}
+
+public void CallVote_Blocked(int iSessionId, int iClient, int iCallerAccountId, TypeVotes iVoteType, VoteRestrictionType restriction, int iTarget, int iTargetAccountId, const char[] sArgument)
+{
+	if (iVoteType == Kick)
+		ClearSessionKickCountSnapshot(iSessionId);
 }
 
 Action Timer_KickLimit(Handle hTimer, int iUserId)
@@ -786,6 +809,41 @@ int IncrementLocalKickCount(int iAccountId)
 	SetLocalKickCount(iAccountId, iKickCount);
 	UpdateConnectedClientKickCount(iAccountId, iKickCount);
 	return iKickCount;
+}
+
+void SessionIdToKey(int iSessionId, char[] sKey, int iMaxLen)
+{
+	IntToString(iSessionId, sKey, iMaxLen);
+}
+
+void SetSessionKickCountSnapshot(int iSessionId, int iKickCount)
+{
+	if (g_hSessionKickCounts == null || iSessionId <= 0)
+		return;
+
+	char sKey[16];
+	SessionIdToKey(iSessionId, sKey, sizeof(sKey));
+	g_hSessionKickCounts.SetValue(sKey, iKickCount);
+}
+
+bool TryGetSessionKickCountSnapshot(int iSessionId, int &iKickCount)
+{
+	if (g_hSessionKickCounts == null || iSessionId <= 0)
+		return false;
+
+	char sKey[16];
+	SessionIdToKey(iSessionId, sKey, sizeof(sKey));
+	return g_hSessionKickCounts.GetValue(sKey, iKickCount);
+}
+
+void ClearSessionKickCountSnapshot(int iSessionId)
+{
+	if (g_hSessionKickCounts == null || iSessionId <= 0)
+		return;
+
+	char sKey[16];
+	SessionIdToKey(iSessionId, sKey, sizeof(sKey));
+	g_hSessionKickCounts.Remove(sKey);
 }
 
 void RefreshConnectedClientsFromSQL()

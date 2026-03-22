@@ -1,25 +1,31 @@
 # CallVote Manager
 
-Core de la suite y punto de integracion para plugins de votaciones.
+Satelite de UX por defecto sobre `callvote_core`.
 
 ## Rol
 
-`callvote_manager` intercepta las votaciones antes de que queden en manos del motor, normaliza el tipo de voto y aplica la validacion comun del sistema.
+`callvote_manager` ya no es el proveedor del lifecycle ni de la API publica. Ese rol ahora pertenece a `callvote_core`.
 
-Su responsabilidad no es sancionar ni imponer politicas de negocio especificas. Su responsabilidad es:
+Su responsabilidad actual es:
 
-- construir contexto de votacion
-- validar reglas base
-- exponer un contrato estable
-- registrar actividad
+- aplicar la politica por defecto en `CallVote_PreStart`
+- anunciar votaciones aceptadas
+- mostrar progreso `vote_cast_yes/no`
+- ofrecer la experiencia base visible para jugadores
 
 ## Modelo actual
 
-El core trabaja con tres ideas centrales:
+El satelite trabaja sobre tres ideas centrales del core:
 
 - identidad canonica por `AccountID`
 - presentacion derivada por `SteamID2`
 - sesion de voto como unidad de contexto
+
+Y sobre un modelo de hooks:
+
+- `CallVote_PreStart`: pre-hook de politica
+- `CallVote_Blocked`: post-hook de rechazo
+- `CallVote_End`: post-hook final del lifecycle
 
 La sesion concentra, como minimo:
 
@@ -35,100 +41,50 @@ La sesion concentra, como minimo:
 
 De forma resumida, el flujo es:
 
-1. un jugador ejecuta `callvote`
-2. el core identifica el tipo y crea una sesion
-3. corre validaciones comunes
-4. expone hooks a plugins externos
-5. si el motor confirma el inicio, la sesion pasa a activa
-6. el core observa el cierre y publica el resultado final
+1. `callvote_core` intercepta `callvote`
+2. el core crea una sesion normalizada
+3. `callvote_manager` consume `CallVote_PreStart` y aplica la politica por defecto
+4. si nadie bloquea, el core entrega el comando al motor
+5. si el motor confirma el inicio, dispara `CallVote_Start`
+6. `callvote_manager` anuncia la votacion
+7. durante el voto, consume `vote_cast_yes/no` para mostrar progreso
 
 ```mermaid
 flowchart TD
-    A[Jugador ejecuta callvote] --> B[callvote_manager crea VoteSession]
-    B --> C[Clasificacion de voteType y argumento]
-    C --> D[Forward PreStart]
-    D --> E{Bloqueado por plugin?}
-    E -- Si --> F[Session bloqueada y feedback]
-    E -- No --> G[Validacion comun del core]
-    G --> H{Restriccion?}
-    H -- Si --> F
-    H -- No --> I[Forward PreExecute]
-    I --> J{Bloqueado?}
-    J -- Si --> F
-    J -- No --> K[Motor inicia la votacion]
-    K --> L[Session activa]
-    L --> M[Eventos y usermessages del motor]
-    M --> N[Resultado final]
+    A[Jugador ejecuta callvote] --> B[callvote_core crea VoteSession]
+    B --> C[CallVote_PreStart]
+    C --> D{callvote_manager permite?}
+    D -- No --> E[CallVote_Blocked]
+    D -- Si --> F[Motor confirma inicio]
+    F --> G[CallVote_Start]
+    G --> H[callvote_manager anuncia la votacion]
+    H --> I[vote_cast_yes/no]
+    I --> J[Mensaje de progreso]
 ```
 
-## Contrato publico
+## Relacion con el core
 
-El plugin expone un contrato publico unico, orientado a:
+El contrato publico vive en `callvote_core.inc`, no en este plugin.
 
-- `sessionId`
-- `AccountID`
-- lifecycle completo de la votacion
+El manager implementa la politica por defecto usando ese contrato. Si quieres una
+suite sin esa politica, puedes deshabilitar `callvote_manager` y montar otro
+consumidor sobre `callvote_core`.
 
 ## Convencion publica
 
 La superficie publica del manager sigue una convencion unica:
 
-- comandos con prefijo `sm_cvm_*`
 - convars con prefijo `sm_cvm_*`
 
-La documentacion y los ejemplos deben referirse solo a esa nomenclatura.
-
-## SQL
-
-El almacenamiento persistente ya no usa `SteamID2` como identidad primaria.
-
-El esquema actual usa:
-
-- `caller_account_id`
-- `target_account_id`
-- `caller_steamid64` en MySQL
-- `target_steamid64` en MySQL
-
-`SteamID2` no se persiste como llave. Si hace falta mostrarlo, se deriva desde `AccountID`.
-
-SQLite se instala automaticamente desde el plugin cuando el entry configurado en `databases.cfg` usa ese motor y mantiene un esquema minimo orientado al runtime local.
-
-MySQL se instala solo mediante scripts SQL y agrega `SteamID64` para consumo externo y analitica.
-
-```mermaid
-flowchart LR
-    Session[VoteSession]
-    AccountID[AccountID]
-    SteamID2[SteamID2]
-    SteamID64[SteamID64]
-    SQLite[SQLite]
-    MySQL[MySQL]
-
-    Session --> AccountID
-    AccountID --> SteamID2
-    AccountID --> SteamID64
-    AccountID --> SQLite
-    AccountID --> MySQL
-    SteamID64 --> MySQL
-```
+El manager ya no define el contrato base de sesion ni la API compartida.
 
 ## Alcance
 
-Lo que pertenece al core:
-
-- interceptacion
-- validacion base
-- contexto de sesion
-- logging
-- API para terceros
-
-Lo que no pertenece al core:
-
-- sanciones
-- reglas administrativas complejas
-- persistencia de bans
-- UI o flujos propios de moderacion
+- anuncios visibles del voto
+- progreso visible del voto
+- politica por defecto de inmunidades y validaciones visibles
+- experiencia base de jugadores
 
 ## Estado del diseno
 
-El core esta siendo consolidado como base para una suite externa de sanciones. Por eso el foco ya no esta en plugins satelite acoplados, sino en contratos claros y bajo acoplamiento.
+El manager ahora es un consumidor mas del core, igual que `kicklimit` o `bans`.

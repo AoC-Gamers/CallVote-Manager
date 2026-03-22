@@ -4,16 +4,17 @@ Extension del core orientada a limitar abuso en votekick.
 
 ## Rol
 
-`callvote_kicklimit` no intercepta el motor por su cuenta. Se monta sobre la API publica de `callvote_manager` y aplica una politica concreta:
+`callvote_kicklimit` no intercepta el motor por su cuenta. Se monta sobre la API publica de `callvote_core` y aplica una politica concreta:
 
 - controlar cuantas votaciones de expulsión puede iniciar un jugador
 
 ## Integracion con el core
 
-El plugin consume el lifecycle del manager, especialmente:
+El plugin consume directamente el lifecycle de `callvote_core`, especialmente:
 
-- validacion previa al inicio
-- cierre final de la sesion
+- `CallVote_PreStart` para validacion previa al inicio
+- `CallVote_Blocked` para observar rechazos
+- `CallVote_End` para reaccionar al resultado final
 
 Eso evita reconstruir el estado del voto desde hooks dispersos del motor.
 
@@ -24,7 +25,7 @@ flowchart TD
     B -- Si --> D[Resolver caller AccountID]
     D --> E[Leer contador local o SQL]
     E --> F{Limite alcanzado?}
-    F -- Si --> G[Bloquear voto]
+    F -- Si --> G[Fijar bloqueo y rechazar]
     F -- No --> H[Permitir voto]
     H --> I[CallVote_End]
     I --> J{Resultado Passed?}
@@ -87,3 +88,9 @@ flowchart LR
 Este plugin resuelve una sola politica de negocio y no intenta convertirse en un subsistema general de sanciones o reputacion.
 
 Su valor esta en que demuestra como extender el core sin acoplarse directamente a detalles del motor.
+
+## Modelo de hooks
+
+- `CallVote_PreStart` es el punto de decision donde `kicklimit` valida el contador.
+- Si necesita bloquear, el plugin fija el motivo pendiente en el core y devuelve `Plugin_Handled`.
+- `CallVote_End` usa la sesion congelada del core para persistir el resultado cuando el voto realmente paso.

@@ -1,6 +1,6 @@
 # CallVote Bans
 
-Plugin basico de restricciones por tipo de votacion sobre `callvote_manager`.
+Plugin basico de restricciones por tipo de votacion sobre `callvote_core`.
 
 ## Alcance
 
@@ -42,10 +42,38 @@ Las conversiones offline usan `steamidtools.inc` y `steamidtools_helpers.inc`. S
 
 ## Flujo
 
+- `CallVote_PreStart` es el punto de validacion del runtime
+- `CallVote_Blocked` permite observar rechazos desde el contrato comun del core
+- `CallVote_End` no necesita mutar estado en este plugin, porque la politica de restricciones se decide antes del inicio real
 - los comandos administrativos usan un flujo unico para targets conectados e identidades offline
 - SQLite ejecuta mutaciones en el mismo hilo del plugin
 - MySQL ejecuta mutaciones y lecturas administrativas en forma asincrona
 - el cache en memoria es solo un acelerador del runtime; la fuente de verdad es la base activa
+
+```mermaid
+flowchart TD
+    A[CallVote_PreStart] --> B[Resolver callerAccountId desde la sesion]
+    B --> C[Lookup autoritativo de restriccion]
+    C --> D{Restriccion activa?}
+    D -- Si --> E[Fijar bloqueo pendiente y rechazar]
+    D -- No --> F{Error backend?}
+    F -- Si --> G[Fijar bloqueo pendiente y fail-closed]
+    F -- No --> H[Permitir voto]
+```
+
+```mermaid
+flowchart LR
+    Runtime[Runtime del plugin]
+    Cache[Memory cache]
+    SQLite[SQLite]
+    MySQL[MySQL]
+    AdminMenu[callvote_bans_adminmenu]
+
+    Runtime --> Cache
+    Runtime --> SQLite
+    Runtime --> MySQL
+    AdminMenu --> Runtime
+```
 
 ```mermaid
 flowchart TD
@@ -65,20 +93,6 @@ flowchart TD
     L --> M[Actualizar memory cache]
 ```
 
-```mermaid
-flowchart LR
-    Runtime[Runtime del plugin]
-    Cache[Memory cache]
-    SQLite[SQLite]
-    MySQL[MySQL]
-    AdminMenu[callvote_bans_adminmenu]
-
-    Runtime --> Cache
-    Runtime --> SQLite
-    Runtime --> MySQL
-    AdminMenu --> Runtime
-```
-
 ## Direccion
 
-`callvote_bans` debe mantenerse pequeno y estable. La logica de sanciones mas compleja, paneles avanzados y flujos mas ricos deberian crecer fuera de esta suite, consumiendo el core publico de `callvote_manager`.
+`callvote_bans` debe mantenerse pequeno y estable. La logica de sanciones mas compleja, paneles avanzados y flujos mas ricos deberian crecer fuera de esta suite, consumiendo el core publico de `callvote_core`.

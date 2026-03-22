@@ -7,7 +7,7 @@
 #include <steamidtools_helpers>
 
 #undef REQUIRE_PLUGIN
-#include <callvotemanager>
+#include <callvote_core>
 #define REQUIRE_PLUGIN
 
 #define PLUGIN_VERSION	 "2.0.0"
@@ -35,7 +35,7 @@ Database
 
 bool
 	g_bLateLoad,
-	g_bCallVoteManagerLoaded,
+	g_bCallVoteCoreLoaded,
 	g_bSteamIDToolsLoaded;
 
 CallVoteLogger g_Log = null;
@@ -215,7 +215,7 @@ public APLRes
 public void OnAllPluginsLoaded()
 {
 	g_bSteamIDToolsLoaded	 = LibraryExists(STEAMIDTOOLS_LIBRARY);
-	g_bCallVoteManagerLoaded = LibraryExists(CALLVOTEMANAGER_LIBRARY);
+	g_bCallVoteCoreLoaded = LibraryExists(CALLVOTECORE_LIBRARY);
 	CVB_RequestIdentityHealthChecks();
 }
 
@@ -223,8 +223,8 @@ public void OnLibraryRemoved(const char[] sName)
 {
 	if (StrEqual(sName, STEAMIDTOOLS_LIBRARY))
 		g_bSteamIDToolsLoaded = false;
-	if (StrEqual(sName, CALLVOTEMANAGER_LIBRARY))
-		g_bCallVoteManagerLoaded = false;
+	if (StrEqual(sName, CALLVOTECORE_LIBRARY))
+		g_bCallVoteCoreLoaded = false;
 }
 
 public void OnLibraryAdded(const char[] sName)
@@ -234,8 +234,8 @@ public void OnLibraryAdded(const char[] sName)
 		g_bSteamIDToolsLoaded = true;
 		CVB_RequestIdentityHealthChecks();
 	}
-	if (StrEqual(sName, CALLVOTEMANAGER_LIBRARY))
-		g_bCallVoteManagerLoaded = true;
+	if (StrEqual(sName, CALLVOTECORE_LIBRARY))
+		g_bCallVoteCoreLoaded = true;
 }
 
 public void OnPluginStart()
@@ -261,7 +261,7 @@ public void OnPluginStart()
 		return;
 
 	g_bSteamIDToolsLoaded	 = LibraryExists(STEAMIDTOOLS_LIBRARY);
-	g_bCallVoteManagerLoaded = LibraryExists(CALLVOTEMANAGER_LIBRARY);
+	g_bCallVoteCoreLoaded = LibraryExists(CALLVOTECORE_LIBRARY);
 
 	OnAllPluginsLoaded();
 	for (int i = 1; i <= MaxClients; i++)
@@ -323,7 +323,7 @@ public void OnClientPostAdminCheck(int client)
 
 void AnnouncerJoin(int client)
 {
-	if (!g_cvarEnable.BoolValue || !g_bCallVoteManagerLoaded || g_cvarAnnounceJoin.IntValue == 0 || !IsValidClient(client))
+	if (!g_cvarEnable.BoolValue || !g_bCallVoteCoreLoaded || g_cvarAnnounceJoin.IntValue == 0 || !IsValidClient(client))
 		return;
 
 	if (!IsClientBannedWithInfo(client))
@@ -378,7 +378,7 @@ public Action CallVote_PreStart(int sessionId, int client, int callerAccountId, 
 		return Plugin_Continue;
 
 	PlayerRestrictionInfo restrictionInfo;
-	restrictionInfo.Reset(GetClientAccountID(client));
+	restrictionInfo.Reset(callerAccountId);
 	VoteType voteFlag = GetVoteFlag(voteType);
 	CVBLog.Debug("CallVote_PreStart: session=%d client=%N callerAccountId=%d voteType=%d targetAccountId=%d argument=%s", sessionId, client, callerAccountId, voteType, targetAccountId, argument);
 
@@ -390,6 +390,7 @@ public Action CallVote_PreStart(int sessionId, int client, int callerAccountId, 
 
 	if (status == CVBLookup_Error)
 	{
+		CallVoteCore_SetPendingRestriction(VoteRestriction_Plugin);
 		ShowVoteBlockedValidationMessage(client);
 
 		Call_StartForward(g_gfBlocked);
@@ -406,6 +407,7 @@ public Action CallVote_PreStart(int sessionId, int client, int callerAccountId, 
 
 	if (status == CVBLookup_Found && (restrictionInfo.RestrictionMask & view_as<int>(voteFlag)))
 	{
+		CallVoteCore_SetPendingRestriction(VoteRestriction_Plugin);
 		ShowVoteBlockedMessage(client, voteType);
 
 		Call_StartForward(g_gfBlocked);

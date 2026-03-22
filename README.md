@@ -6,7 +6,8 @@ Suite de plugins SourceMod para controlar votaciones en Left 4 Dead 2.
 
 La suite se organiza alrededor de un core:
 
-- `callvote_manager`: intercepta y valida votaciones
+- `callvote_core`: intercepta, crea sesiones y expone el lifecycle
+- `callvote_manager`: satelite de politica y UX por defecto
 - `callvote_kicklimit`: aplica politicas de abuso sobre votekick
 - `callvote_bans`: aplica restricciones de voto y expone API administrativa simple
 
@@ -26,24 +27,26 @@ El objetivo actual del proyecto es consolidar el core como una API estable para 
 ```mermaid
 flowchart LR
     Player[Jugador]
+    Core[callvote_core]
     Manager[callvote_manager]
     KickLimit[callvote_kicklimit]
     Bans[callvote_bans]
     External[Suites externas]
 
-    Player --> Manager
-    Manager --> KickLimit
-    Manager --> Bans
-    Manager --> External
+    Player --> Core
+    Core --> Manager
+    Core --> KickLimit
+    Core --> Bans
+    Core --> External
 ```
 
 ### [CallVote Manager](docs/README_MANAGER.md)
 
-Core del sistema. Intercepta `callvote`, clasifica el tipo de voto, valida restricciones, construye una sesion de voto y expone forwards y natives para otros plugins.
+Plugin satelite de politica y UX por defecto. Consume `CallVote_PreStart` para aplicar inmunidades y reglas base, y luego usa `CallVote_Start` y eventos de progreso para mostrar la experiencia visible del voto.
 
 ### [CallVote Kick Limit](docs/README_KICKLIMIT.md)
 
-Extension liviana sobre el core. Usa el contrato publico del manager para limitar la frecuencia de votekicks por jugador.
+Extension liviana sobre el core. Usa el contrato publico de `callvote_core` para limitar la frecuencia de votekicks por jugador.
 
 Superficie publica principal:
 
@@ -78,17 +81,19 @@ Layout instalable del artefacto:
 
 ```text
 addons/sourcemod/plugins/callvote/
-    callvotemanager.smx
+    callvote_core.smx
+    callvote_manager.smx
     callvote_kicklimit.smx
     callvote_bans.smx
     callvote_bans_adminmenu.smx
 
 addons/sourcemod/scripting/include/
-    callvotemanager.inc
+    callvote_core.inc
     callvote_stock.inc
     callvote_bans.inc
 
 addons/sourcemod/scripting/
+    callvote_core.sp
     callvote_manager.sp
     callvote_kicklimit.sp
     callvote_bans.sp

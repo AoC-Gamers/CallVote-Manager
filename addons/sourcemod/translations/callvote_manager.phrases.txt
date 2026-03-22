@@ -151,8 +151,8 @@
 	}
 	"UsageTruncateConfirm"
 	{
-		"en" 		"Usage: sm_cvm_sql_truncate confirm - This will delete ALL records!"
-		"es" 		"Uso: sm_cvm_sql_truncate confirm - ¡Esto eliminará TODOS los registros!"
+		"en" 		"Usage: sm_cvc_sql_truncate confirm - This will delete ALL records!"
+		"es" 		"Uso: sm_cvc_sql_truncate confirm - ¡Esto eliminará TODOS los registros!"
 	}
 	"WarningDeleteAllRecords"
 	{

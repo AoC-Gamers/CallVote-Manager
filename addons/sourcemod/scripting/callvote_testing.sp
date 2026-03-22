@@ -3,7 +3,7 @@
 
 #include <sourcemod> 
 #include <colors>
-#include <callvotemanager>
+#include <callvote_core>
 #include <dbi>
 
 /*****************************************************************
@@ -36,8 +36,7 @@ ConVar
 	g_cvarListenerCallVote,
 	g_cvarForwardPreStart,
 	g_cvarForwardBlocked,
-	g_cvarForwardPreExecute,
-	g_cvarNativesTest
+	g_cvarForwardPreExecute
 	;
 
 bool
@@ -129,7 +128,6 @@ public void OnPluginStart()
 	g_cvarForwardPreStart  = CreateConVar("sm_cvt_forwardprestart", "1", "Enable CallVote_PreStart forward", FCVAR_NONE, true, 0.0, true, 1.0);
 	g_cvarForwardBlocked   = CreateConVar("sm_cvt_forwardblocked", "1", "Enable CallVote_Blocked forward", FCVAR_NONE, true, 0.0, true, 1.0);
 	g_cvarForwardPreExecute = CreateConVar("sm_cvt_forwardpreexecute", "1", "Enable CallVote_PreExecute forward", FCVAR_NONE, true, 0.0, true, 1.0);
-	g_cvarNativesTest      = CreateConVar("sm_cvt_nativestest", "1", "Enable natives testing", FCVAR_NONE, true, 0.0, true, 1.0);
 	
 	HookEvent("vote_started", Event_VoteStarted);
 	HookEvent("vote_ended", Event_VoteEnded);
@@ -149,8 +147,6 @@ public void OnPluginStart()
 	AddCommandListener(Listener_CallVote, "callvote");
 
 	RegConsoleCmd("sm_cvt_connected", Cmd_Connected, "Check if the database is connected");
-	RegConsoleCmd("sm_cvt_testconvar", Cmd_TestConVar, "Test ConVar vote allowance");
-	RegConsoleCmd("sm_cvt_testgamemode", Cmd_TestGameMode, "Test GameMode vote allowance");
 
 }
 
@@ -190,38 +186,6 @@ Action Cmd_Connected(int iClient, int iArgs)
 	return Plugin_Handled;
 }
 
-Action Cmd_TestConVar(int client, int args)
-{
-	if (!g_cvarNativesTest.BoolValue)
-		return Plugin_Handled;
-
-	char arg[32];
-	GetCmdArg(1, arg, sizeof(arg));
-	TypeVotes voteType = ChangeDifficulty;
-	if (args >= 1)
-		voteType = view_as<TypeVotes>(StringToInt(arg));
-
-	CReplyToCommand(client, "%s ConVar check for voteType %d: %s", TAG, view_as<int>(voteType),
-		CallVoteManager_IsVoteAllowedByConVar(voteType) ? "ALLOWED" : "BLOCKED");
-	return Plugin_Handled;
-}
-
-Action Cmd_TestGameMode(int client, int args)
-{
-	if (!g_cvarNativesTest.BoolValue)
-		return Plugin_Handled;
-
-	char arg[32];
-	GetCmdArg(1, arg, sizeof(arg));
-	TypeVotes voteType = ChangeDifficulty;
-	if (args >= 1)
-		voteType = view_as<TypeVotes>(StringToInt(arg));
-
-	CReplyToCommand(client, "%s GameMode check for voteType %d: %s", TAG, view_as<int>(voteType),
-		CallVoteManager_IsVoteAllowedByGameMode(voteType) ? "ALLOWED" : "BLOCKED");
-	return Plugin_Handled;
-}
-
 public void OnConfigsExecuted()
 {
 	if (!g_cvarEnable.BoolValue)
@@ -244,11 +208,11 @@ public void CallVote_Start(int sessionId)
 	int iTarget;
 	int iTargetAccountId;
 	char sArgument[64];
-	if (!CallVoteManager_GetSessionInfo(sessionId, iClient, iCallerAccountId, votes, iTarget, iTargetAccountId, sArgument, sizeof(sArgument)))
+	if (!CallVoteCore_GetSessionInfo(sessionId, iClient, iCallerAccountId, votes, iTarget, iTargetAccountId, sArgument, sizeof(sArgument)))
 		return;
 
 	char sSteamID[MAX_STEAM_ID_LENGTH];
-	CallVoteManager_GetClientSteamID2(iClient, sSteamID, sizeof(sSteamID));
+	CallVoteCore_GetClientSteamID2(iClient, sSteamID, sizeof(sSteamID));
 
 	char
 		sMessage[255];
@@ -720,7 +684,7 @@ public Action CallVote_PreStart(int sessionId, int iClient, int iCallerAccountId
 		return Plugin_Continue;
 
 	char sSteamID[MAX_STEAM_ID_LENGTH];
-	CallVoteManager_GetClientSteamID2(iClient, sSteamID, sizeof(sSteamID));
+	CallVoteCore_GetClientSteamID2(iClient, sSteamID, sizeof(sSteamID));
 
 	char sMessage[255];
 	if (voteType == Kick)
@@ -749,7 +713,7 @@ public Action CallVote_PreExecute(int sessionId, int iClient, int iCallerAccount
 		return Plugin_Continue;
 
 	char sSteamID[MAX_STEAM_ID_LENGTH];
-	CallVoteManager_GetClientSteamID2(iClient, sSteamID, sizeof(sSteamID));
+	CallVoteCore_GetClientSteamID2(iClient, sSteamID, sizeof(sSteamID));
 
 	char sMessage[255];
 	if (voteType == Kick)
@@ -777,7 +741,7 @@ public void CallVote_Blocked(int sessionId, int iClient, int iCallerAccountId, T
 		return;
 
 	char sSteamID[MAX_STEAM_ID_LENGTH];
-	CallVoteManager_GetClientSteamID2(iClient, sSteamID, sizeof(sSteamID));
+	CallVoteCore_GetClientSteamID2(iClient, sSteamID, sizeof(sSteamID));
 
 	char sRestriction[64];
 	GetRestrictionName(restriction, sRestriction, sizeof(sRestriction));
@@ -809,6 +773,9 @@ void GetRestrictionName(VoteRestrictionType restriction, char[] buffer, int maxl
 	switch (restriction)
 	{
 		case VoteRestriction_None: strcopy(buffer, maxlen, "None");
+		case VoteRestriction_InvalidCaller: strcopy(buffer, maxlen, "InvalidCaller");
+		case VoteRestriction_ClientState: strcopy(buffer, maxlen, "ClientState");
+		case VoteRestriction_Cooldown: strcopy(buffer, maxlen, "Cooldown");
 		case VoteRestriction_ConVar: strcopy(buffer, maxlen, "ConVar");
 		case VoteRestriction_GameMode: strcopy(buffer, maxlen, "GameMode");
 		case VoteRestriction_SameState: strcopy(buffer, maxlen, "SameState");

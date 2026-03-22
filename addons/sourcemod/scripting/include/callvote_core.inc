@@ -30,15 +30,15 @@
  * Version: $Id$
  */
 
-#if defined _callvotemanager_included
+#if defined _callvote_core_included
 	#endinput
 #endif
-#define _callvotemanager_included
+#define _callvote_core_included
 
 #include <callvote_stock>
 
-#define CALLVOTEMANAGER_LIBRARY "callvotemanager"
-#define CALLVOTEMANAGER_PLUGIN "callvotemanager.smx"
+#define CALLVOTECORE_LIBRARY "callvote_core"
+#define CALLVOTECORE_PLUGIN "callvote_core.smx"
 
 /**
  * Enumeration for vote restriction types
@@ -46,6 +46,9 @@
 enum VoteRestrictionType
 {
 	VoteRestriction_None = 0,
+	VoteRestriction_InvalidCaller,
+	VoteRestriction_ClientState,
+	VoteRestriction_Cooldown,
 	VoteRestriction_ConVar,
 	VoteRestriction_GameMode,
 	VoteRestriction_SameState,
@@ -56,10 +59,19 @@ enum VoteRestrictionType
 }
 
 /**
- * Called when a vote call is about to begin (extended contract).
+ * Pre-hook fired when a vote call is about to begin.
  *
- * This forward provides the current session id plus canonical AccountID-based
- * identity data before validation has completed.
+ * The core creates a normalized session first, then exposes this forward so
+ * consumer plugins can apply policy. The core itself does not impose default
+ * immunity, mode, or vote-rule policy.
+ *
+ * Typical usage for validators:
+ * 1. inspect the proposed vote
+ * 2. if it must be blocked, call `CallVoteCore_SetPendingRestriction(...)`
+ * 3. return `Plugin_Handled`
+ *
+ * If every consumer returns `Plugin_Continue`, the core proceeds to engine
+ * execution.
  *
  * @param sessionId         Unique session id assigned by the core
  * @param client            Client index who initiated the vote
@@ -73,14 +85,17 @@ enum VoteRestrictionType
 forward Action CallVote_PreStart(int sessionId, int client, int callerAccountId, TypeVotes voteType, int target, int targetAccountId, const char[] argument);
 
 /**
- * Called when the engine confirms the vote has started.
+ * Post-hook fired when the engine confirms the vote has started.
  *
  * @param sessionId         Unique session id assigned by the core
  */
 forward void CallVote_Start(int sessionId);
 
 /**
- * Called after validation passes but before the command is handed back to the engine.
+ * Pre-hook fired after PreStart passes but before the command is handed to the engine.
+ *
+ * This is intended for advanced consumers that need a second decision point
+ * after the session has already passed the first validation stage.
  *
  * @param sessionId         Unique session id assigned by the core
  * @param client            Client index who initiated the vote
@@ -94,10 +109,10 @@ forward void CallVote_Start(int sessionId);
 forward Action CallVote_PreExecute(int sessionId, int client, int callerAccountId, TypeVotes voteType, int target, int targetAccountId, const char[] argument);
 
 /**
- * Called when a vote session is blocked.
+ * Post-hook fired when a vote session is blocked.
  *
- * This forward covers both validation blocks and plugin-originated blocks in the
- * extended lifecycle.
+ * This covers blocks originating from PreStart, PreExecute, and core-level
+ * abort paths. Consumers should treat it as the canonical rejection callback.
  *
  * @param sessionId         Unique session id assigned by the core
  * @param client            Client index who attempted the vote
@@ -111,7 +126,10 @@ forward Action CallVote_PreExecute(int sessionId, int client, int callerAccountI
 forward void CallVote_Blocked(int sessionId, int client, int callerAccountId, TypeVotes voteType, VoteRestrictionType restriction, int target, int targetAccountId, const char[] argument);
 
 /**
- * Called when the current vote session ends.
+ * Final post-hook fired when the current vote session ends.
+ *
+ * This is the canonical lifecycle completion callback for accepted, failed,
+ * cancelled, blocked, and stale sessions.
  *
  * @param sessionId         Unique session id assigned by the core
  * @param result            Final outcome of the vote session
@@ -122,32 +140,17 @@ forward void CallVote_Blocked(int sessionId, int client, int callerAccountId, Ty
 forward void CallVote_End(int sessionId, CallVoteEndReason result, int yesCount, int noCount, int potentialVotes);
 
 /**
- * Verifies if a vote type is allowed by ConVar settings.
- * 
- * This native checks if the specified vote type is enabled through
- * server ConVars (both Valve and plugin-specific settings).
+ * Sets the restriction that should be associated with the current pending
+ * block when a PreStart/PreExecute consumer decides to reject the vote.
  *
- * @param voteType  Type of vote to validate (see TypeVotes enum)
- * @return          True if allowed by ConVars, false otherwise
- * 
- * @note This only checks ConVar permissions, not game mode or other restrictions
- * @note Useful for pre-checking vote availability before attempting
- */
-native bool CallVoteManager_IsVoteAllowedByConVar(TypeVotes voteType);
-
-/**
- * Verifies if a vote type is allowed by the current game mode.
- * 
- * This native checks if the specified vote type is permitted in
- * the current L4D2 game mode (Coop, Versus, Survival, Scavenge).
+ * Typical usage:
+ * 1. detect policy violation inside `CallVote_PreStart`
+ * 2. call `CallVoteCore_SetPendingRestriction(...)`
+ * 3. return `Plugin_Handled`
  *
- * @param voteType  Type of vote to validate (see TypeVotes enum)
- * @return          True if allowed by game mode, false otherwise
- * 
- * @note Different game modes have different vote restrictions
- * @note This check is independent of ConVar settings
+ * @param restriction   Restriction to bind to the pending block
  */
-native bool CallVoteManager_IsVoteAllowedByGameMode(TypeVotes voteType);
+native void CallVoteCore_SetPendingRestriction(VoteRestrictionType restriction);
 
 /**
  * Returns the Steam AccountID for a connected client.
@@ -155,7 +158,7 @@ native bool CallVoteManager_IsVoteAllowedByGameMode(TypeVotes voteType);
  * @param client    Client index
  * @return          AccountID for a human client, 0 otherwise
  */
-native int CallVoteManager_GetClientAccountID(int client);
+native int CallVoteCore_GetClientAccountID(int client);
 
 /**
  * Formats a connected client's identity as SteamID2.
@@ -165,14 +168,14 @@ native int CallVoteManager_GetClientAccountID(int client);
  * @param maxlen        Maximum buffer length
  * @return              True if the conversion succeeded, false otherwise
  */
-native bool CallVoteManager_GetClientSteamID2(int client, char[] steamId2, int maxlen);
+native bool CallVoteCore_GetClientSteamID2(int client, char[] steamId2, int maxlen);
 
 /**
  * Returns the current active vote session id.
  *
  * @return              Current session id, or 0 if no session is active
  */
-native int CallVoteManager_GetCurrentSession();
+native int CallVoteCore_GetCurrentSession();
 
 /**
  * Returns normalized session information for the requested session id.
@@ -190,7 +193,7 @@ native int CallVoteManager_GetCurrentSession();
  * @param argMaxLen         Maximum argument buffer length
  * @return                  True if the session exists
  */
-native bool CallVoteManager_GetSessionInfo(int sessionId, int &callerClient, int &callerAccountId, TypeVotes &voteType, int &targetClient, int &targetAccountId, char[] argument, int argMaxLen);
+native bool CallVoteCore_GetSessionInfo(int sessionId, int &callerClient, int &callerAccountId, TypeVotes &voteType, int &targetClient, int &targetAccountId, char[] argument, int argMaxLen);
 
 /**
  * Returns the SteamID64 values captured by the core when the session started.
@@ -205,7 +208,7 @@ native bool CallVoteManager_GetSessionInfo(int sessionId, int &callerClient, int
  * @param targetMaxLen      Maximum target buffer length
  * @return                  True if the session exists
  */
-native bool CallVoteManager_GetSessionSteamID64Info(int sessionId, char[] callerSteamID64, int callerMaxLen, char[] targetSteamID64, int targetMaxLen);
+native bool CallVoteCore_GetSessionSteamID64Info(int sessionId, char[] callerSteamID64, int callerMaxLen, char[] targetSteamID64, int targetMaxLen);
 
 /**
  * Returns raw engine-facing session information collected from vote events.
@@ -221,7 +224,7 @@ native bool CallVoteManager_GetSessionSteamID64Info(int sessionId, char[] caller
  * @param initiatorClient   Receives engine initiator client index
  * @return                  True if the session exists
  */
-native bool CallVoteManager_GetSessionIssueInfo(int sessionId, char[] issue, int issueMaxLen, char[] param1, int param1MaxLen, char[] param2, int param2MaxLen, int &team, int &initiatorClient);
+native bool CallVoteCore_GetSessionIssueInfo(int sessionId, char[] issue, int issueMaxLen, char[] param1, int param1MaxLen, char[] param2, int param2MaxLen, int &team, int &initiatorClient);
 
 /**
  * Returns raw CallVoteFailed information captured for a session.
@@ -233,7 +236,7 @@ native bool CallVoteManager_GetSessionIssueInfo(int sessionId, char[] issue, int
  * @param time              Receives the CallVoteFailed time value
  * @return                  True if the session exists
  */
-native bool CallVoteManager_GetSessionFailureInfo(int sessionId, int &reason, int &time);
+native bool CallVoteCore_GetSessionFailureInfo(int sessionId, int &reason, int &time);
 
 /**
  * Returns the last tally known by the core for a session.
@@ -245,11 +248,11 @@ native bool CallVoteManager_GetSessionFailureInfo(int sessionId, int &reason, in
  * @param endReason         Receives final end reason, or current provisional state if not ended
  * @return                  True if the session exists
  */
-native bool CallVoteManager_GetSessionTally(int sessionId, int &yesVotes, int &noVotes, int &potentialVotes, CallVoteEndReason &endReason);
+native bool CallVoteCore_GetSessionTally(int sessionId, int &yesVotes, int &noVotes, int &potentialVotes, CallVoteEndReason &endReason);
 
-public SharedPlugin __pl_callvotemanager = {
-	name = CALLVOTEMANAGER_LIBRARY,
-	file = CALLVOTEMANAGER_PLUGIN,
+public SharedPlugin __pl_callvote_core = {
+	name = CALLVOTECORE_LIBRARY,
+	file = CALLVOTECORE_PLUGIN,
 #if defined REQUIRE_PLUGIN
 	required = 1,
 #else
@@ -259,17 +262,16 @@ public SharedPlugin __pl_callvotemanager = {
 
 #if !defined REQUIRE_PLUGIN
 
-public void __pl_callvotemanager_SetNTVOptional()
+public void __pl_callvote_core_SetNTVOptional()
 {
-	MarkNativeAsOptional("CallVoteManager_IsVoteAllowedByConVar");
-	MarkNativeAsOptional("CallVoteManager_IsVoteAllowedByGameMode");
-	MarkNativeAsOptional("CallVoteManager_GetClientAccountID");
-	MarkNativeAsOptional("CallVoteManager_GetClientSteamID2");
-	MarkNativeAsOptional("CallVoteManager_GetCurrentSession");
-	MarkNativeAsOptional("CallVoteManager_GetSessionInfo");
-	MarkNativeAsOptional("CallVoteManager_GetSessionSteamID64Info");
-	MarkNativeAsOptional("CallVoteManager_GetSessionIssueInfo");
-	MarkNativeAsOptional("CallVoteManager_GetSessionFailureInfo");
-	MarkNativeAsOptional("CallVoteManager_GetSessionTally");
+	MarkNativeAsOptional("CallVoteCore_SetPendingRestriction");
+	MarkNativeAsOptional("CallVoteCore_GetClientAccountID");
+	MarkNativeAsOptional("CallVoteCore_GetClientSteamID2");
+	MarkNativeAsOptional("CallVoteCore_GetCurrentSession");
+	MarkNativeAsOptional("CallVoteCore_GetSessionInfo");
+	MarkNativeAsOptional("CallVoteCore_GetSessionSteamID64Info");
+	MarkNativeAsOptional("CallVoteCore_GetSessionIssueInfo");
+	MarkNativeAsOptional("CallVoteCore_GetSessionFailureInfo");
+	MarkNativeAsOptional("CallVoteCore_GetSessionTally");
 }
 #endif

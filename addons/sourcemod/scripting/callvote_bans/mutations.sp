@@ -257,13 +257,21 @@ static void CVB_FinalizeQueuedBanSuccess(
 	bool targetOnline = CVB_TryResolveLiveTarget(requestedTargetClient, targetAccountId, liveTarget);
 	int createdTimestamp = GetTime();
 	int expiresTimestamp = CVB_GetExpirationTimestamp(durationMinutes);
+
+	PlayerRestrictionInfo restrictionInfo;
+	restrictionInfo.Reset(targetAccountId);
+	restrictionInfo.RestrictionMask = banType;
+	restrictionInfo.CreatedTimestamp = createdTimestamp;
+	restrictionInfo.DurationMinutes = durationMinutes;
+	restrictionInfo.ExpiresTimestamp = expiresTimestamp;
+	restrictionInfo.AdminAccountId = adminAccountId;
+	restrictionInfo.SetReason(reason);
+	CVB_UpdateMemoryCache(restrictionInfo);
+	CVBLog.Cache("Restriction cache updated after persist for AccountID %d (type=%d duration=%d expires=%d)", targetAccountId, banType, durationMinutes, expiresTimestamp);
+
 	if (targetOnline)
 	{
 		SetClientRestrictionInfo(liveTarget, banType, durationMinutes, expiresTimestamp, createdTimestamp, adminAccountId, reason);
-	}
-	else
-	{
-		ForceRefreshMemoryCacheEntry(targetAccountId);
 	}
 
 	char liveTargetDisplay[MAX_NAME_LENGTH];
@@ -364,14 +372,16 @@ static void CVB_FinalizeQueuedRemoveSuccess(
 
 	int liveTarget;
 	bool targetOnline = CVB_TryResolveLiveTarget(requestedTargetClient, targetAccountId, liveTarget);
+
+	PlayerRestrictionInfo restrictionInfo;
+	restrictionInfo.Reset(targetAccountId);
+	CVB_UpdateMemoryCache(restrictionInfo);
+	CVBLog.Cache("Restriction cache cleared after unrestrict for AccountID %d", targetAccountId);
+
 	if (targetOnline)
 	{
 		SetClientRestrictionInfo(liveTarget, 0, 0, 0, 0, 0, "");
 		CPrintToChat(liveTarget, "%t %t", "Tag", "YourRestrictionRemoved");
-	}
-	else
-	{
-		ForceRefreshMemoryCacheEntry(targetAccountId);
 	}
 
 	char liveTargetDisplay[MAX_NAME_LENGTH];

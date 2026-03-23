@@ -53,6 +53,7 @@ char
 bool
 	g_bSQLConnected,
 	g_bSQLTableExists,
+	g_bSQLConnecting,
 	g_bCallVoteCore,
 	g_bLateLoad = false;
 
@@ -305,7 +306,7 @@ void RequestKickCountLoad(int iClient, int iAccountId)
 		}
 	}
 
-	log(true, "[RequestKickCountLoad] Driver: %s | Query: %s", g_SQLDriver == SQL_MySQL ? "MySQL" : "SQLite", sQuery);
+	log(false, "[RequestKickCountLoad] Driver: %s | Query: %s", g_SQLDriver == SQL_MySQL ? "MySQL" : "SQLite", sQuery);
 	g_db.Query(GetKickCountCallback, sQuery, CreateKickCountRequestDataPack(GetClientUserId(iClient), iAccountId));
 }
 
@@ -340,7 +341,7 @@ public void GetKickCountCallback(Database db, DBResultSet results, const char[] 
 		iKick = results.FetchInt(0);
 	}
 
-	log(true, "[GetKickCountCallback] Client: %N | AccountID: %d | Kicks: %d", iClient, context.AccountId, iKick);
+	log(false, "[GetKickCountCallback] Client: %N | AccountID: %d | Kicks: %d", iClient, context.AccountId, iKick);
 	UpdateConnectedClientKickCount(context.AccountId, iKick);
 }
 
@@ -389,6 +390,7 @@ public void OnPluginStart()
 	LoadTranslation("callvote_kicklimit.phrases");
 	LoadTranslation("callvote_common.phrases");
 	LoadTranslation("common.phrases");
+	HookEvent("player_team", Event_PlayerTeam);
 	g_cvarEnable	= CreateConVar("sm_cvkl_enable", "1", "Enable plugin", FCVAR_NOTIFY, true, 0.0, true, 1.0);
 	g_cvarLogMode	= CallVoteEnsureLogModeConVar();
 	g_cvarDebugMask = CreateConVar("sm_cvkl_debug_mask", "0", "Debug mask for callvote_kicklimit. Core=1 SQL=2 Cache=4 Commands=8 Identity=16 Forwards=32 Session=64 Localization=128 All=255.", FCVAR_NONE, true, 0.0, true, 255.0);
@@ -506,7 +508,7 @@ public void OnPluginEnd()
 	}
 
 	delete g_db;
-	log(true, "[OnPluginEnd] Database connection closed.");
+	log(false, "[OnPluginEnd] Database connection closed.");
 
 	if (g_Log != null)
 		delete g_Log;
@@ -537,8 +539,18 @@ public void OnClientPostAdminCheck(int iClient)
 
 	if (CanUseKickLimitSQL())
 	{
-		g_Players[iClient].LoadState = KickCount_Pending;
-		RequestKickCountLoad(iClient, iAccountId);
+		int iCachedKickCount = 0;
+		if (TryGetLocalKickCount(iAccountId, iCachedKickCount))
+		{
+			g_Players[iClient].Kick = iCachedKickCount;
+			g_Players[iClient].LoadState = KickCount_Ready;
+			log(false, "[OnClientPostAdminCheck] Reusing cached kick count for AccountID %d: %d", iAccountId, iCachedKickCount);
+		}
+		else
+		{
+			g_Players[iClient].LoadState = KickCount_Pending;
+			RequestKickCountLoad(iClient, iAccountId);
+		}
 	}
 	else
 		LoadLocalKickCount(iClient, iAccountId);
@@ -546,6 +558,26 @@ public void OnClientPostAdminCheck(int iClient)
 
 public void OnClientDisconnect(int iClient)
 {
+	ResetClientState(iClient);
+}
+
+public void Event_PlayerTeam(Event event, const char[] name, bool dontBroadcast)
+{
+	if (!event.GetBool("disconnect", false))
+		return;
+
+	int iUserId = event.GetInt("userid", 0);
+	int iClient = GetClientOfUserId(iUserId);
+	if (iClient <= 0 || iClient > MaxClients || IsFakeClient(iClient))
+		return;
+
+	int iAccountId = g_Players[iClient].AccountID;
+	if (iAccountId > 0)
+	{
+		RemoveLocalKickCount(iAccountId);
+		log(false, "[Event_PlayerTeam] Client %d disconnected; purged local cache for AccountID %d", iClient, iAccountId);
+	}
+
 	ResetClientState(iClient);
 }
 
@@ -731,6 +763,26 @@ void SetLocalKickCount(int iAccountId, int iKickCount)
 	g_hLocalKickCounts.SetValue(sKey, iKickCount);
 }
 
+void RemoveLocalKickCount(int iAccountId)
+{
+	if (g_hLocalKickCounts == null || iAccountId <= 0)
+		return;
+
+	char sKey[ACCOUNTID_LENGTH];
+	AccountIDToKey(iAccountId, sKey, sizeof(sKey));
+	g_hLocalKickCounts.Remove(sKey);
+}
+
+bool TryGetLocalKickCount(int iAccountId, int &iKickCount)
+{
+	if (g_hLocalKickCounts == null || iAccountId <= 0)
+		return false;
+
+	char sKey[ACCOUNTID_LENGTH];
+	AccountIDToKey(iAccountId, sKey, sizeof(sKey));
+	return g_hLocalKickCounts.GetValue(sKey, iKickCount);
+}
+
 int GetLocalKickCount(int iAccountId)
 {
 	if (g_hLocalKickCounts == null || iAccountId <= 0)
@@ -910,6 +962,18 @@ void logErrorSQL(Database db, const char[] query, const char[] context)
 
 void ConnectDB(const char[] configName, const char[] tableName)
 {
+	if (g_db != null)
+	{
+		log(false, "[ConnectDB] Database already connected; skipping reconnect for config %s", configName);
+		return;
+	}
+
+	if (g_bSQLConnecting)
+	{
+		log(false, "[ConnectDB] Database connection already in progress; skipping duplicate connect for config %s", configName);
+		return;
+	}
+
 	g_bSQLConnected = false;
 	g_bSQLTableExists = false;
 
@@ -919,15 +983,18 @@ void ConnectDB(const char[] configName, const char[] tableName)
 		return;
 	}
 
+	g_bSQLConnecting = true;
 	log(false, "[ConnectDB] Connecting to database config %s for table %s", configName, tableName);
 	Database.Connect(ConnectCallback, configName);
 }
 
 void ConnectCallback(Database database, const char[] error, any data)
 {
+	g_bSQLConnecting = false;
 	g_bSQLConnected = false;
 	g_bSQLTableExists = false;
 
+	g_bSQLConnecting = false;
 	if (database == null)
 	{
 		log(true, "[ConnectCallback] Could not connect to database: %s", error);

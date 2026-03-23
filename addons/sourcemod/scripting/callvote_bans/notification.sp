@@ -62,13 +62,68 @@ void NotifyPlayerRestrictionApplied(int target, int admin, const char[] adminIde
 	CVB_PrintBanApplicationDetails(target, resolvedAdminIdentifier, banTypes, durationText, durationMinutes);
 }
 
+static bool CVB_TryGetLocalizedVoteTypeName(TypeVotes voteType, int client, char[] output, int maxlen)
+{
+	return CallVoteLoc_GetVoteTypeLabel(voteType, client, g_loc, output, maxlen);
+}
+
+static bool CVB_ShouldUseSpanishFallback(int client)
+{
+	if (client < 1 || client > MaxClients || !IsClientInGame(client) || IsFakeClient(client))
+	{
+		return false;
+	}
+
+	return Lang_IsClientSpanish(client);
+}
+
+static void CVB_GetFallbackVoteTypeName(TypeVotes voteType, int client, char[] output, int maxlen)
+{
+	bool useSpanish = CVB_ShouldUseSpanishFallback(client);
+
+	switch (voteType)
+	{
+		case ChangeDifficulty: strcopy(output, maxlen, useSpanish ? "Dificultad" : "Difficulty");
+		case RestartGame: Format(output, maxlen, "%T", "VoteTypeRestart", client);
+		case Kick: strcopy(output, maxlen, useSpanish ? "Expulsion" : "Kick");
+		case ChangeMission: Format(output, maxlen, "%T", "VoteTypeMission", client);
+		case ReturnToLobby: strcopy(output, maxlen, useSpanish ? "Volver al lobby" : "Return to Lobby");
+		case ChangeChapter: strcopy(output, maxlen, useSpanish ? "Capitulo" : "Chapter");
+		case ChangeAllTalk: strcopy(output, maxlen, "AllTalk");
+		default: Format(output, maxlen, "%T", "VoteTypeUnknown", client, view_as<int>(voteType));
+	}
+}
+
+static void CVB_GetVoteTypeName(TypeVotes voteType, int client, char[] output, int maxlen)
+{
+	if (CVB_TryGetLocalizedVoteTypeName(voteType, client, output, maxlen))
+	{
+		return;
+	}
+
+	CVB_GetFallbackVoteTypeName(voteType, client, output, maxlen);
+}
+
+static void CVB_AppendRestrictedVoteType(char[] output, int maxlen, TypeVotes voteType, int client)
+{
+	char voteTypeName[64];
+	CVB_GetVoteTypeName(voteType, client, voteTypeName, sizeof(voteTypeName));
+
+	if (output[0] != '\0')
+	{
+		StrCat(output, maxlen, ", ");
+	}
+
+	StrCat(output, maxlen, voteTypeName);
+}
+
 void ShowVoteBlockedMessage(int client, TypeVotes voteType)
 {
 	if (!IsValidClient(client))
 		return;
 
 	char voteTypeName[64];
-	GetVoteTypeName(voteType, voteTypeName, sizeof(voteTypeName));
+	CVB_GetVoteTypeName(voteType, client, voteTypeName, sizeof(voteTypeName));
 
 	char consoleMessage[32];
 	Format(consoleMessage, sizeof(consoleMessage), "%T", "CheckConsoleForDetails", client);
@@ -157,86 +212,40 @@ void ShowVoteBlockedDetailsInConsole(int client)
 
 void GetRestrictedVoteTypes(int banType, char[] output, int maxlen, int client)
 {
-	char temp[512];
-	temp[0] = '\0';
+	output[0] = '\0';
 
 	if (banType & (1 << 0))
 	{
-		if (temp[0] != '\0')
-			StrCat(temp, sizeof(temp), ", ");
-		char voteTypeName[32];
-		Format(voteTypeName, sizeof(voteTypeName), "%T", "VoteTypeDifficulty", client);
-		StrCat(temp, sizeof(temp), voteTypeName);
+		CVB_AppendRestrictedVoteType(output, maxlen, ChangeDifficulty, client);
 	}
 
 	if (banType & (1 << 1))
 	{
-		if (temp[0] != '\0')
-			StrCat(temp, sizeof(temp), ", ");
-		char voteTypeName[32];
-		Format(voteTypeName, sizeof(voteTypeName), "%T", "VoteTypeRestart", client);
-		StrCat(temp, sizeof(temp), voteTypeName);
+		CVB_AppendRestrictedVoteType(output, maxlen, RestartGame, client);
 	}
 
 	if (banType & (1 << 2))
 	{
-		if (temp[0] != '\0')
-			StrCat(temp, sizeof(temp), ", ");
-		char voteTypeName[32];
-		Format(voteTypeName, sizeof(voteTypeName), "%T", "VoteTypeKick", client);
-		StrCat(temp, sizeof(temp), voteTypeName);
+		CVB_AppendRestrictedVoteType(output, maxlen, Kick, client);
 	}
 
 	if (banType & (1 << 3))
 	{
-		if (temp[0] != '\0')
-			StrCat(temp, sizeof(temp), ", ");
-		char voteTypeName[32];
-		Format(voteTypeName, sizeof(voteTypeName), "%T", "VoteTypeMission", client);
-		StrCat(temp, sizeof(temp), voteTypeName);
+		CVB_AppendRestrictedVoteType(output, maxlen, ChangeMission, client);
 	}
 
 	if (banType & (1 << 4))
 	{
-		if (temp[0] != '\0')
-			StrCat(temp, sizeof(temp), ", ");
-		char voteTypeName[32];
-		Format(voteTypeName, sizeof(voteTypeName), "%T", "VoteTypeLobby", client);
-		StrCat(temp, sizeof(temp), voteTypeName);
+		CVB_AppendRestrictedVoteType(output, maxlen, ReturnToLobby, client);
 	}
 
 	if (banType & (1 << 5))
 	{
-		if (temp[0] != '\0')
-			StrCat(temp, sizeof(temp), ", ");
-		char voteTypeName[32];
-		Format(voteTypeName, sizeof(voteTypeName), "%T", "VoteTypeChapter", client);
-		StrCat(temp, sizeof(temp), voteTypeName);
+		CVB_AppendRestrictedVoteType(output, maxlen, ChangeChapter, client);
 	}
 
 	if (banType & (1 << 6))
 	{
-		if (temp[0] != '\0')
-			StrCat(temp, sizeof(temp), ", ");
-		char voteTypeName[32];
-		Format(voteTypeName, sizeof(voteTypeName), "%T", "VoteTypeAllTalk", client);
-		StrCat(temp, sizeof(temp), voteTypeName);
-	}
-
-	strcopy(output, maxlen, temp);
-}
-
-void GetVoteTypeName(TypeVotes voteType, char[] output, int maxlen)
-{
-	switch (voteType)
-	{
-		case ChangeDifficulty: Format(output, maxlen, "%T", "VoteTypeDifficulty", LANG_SERVER);
-		case RestartGame: Format(output, maxlen, "%T", "VoteTypeRestart", LANG_SERVER);
-		case Kick: Format(output, maxlen, "%T", "VoteTypeKick", LANG_SERVER);
-		case ChangeMission: Format(output, maxlen, "%T", "VoteTypeMission", LANG_SERVER);
-		case ReturnToLobby: Format(output, maxlen, "%T", "VoteTypeLobby", LANG_SERVER);
-		case ChangeChapter: Format(output, maxlen, "%T", "VoteTypeChapter", LANG_SERVER);
-		case ChangeAllTalk: Format(output, maxlen, "%T", "VoteTypeAllTalk", LANG_SERVER);
-		default: Format(output, maxlen, "%T", "VoteTypeUnknown", LANG_SERVER, view_as<int>(voteType));
+		CVB_AppendRestrictedVoteType(output, maxlen, ChangeAllTalk, client);
 	}
 }

@@ -165,15 +165,12 @@ void PrintLocalizedAllTalk(int iAnnouncer)
 			char sAllTalkTranslation[LC_MAX_TRANSLATION_LENGTH];
 			char sStateTranslation[LC_MAX_TRANSLATION_LENGTH];
 
-			if (!Lang_GetValveTranslation(i, "#L4D360UI_ChangeAllTalk", sAllTalkTranslation, sizeof(sAllTalkTranslation), g_loc))
+			if (!CallVoteLoc_GetVoteTypeLabel(ChangeAllTalk, i, g_loc, sAllTalkTranslation, sizeof(sAllTalkTranslation)))
 			{
 				strcopy(sAllTalkTranslation, sizeof(sAllTalkTranslation), "change AllTalk");
 			}
 
-			char sStateKey[32];
-			strcopy(sStateKey, sizeof(sStateKey), bNewState ? "#GameUI_Enabled" : "#GameUI_Disabled");
-
-			if (!Lang_GetValveTranslation(i, sStateKey, sStateTranslation, sizeof(sStateTranslation), g_loc))
+			if (!CallVoteLoc_GetEnabledStateLabel(bNewState, i, g_loc, sStateTranslation, sizeof(sStateTranslation)))
 			{
 				strcopy(sStateTranslation, sizeof(sStateTranslation), bNewState ? "Enabled" : "Disabled");
 			}
@@ -212,15 +209,7 @@ void PrintLocalizedDifficulty(const char[] sDifficultyArg, int iAnnouncer)
 		return;
 
 	char sKey[64];
-	if (StrEqual(sDifficultyArg, "Easy", false))
-		strcopy(sKey, sizeof(sKey), "#L4D_DifficultyEasy");
-	else if (StrEqual(sDifficultyArg, "Normal", false))
-		strcopy(sKey, sizeof(sKey), "#L4D_DifficultyNormal");
-	else if (StrEqual(sDifficultyArg, "Hard", false))
-		strcopy(sKey, sizeof(sKey), "#L4D_DifficultyHard");
-	else if (StrEqual(sDifficultyArg, "Impossible", false))
-		strcopy(sKey, sizeof(sKey), "#L4D_DifficultyImpossible");
-	else
+	if (!CallVoteLoc_GetDifficultyKey(sDifficultyArg, sKey, sizeof(sKey)))
 	{
 		CVLog.Localization("[PrintLocalizedDifficulty] Unknown difficulty argument: %s", sDifficultyArg);
 		return;
@@ -238,7 +227,7 @@ void PrintLocalizedDifficulty(const char[] sDifficultyArg, int iAnnouncer)
 
 			char sDifficultyTranslation[LC_MAX_TRANSLATION_LENGTH];
 
-			if (!Lang_GetValveTranslation(i, sKey, sDifficultyTranslation, sizeof(sDifficultyTranslation), g_loc))
+			if (!CallVoteLoc_GetDifficultyLabel(sDifficultyArg, i, g_loc, sDifficultyTranslation, sizeof(sDifficultyTranslation)))
 			{
 				strcopy(sDifficultyTranslation, sizeof(sDifficultyTranslation), sDifficultyArg);
 			}
@@ -288,7 +277,7 @@ void PrintLocalizedKick(int iAnnouncer, int iTarget)
 
 			char sKickTranslation[LC_MAX_TRANSLATION_LENGTH];
 
-			if (!Lang_GetValveTranslation(i, "#L4D360UI_Kick", sKickTranslation, sizeof(sKickTranslation), g_loc))
+			if (!CallVoteLoc_GetVoteTypeLabel(Kick, i, g_loc, sKickTranslation, sizeof(sKickTranslation)))
 			{
 				strcopy(sKickTranslation, sizeof(sKickTranslation), "kick");
 			}
@@ -368,7 +357,7 @@ void PrintLocalizedRestartGame(int iAnnouncer)
 
 			char sRestartTranslation[LC_MAX_TRANSLATION_LENGTH];
 
-			if (!Lang_GetValveTranslation(i, sKey, sRestartTranslation, sizeof(sRestartTranslation), g_loc))
+			if (!CallVoteLoc_GetRestartLabel(gameMode, i, g_loc, sRestartTranslation, sizeof(sRestartTranslation)))
 			{
 				strcopy(sRestartTranslation, sizeof(sRestartTranslation), sFallbackText);
 			}
@@ -419,7 +408,7 @@ void PrintLocalizedReturnToLobby(int iAnnouncer)
 
 			char sLobbyTranslation[LC_MAX_TRANSLATION_LENGTH];
 
-			if (!Lang_GetValveTranslation(i, "#L4D360UI_ReturnToLobby", sLobbyTranslation, sizeof(sLobbyTranslation), g_loc))
+			if (!CallVoteLoc_GetVoteTypeLabel(ReturnToLobby, i, g_loc, sLobbyTranslation, sizeof(sLobbyTranslation)))
 			{
 				strcopy(sLobbyTranslation, sizeof(sLobbyTranslation), "return to lobby");
 			}

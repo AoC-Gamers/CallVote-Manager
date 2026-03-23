@@ -80,6 +80,8 @@ char LC_TRANSLATION_FILE[] = 		"localizer.phrases.txt";
 #define LC_MAX_PATH_LANG_DECODED	LC_MAX_LANG_FILE_LENGTH+sizeof(LC_RESOURCE_DECODED_DIR)+1
 
 Database 		g_hLcDB;
+DBStatement		g_hLcUserStmt;
+Transaction		g_hLcBatchTx;
 StringMap 		g_hMapLcPhrase[LC_MAX_LANG_COUNT], // weird, can't declare dynamic array statically
 				g_hMapLcStamp,
 				g_hMapLcEnglishFile; // for english ghosts (in CSGO)
@@ -93,8 +95,11 @@ Handle			g_hTimerLcState;
 bool			g_bLcDecodeInProgress,
 				g_bLcIndexChanged,
 				g_bLcReady,
+				g_bLcClosing,
 				g_bLcProfiler;
 int				g_iLcServerLanguage,
+				g_iLcPendingDbOps,
+				g_iLcBatchQueries,
 				g_iLcQueueTx,
 				g_iTotalFilesToProcess;
 LC_INSTALL_MODE g_iLcInstallMode;
@@ -158,6 +163,10 @@ methodmap Localizer < Handle
 	 */
 	public void Delegate_InitCompleted(g_typLcNotifier func)
 	{
+		if( g_bLcClosing || !g_fwdLcOnPhrasesProcessingCompleted )
+		{
+			return;
+		}
 		g_fwdLcOnPhrasesProcessingCompleted.AddFunction(GetMyHandle(), func);
 	}
 	
@@ -634,20 +643,44 @@ methodmap Localizer < Handle
 	 */
 	public void Close()
 	{
+		g_bLcClosing = true;
+		g_bLcReady = false;
+		g_bLcDecodeInProgress = false;
+		if( g_hCvarLcState )
+		{
+			g_hCvarLcState.RemoveChangeHook(Loc_StateChanged);
+		}
 		for( int i = 0; i < sizeof(g_hMapLcPhrase); i++ ) {
 			if( g_hMapLcPhrase[i] != null)
+			{
 				delete g_hMapLcPhrase[i];
+				g_hMapLcPhrase[i] = null;
+			}
 		}
 		delete g_hMapLcStamp;
+		g_hMapLcStamp = null;
 		delete g_hMapLcEnglishFile;
+		g_hMapLcEnglishFile = null;
 		delete g_hLcStackEncoded;
+		g_hLcStackEncoded = null;
 		delete g_hLcStackCache;
+		g_hLcStackCache = null;
 		delete g_hTimerLcState;
+		g_hTimerLcState = null;
 		delete g_hLcProf;
-		g_fwdLcOnPhrasesProcessingCompleted.RemoveAllFunctions(GetMyHandle());
+		g_hLcProf = null;
+		delete g_hLcBatchTx;
+		g_hLcBatchTx = null;
+		g_iLcBatchQueries = 0;
+		if( g_fwdLcOnPhrasesProcessingCompleted )
+		{
+			g_fwdLcOnPhrasesProcessingCompleted.RemoveAllFunctions(GetMyHandle());
+		}
 		//delete g_fwdLcOnPhrasesProcessingCompleted; // disabled: potential crash, if executed in mid-call
 		delete g_rLcCaptures;
+		g_rLcCaptures = null;
 		//delete g_hLcDB; // disabled: for safe, because database can still execute threaded operations
+		SQL_Loc_TryFinalizeShutdown();
 		g_iLcInstallMode = LC_INSTALL_MODE_NONE;
 	}
 }
@@ -755,6 +788,16 @@ void Loc_Init(LC_INSTALL_MODE install_mode)
 
 bool Loc_InitObjects()
 {
+	g_bLcClosing = false;
+	g_bLcReady = false;
+	g_bLcDecodeInProgress = false;
+	g_iLcPendingDbOps = 0;
+	g_iLcBatchQueries = 0;
+	g_iLcQueueTx = 0;
+	delete g_hLcUserStmt;
+	g_hLcUserStmt = null;
+	delete g_hLcBatchTx;
+	g_hLcBatchTx = null;
 	int count = GetLanguageCount();
 	for( int i = 0; i < count; i++ ) {
 		delete g_hMapLcPhrase[i];
@@ -822,6 +865,13 @@ void Loc_ShowConsumer(int client)
 
 public void Loc_StateChanged(ConVar convar, const char[] oldValue, const char[] newValue)
 {
+	if( g_bLcClosing )
+	{
+		delete g_hTimerLcState;
+		g_hTimerLcState = null;
+		convar.RemoveChangeHook(Loc_StateChanged);
+		return;
+	}
 	if( view_as<LC_OP_STATE>(convar.IntValue) == LC_OP_STATE_SIGNAL )
 	{
 		if( g_bLcProfiler )
@@ -842,12 +892,21 @@ public void Loc_StateChanged(ConVar convar, const char[] oldValue, const char[] 
 
 void Loc_SetStateWatchDog()
 {
+	if( g_bLcClosing )
+	{
+		return;
+	}
 	delete g_hTimerLcState;
 	g_hTimerLcState = CreateTimer(LC_MAX_SIGNAL_WAIT_TIME, Timer_Loc_SignalWatchDog);
 }
 
 public Action Timer_Loc_SignalWatchDog(Handle timer)
 {
+	if( g_bLcClosing )
+	{
+		g_hTimerLcState = null;
+		return Plugin_Stop;
+	}
 	PrintToServer("[Localizer] [h:%i] WatchDog raised !!!", GetMyHandle());
 	g_hTimerLcState = null;
 	g_hCvarLcState.SetInt(view_as<int>(LC_OP_STATE_SIGNAL));
@@ -856,6 +915,10 @@ public Action Timer_Loc_SignalWatchDog(Handle timer)
 
 void Loc_StartProcessing()
 {
+	if( g_bLcClosing )
+	{
+		return;
+	}
 	CreateDirectory(LC_RESOURCE_DECODED_DIR, 0o755);
 	
 	if( !Loc_ReadIndexFile())
@@ -895,17 +958,29 @@ void Loc_StartProcessing()
 
 void OnPhrasesProcessingCompleted_CallDelayed() // wait for DB to finish last threaded operation
 {
+	if( g_bLcClosing )
+	{
+		return;
+	}
 	CreateTimer(LC_THREAD_WAIT_TIME, Timer_Loc_OnPhrasesProcessingCompleted);
 }
 
 public Action Timer_Loc_OnPhrasesProcessingCompleted(Handle timer)
 {
+	if( g_bLcClosing )
+	{
+		return Plugin_Stop;
+	}
 	Forward_OnPhrasesProcessingCompleted();
 	return Plugin_Continue;
 }
 
 void Forward_OnPhrasesProcessingCompleted()
 {
+	if( g_bLcClosing )
+	{
+		return;
+	}
 	if( g_bLcIndexChanged )
 	{
 		Loc_WriteIndexFile();
@@ -938,6 +1013,10 @@ void Forward_OnPhrasesProcessingCompleted()
 
 void Forward_OnPhrasesProcessingCompleted_Frame()
 {
+	if( g_bLcClosing || !g_fwdLcOnPhrasesProcessingCompleted )
+	{
+		return;
+	}
 	Action result;
 	Call_StartForward(g_fwdLcOnPhrasesProcessingCompleted);
 	Call_Finish(result);
@@ -1084,12 +1163,20 @@ void Loc_GetPhraseFiles(char[] search)
 
 public Action Timer_Loc_StackProcessingDecode(Handle timer, LC_OP_FLAG flags)
 {
+	if( g_bLcClosing || !g_hLcStackEncoded || !g_hLcStackCache || !g_hLcProf )
+	{
+		return Plugin_Stop;
+	}
 	Loc_StackProcessingDecode(flags);
 	return Plugin_Continue;
 }
 
 void Loc_StackProcessingDecode(LC_OP_FLAG flags)
 {
+	if( g_bLcClosing || !g_hLcStackEncoded || !g_hLcStackCache || !g_hLcProf )
+	{
+		return;
+	}
 	g_bLcReady = false;
 
 	float time;
@@ -1147,12 +1234,20 @@ void Loc_StackProcessingDecode(LC_OP_FLAG flags)
 
 public Action Timer_Loc_StackProcessingCache(Handle timer, LC_OP_FLAG flags)
 {
+	if( g_bLcClosing || !g_hLcStackCache || !g_hLcStackEncoded || !g_hLcProf )
+	{
+		return Plugin_Stop;
+	}
 	Loc_StackProcessingCache(flags);
 	return Plugin_Continue;
 }
 
 void Loc_StackProcessingCache(LC_OP_FLAG flags)
 {
+	if( g_bLcClosing || !g_hLcStackCache || !g_hLcStackEncoded || !g_hLcProf )
+	{
+		return;
+	}
 	float time;
 	bool bUpdated;
 	int iFileSize;
@@ -1634,7 +1729,7 @@ int Loc_GetLanguageNum(int client = LANG_SERVER, char[] lang_name = "", char[] l
 
 void Loc_ReplacePhrases(char[] str, int len, int lang_num)
 {
-	if( lang_num == -1 )
+	if( g_bLcClosing || lang_num == -1 || !g_rLcCaptures )
 		return;
 	
 	static char phrase[LC_MAX_PHRASE_LENGTH];
@@ -1657,6 +1752,11 @@ void Loc_ReplacePhrases(char[] str, int len, int lang_num)
 
 stock bool Loc_GetPhrase(int lang_num, char[] phrase, char[] translation, int maxlength, bool default_on_fail = false, bool use_cache = true)
 {
+	if( g_bLcClosing || lang_num < 0 || lang_num >= LC_MAX_LANG_COUNT || !g_hMapLcPhrase[lang_num] )
+	{
+		translation[0] = 0;
+		return false;
+	}
 	static char tr[LC_MAX_TRANSLATION_LENGTH];
 	static char tr_def[LC_MAX_TRANSLATION_LENGTH];
 	
@@ -1775,8 +1875,39 @@ char[] Loc_InstallMode_ToString()
 			Database
 ================================================================================*/
 
+void SQL_Loc_TrackAsyncStart()
+{
+	++ g_iLcPendingDbOps;
+}
+
+void SQL_Loc_TrackAsyncEnd()
+{
+	if( g_iLcPendingDbOps > 0 )
+	{
+		-- g_iLcPendingDbOps;
+	}
+	SQL_Loc_TryFinalizeShutdown();
+}
+
+void SQL_Loc_TryFinalizeShutdown()
+{
+	if( !g_bLcClosing || g_iLcPendingDbOps != 0 )
+	{
+		return;
+	}
+	delete g_hLcUserStmt;
+	g_hLcUserStmt = null;
+	delete g_hLcDB;
+	g_hLcDB = null;
+	g_iLcQueueTx = 0;
+}
+
 void SQL_Loc_DB_Connect(bool uninstall = false)
 {
+	if( g_bLcClosing )
+	{
+		return;
+	}
 	char error[256];
 	if( !g_hLcDB )
 	{
@@ -1795,6 +1926,10 @@ void SQL_Loc_DB_Connect(bool uninstall = false)
 
 public void SQL_Loc_OnDBConnect(Database db, const char[] error, any data)
 {
+	if( g_bLcClosing )
+	{
+		return;
+	}
 	if( db == null || error[0] )
 	{
 		SetFailState("OnDBConnect: %s", error);
@@ -1811,6 +1946,10 @@ public void SQL_Loc_OnDBConnect(Database db, const char[] error, any data)
 
 void Loc_CreateTables()
 {
+	if( g_bLcClosing || !g_hLcDB )
+	{
+		return;
+	}
 	char query[640];
 	FormatEx(query, sizeof(query), "CREATE TABLE IF NOT EXISTS `" ... LC_DATABASE_TABLE ... "` (\
 		`lang` INTEGER UNSIGNED NOT NULL default 0, \
@@ -1818,11 +1957,17 @@ void Loc_CreateTables()
 		`translation` VARCHAR(%i) NOT NULL, \
 		PRIMARY KEY (lang, phrase) );", LC_MAX_PHRASE_LENGTH, LC_MAX_TRANSLATION_LENGTH);
 	
+	SQL_Loc_TrackAsyncStart();
 	g_hLcDB.Query(SQL_Loc_Callback_TableCreate, query);
 }
 
 public void SQL_Loc_Callback_TableCreate(Database db, DBResultSet hQuery, const char[] error, any data)
 {
+	SQL_Loc_TrackAsyncEnd();
+	if( g_bLcClosing )
+	{
+		return;
+	}
 	if (!db || !hQuery) { LogError(error); return; }
 	
 	g_hLcDB.SetCharset("utf8");
@@ -1842,27 +1987,30 @@ public void SQL_Loc_Callback_TableCreate(Database db, DBResultSet hQuery, const 
 */
 bool SQL_Loc_InsertBatch(int lang_num, char[] phrase, char[] translation, bool bOverwrite = false, bool bFinishPending = false)
 {
+	if( g_bLcClosing || !g_hLcDB )
+	{
+		return false;
+	}
 	const int MAX_SAFE_QUERIES_PER_TRANSACTION = 1000; /* should be < 2388 otherwise #pragma dynamic increase is required
 														to prevent "Not enough space on the heap" error.
 														Split is also required to prevent IQuery handles leak (overflow) */
 	
-	static Transaction tx;
-	static int queries;
-	
 	if( bFinishPending )
 	{
-		if( queries )
+		if( g_iLcBatchQueries )
 		{
 			++ g_iLcQueueTx;
-			g_hLcDB.Execute(tx, SQL_Loc_Tx_Success, SQL_Loc_Tx_Failure);
-			queries = 0;
+			SQL_Loc_TrackAsyncStart();
+			g_hLcDB.Execute(g_hLcBatchTx, SQL_Loc_Tx_Success, SQL_Loc_Tx_Failure);
+			g_hLcBatchTx = null;
+			g_iLcBatchQueries = 0;
 			return true;
 		}
 		return false;
 	}
-	if( !queries )
+	if( !g_iLcBatchQueries )
 	{
-		tx = new Transaction();
+		g_hLcBatchTx = new Transaction();
 	}
 	
 	static char query[2*(LC_MAX_PHRASE_LENGTH+LC_MAX_TRANSLATION_LENGTH+100)+1];
@@ -1877,14 +2025,16 @@ bool SQL_Loc_InsertBatch(int lang_num, char[] phrase, char[] translation, bool b
 			VALUES (%i, '%s', '%s') ON CONFLICT DO NOTHING;", lang_num, phrase, translation);
 	}
 	
-	tx.AddQuery(query);
-	++ queries;
+	g_hLcBatchTx.AddQuery(query);
+	++ g_iLcBatchQueries;
 	
-	if( queries >= MAX_SAFE_QUERIES_PER_TRANSACTION )
+	if( g_iLcBatchQueries >= MAX_SAFE_QUERIES_PER_TRANSACTION )
 	{
 		++ g_iLcQueueTx;
-		g_hLcDB.Execute(tx, SQL_Loc_Tx_Success, SQL_Loc_Tx_Failure);
-		queries = 0;
+		SQL_Loc_TrackAsyncStart();
+		g_hLcDB.Execute(g_hLcBatchTx, SQL_Loc_Tx_Success, SQL_Loc_Tx_Failure);
+		g_hLcBatchTx = null;
+		g_iLcBatchQueries = 0;
 		return true;
 	}
 	return false;
@@ -1892,6 +2042,10 @@ bool SQL_Loc_InsertBatch(int lang_num, char[] phrase, char[] translation, bool b
 
 void SQL_Loc_Insert(int lang_num, char[] phrase, char[] translation, bool bOverwrite = false, bool bAsync = true)
 {
+	if( g_bLcClosing || !g_hLcDB )
+	{
+		return;
+	}
 	static char query[2*(LC_MAX_PHRASE_LENGTH+LC_MAX_TRANSLATION_LENGTH+100)+1];
 	
 	if( bOverwrite )
@@ -1906,6 +2060,7 @@ void SQL_Loc_Insert(int lang_num, char[] phrase, char[] translation, bool bOverw
 	
 	if( bAsync )
 	{
+		SQL_Loc_TrackAsyncStart();
 		g_hLcDB.Query(SQL_Loc_Callback, query);
 	}
 	else {
@@ -1918,17 +2073,27 @@ void SQL_Loc_Insert(int lang_num, char[] phrase, char[] translation, bool bOverw
 
 void SQL_Loc_RemovePhrase(char[] phrase)
 {
+	if( g_bLcClosing || !g_hLcDB )
+	{
+		return;
+	}
 	char query[2*(LC_MAX_PHRASE_LENGTH+50)+1];
 	g_hLcDB.Format(query, sizeof(query), "DELETE FROM `" ... LC_DATABASE_TABLE ... "` WHERE UPPER(phrase) = UPPER('%s');", phrase);
+	SQL_Loc_TrackAsyncStart();
 	g_hLcDB.Query(SQL_Loc_Callback, query);
 }
 
 void SQL_Loc_RemoveTable()
 {
+	if( g_bLcClosing )
+	{
+		return;
+	}
 	if( g_hLcDB )
 	{
 		char query[100];
 		FormatEx(query, sizeof(query), "DROP TABLE IF EXISTS `" ... LC_DATABASE_TABLE ... "`;");
+		SQL_Loc_TrackAsyncStart();
 		g_hLcDB.Query(SQL_Loc_Callback, query); // DBPrio_High is interfere here for some reason
 	}
 	else {
@@ -1938,29 +2103,38 @@ void SQL_Loc_RemoveTable()
 
 void SQL_Loc_Callback(Database db, DBResultSet hQuery, const char[] error, any data)
 {
+	SQL_Loc_TrackAsyncEnd();
+	if( g_bLcClosing )
+	{
+		return;
+	}
 	if (!db || !hQuery) { LogError(error); return; }
 }
 
 public bool SQL_Loc_Query(int lang_num, char[] phrase, char[] translation, int maxlength)
 {
-	static DBStatement hUserStmt;
-	if( hUserStmt == null )
+	if( g_bLcClosing || !g_hLcDB )
+	{
+		translation[0] = 0;
+		return false;
+	}
+	if( g_hLcUserStmt == null )
     {
         char error[255];
-        hUserStmt = SQL_PrepareQuery(g_hLcDB, "SELECT translation FROM `" ... LC_DATABASE_TABLE ... "` \
+		g_hLcUserStmt = SQL_PrepareQuery(g_hLcDB, "SELECT translation FROM `" ... LC_DATABASE_TABLE ... "` \
         	WHERE lang = ? AND UPPER(phrase) = UPPER(?);", error, sizeof(error));
     }
 	
-	SQL_BindParamInt(hUserStmt, 0, lang_num, true);
-	SQL_BindParamString(hUserStmt, 1, phrase, false);
+	SQL_BindParamInt(g_hLcUserStmt, 0, lang_num, true);
+	SQL_BindParamString(g_hLcUserStmt, 1, phrase, false);
 	
 	SQL_LockDatabase(g_hLcDB);
-	SQL_Execute(hUserStmt);
+	SQL_Execute(g_hLcUserStmt);
 	SQL_UnlockDatabase(g_hLcDB);
 	
-	if( SQL_FetchRow(hUserStmt) )
+	if( SQL_FetchRow(g_hLcUserStmt) )
 	{
-		SQL_FetchString(hUserStmt, 0, translation, maxlength);
+		SQL_FetchString(g_hLcUserStmt, 0, translation, maxlength);
 		return true;
 	}
 	
@@ -1989,7 +2163,15 @@ public bool SQL_Loc_Query(int lang_num, char[] phrase, char[] translation, int m
 
 public void SQL_Loc_Tx_Success(Database db, any data, int numQueries, DBResultSet[] results, any[] queryData)
 {
-	-- g_iLcQueueTx;
+	SQL_Loc_TrackAsyncEnd();
+	if( g_iLcQueueTx > 0 )
+	{
+		-- g_iLcQueueTx;
+	}
+	if( g_bLcClosing )
+	{
+		return;
+	}
 	
 	if( !g_bLcDecodeInProgress && g_iLcQueueTx == 0 )
 	{
@@ -1999,7 +2181,15 @@ public void SQL_Loc_Tx_Success(Database db, any data, int numQueries, DBResultSe
 
 public void SQL_Loc_Tx_Failure(Database db, any data, int numQueries, const char[] error, int failIndex, any[] queryData)
 {
-	-- g_iLcQueueTx;
+	SQL_Loc_TrackAsyncEnd();
+	if( g_iLcQueueTx > 0 )
+	{
+		-- g_iLcQueueTx;
+	}
+	if( g_bLcClosing )
+	{
+		return;
+	}
 	LogError(error);
 }
 
@@ -2016,6 +2206,12 @@ int SQL_Loc_GetIndex(char[] name)
 void SQL_Loc_SetIndex(char[] name, int iStamp, bool bFinishPending = false)
 {
 	static StringMap hMap;
+	if( g_bLcClosing )
+	{
+		delete hMap;
+		hMap = null;
+		return;
+	}
 	if( bFinishPending )
 	{
 		if( !hMap )

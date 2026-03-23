@@ -24,6 +24,18 @@ SourceDB CVB_GetActiveDatabase()
 
 void ConnectMySQL()
 {
+	if (g_hMySQLDB != null)
+	{
+		CVBLog.SQL("MySQL backend already connected; skipping reconnect");
+		return;
+	}
+
+	if (g_bMySQLConnecting)
+	{
+		CVBLog.SQL("MySQL backend connection already in progress; skipping duplicate connect");
+		return;
+	}
+
 	char sqlConfig[64];
 	g_cvarSQLConfig.GetString(sqlConfig, sizeof(sqlConfig));
 
@@ -35,6 +47,7 @@ void ConnectMySQL()
 
 	if (SQL_CheckConfig(sqlConfig))
 	{
+		g_bMySQLConnecting = true;
 		CVBLog.SQL("Connecting MySQL backend using config '%s'", sqlConfig);
 		SQL_TConnect(MySQL_ConnectCallback, sqlConfig);
 	}
@@ -46,6 +59,8 @@ void ConnectMySQL()
 
 public void MySQL_ConnectCallback(Handle owner, Handle hndl, const char[] error, any data)
 {
+	g_bMySQLConnecting = false;
+
 	if (hndl == null)
 	{
 		LogError("Error connecting to MySQL: %s", error);
@@ -58,6 +73,12 @@ public void MySQL_ConnectCallback(Handle owner, Handle hndl, const char[] error,
 
 void ConnectSQLite()
 {
+	if (g_hSQLiteDB != null)
+	{
+		CVBLog.SQL("SQLite backend already connected; skipping reconnect");
+		return;
+	}
+
 	char sPath[PLATFORM_MAX_PATH];
 	BuildPath(Path_SM, sPath, sizeof(sPath), "data/callvote_bans.db");
 
@@ -76,6 +97,8 @@ void ConnectSQLite()
 
 void CloseDatabase()
 {
+	g_bMySQLConnecting = false;
+
 	if (g_hMySQLDB != null)
 	{
 		delete g_hMySQLDB;

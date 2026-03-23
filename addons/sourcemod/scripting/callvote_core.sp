@@ -339,6 +339,12 @@ bool IsHuman(int iClient)
 int Native_SetPendingRestriction(Handle plugin, int numParams)
 {
 	VoteRestrictionType restriction = view_as<VoteRestrictionType>(GetNativeCell(1));
+	CVLog.Forwards("[Native_SetPendingRestriction] session=%d caller=%d callerAccountId=%d old=%d new=%d",
+		g_bCurrentVoteSessionValid ? g_CurrentVoteSession.sessionId : 0,
+		g_bCurrentVoteSessionValid ? g_CurrentVoteSession.callerClient : 0,
+		g_bCurrentVoteSessionValid ? g_CurrentVoteSession.callerAccountId : 0,
+		view_as<int>(g_PendingForwardRestriction),
+		view_as<int>(restriction));
 	g_PendingForwardRestriction = restriction;
 	return 0;
 }

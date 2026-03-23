@@ -16,7 +16,8 @@ char
 
 bool
 	g_bSQLConnected,
-	g_bSQLTableExists;
+	g_bSQLTableExists,
+	g_bSQLConnecting;
 
 enum SQLDriver
 {
@@ -85,13 +86,18 @@ public void OnPluginStart_SQL()
 
 public void OnPluginEnd_SQL()
 {
-	if (!g_cvarRegLogSQL.IntValue)
-		return;
-
+	g_bSQLConnecting = false;
 	if (g_db == null)
+	{
+		g_bSQLConnected = false;
+		g_bSQLTableExists = false;
 		return;
+	}
 
 	delete g_db;
+	g_db = null;
+	g_bSQLConnected = false;
+	g_bSQLTableExists = false;
 	CVLog.Debug("[OnPluginEnd] Database connection closed.");
 }
 
@@ -635,6 +641,18 @@ public void DBStats_Callback(Database db, DBResultSet results, const char[] erro
  */
 void ConnectDB(char[] sConfigName)
 {
+	if (g_db != null)
+	{
+		CVLog.Debug("[ConnectDB] Database already connected; skipping reconnect for config: %s", sConfigName);
+		return;
+	}
+
+	if (g_bSQLConnecting)
+	{
+		CVLog.Debug("[ConnectDB] Database connection already in progress; skipping duplicate connect for config: %s", sConfigName);
+		return;
+	}
+
 	g_bSQLConnected = false;
 	g_bSQLTableExists = false;
 	
@@ -644,6 +662,7 @@ void ConnectDB(char[] sConfigName)
 		return;
 	}
 
+	g_bSQLConnecting = true;
 	CVLog.Debug("[ConnectDB] Attempting to connect to database config: %s", sConfigName);
 	Database.Connect(ConnectCallback, sConfigName);
 }
@@ -662,6 +681,7 @@ void ConnectDB(char[] sConfigName)
  */
 void ConnectCallback(Database database, const char[] error, any data)
 {
+	g_bSQLConnecting = false;
 	g_bSQLConnected = false;
 	g_bSQLTableExists = false;
 

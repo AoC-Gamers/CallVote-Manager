@@ -5,6 +5,7 @@
 #include <colors>
 #include <left4dhooks>
 #include <callvote_core>
+#include <callvote_localizer>
 #include <language_manager>
 #include <campaign_manager>
 
@@ -130,6 +131,9 @@ public void OnPluginStart()
 
 public void OnPluginEnd()
 {
+	if (g_loc != null)
+		delete g_loc;
+
 	if (g_Log != null)
 		delete g_Log;
 }

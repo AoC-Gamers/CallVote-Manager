@@ -827,6 +827,14 @@ void ConnectDB(const char[] name)
 
 public void OnPluginEnd()
 {
+	if (g_db != null)
+	{
+		delete g_db;
+		g_db = null;
+	}
+
+	g_bSQLConnected = false;
+
 	if (g_Log != null)
 		delete g_Log;
 }

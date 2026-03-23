@@ -461,31 +461,6 @@ bool GetAdminInfo(int client, int &adminAccountId, char[] adminSteamId2, int max
 	return GetClientAuthId(client, AuthId_Steam2, adminSteamId2, maxlen);
 }
 
-SteamIDToolsProvider CVB_GetHealthyIdentityProvider()
-{
-	if (!g_bSteamIDToolsLoaded)
-		return SteamIDToolsProvider_Unknown;
-
-	for (int i = 0; i < sizeof(g_eCVBIdentityProviders); i++)
-	{
-		SteamIDToolsProvider provider = g_eCVBIdentityProviders[i];
-		if (SteamIDTools_IsProviderReady(provider))
-			return provider;
-	}
-
-	return SteamIDToolsProvider_Unknown;
-}
-
-void CVB_GetIdentityProviderName(SteamIDToolsProvider provider, char[] buffer, int maxlen)
-{
-	switch (provider)
-	{
-		case SteamIDToolsProvider_SteamWorks: strcopy(buffer, maxlen, "SteamWorks");
-		case SteamIDToolsProvider_System2: strcopy(buffer, maxlen, "System2");
-		default: strcopy(buffer, maxlen, "Unknown");
-	}
-}
-
 bool CVB_HasAnyIdentityProviderAvailable()
 {
 	if (!g_bSteamIDToolsLoaded)
@@ -498,55 +473,6 @@ bool CVB_HasAnyIdentityProviderAvailable()
 	}
 
 	return false;
-}
-
-void CVB_RequestIdentityHealthChecks()
-{
-	if (!g_cvarEnable.BoolValue || !g_bSteamIDToolsLoaded)
-		return;
-
-	for (int i = 0; i < sizeof(g_eCVBIdentityProviders); i++)
-	{
-		SteamIDToolsProvider provider = g_eCVBIdentityProviders[i];
-		if (!SteamIDTools_IsProviderAvailable(provider))
-			continue;
-
-		if (!SteamIDTools_RequestHealthCheck(provider))
-		{
-			char providerName[32];
-			CVB_GetIdentityProviderName(provider, providerName, sizeof(providerName));
-			CVBLog.Identity("Failed to queue SteamIDTools health check for provider %s", providerName);
-		}
-	}
-}
-
-void CVB_GetIdentityBackendSummary(char[] buffer, int maxlen)
-{
-	buffer[0] = '\0';
-
-	char providerName[32];
-	char statusMessage[128];
-	for (int i = 0; i < sizeof(g_eCVBIdentityProviders); i++)
-	{
-		SteamIDToolsProvider provider = g_eCVBIdentityProviders[i];
-		CVB_GetIdentityProviderName(provider, providerName, sizeof(providerName));
-
-		if (!SteamIDTools_IsProviderAvailable(provider))
-		{
-			Format(statusMessage, sizeof(statusMessage), "%s unavailable", providerName);
-		}
-		else if (!SteamIDTools_GetBackendStatusMessage(provider, statusMessage, sizeof(statusMessage)) || statusMessage[0] == '\0')
-		{
-			strcopy(statusMessage, sizeof(statusMessage), "backend unavailable");
-		}
-
-		if (buffer[0] != '\0')
-			StrCat(buffer, maxlen, " | ");
-
-		StrCat(buffer, maxlen, providerName);
-		StrCat(buffer, maxlen, ": ");
-		StrCat(buffer, maxlen, statusMessage);
-	}
 }
 
 bool QueueSteamID64ToAccountIDRequest(int client, const char[] steamid64, AsyncContext context)
@@ -565,21 +491,22 @@ bool QueueSteamID64ToAccountIDRequest(int client, const char[] steamid64, AsyncC
 		return false;
 	}
 
-	SteamIDToolsProvider provider = CVB_GetHealthyIdentityProvider();
-	if (provider == SteamIDToolsProvider_Unknown)
+	int requestId = 0;
+	for (int i = 0; i < sizeof(g_eCVBIdentityProviders); i++)
 	{
-		char statusMessage[256];
-		CVB_RequestIdentityHealthChecks();
-		CVB_GetIdentityBackendSummary(statusMessage, sizeof(statusMessage));
-		CReplyToCommand(client, "%t %t", "Tag", "SteamIDToolsBackendNotReady", statusMessage);
-		CReplyToCommand(client, "%t %t", "Tag", "PleaseUseOtherFormats");
-		return false;
+		SteamIDToolsProvider provider = g_eCVBIdentityProviders[i];
+		if (!SteamIDTools_IsProviderAvailable(provider))
+			continue;
+
+		requestId = SteamIDTools_RequestConversion(provider, API_SID64toAID, steamid64, "cvb");
+		if (requestId > 0)
+			break;
 	}
 
-	int requestId = SteamIDTools_RequestConversion(provider, API_SID64toAID, steamid64, "cvb");
 	if (requestId <= 0)
 	{
 		CReplyToCommand(client, "%t %t", "Tag", "SteamIDToolsRequestFailed", "request queue failed");
+		CReplyToCommand(client, "%t %t", "Tag", "PleaseUseOtherFormats");
 		return false;
 	}
 
@@ -728,7 +655,5 @@ public void SteamIDTools_OnRequestFinished(int iRequestId, SteamIDToolsProvider 
 
 public void SteamIDTools_OnBackendStatusChanged(SteamIDToolsProvider provider, SteamIDToolsBackendStatus status, const char[] szMessage)
 {
-	char providerName[32];
-	CVB_GetIdentityProviderName(provider, providerName, sizeof(providerName));
-	CVBLog.Identity("SteamIDTools backend status changed: provider=%s status=%d message=%s", providerName, view_as<int>(status), szMessage);
+	// SteamIDTools owns provider health; CVB keeps this forward as a no-op to avoid noisy startup logs.
 }

@@ -140,6 +140,24 @@
 		"en"		"Vote blocked: lobby restriction. {1}"
 		"es"		"Voto bloqueado: restricción de lobby. {1}"
 	}
+	"VoteBlockedChapter"
+	{
+		"#format"	"{1:s}"
+		"en"		"Vote blocked: chapter restriction. {1}"
+		"es"		"Voto bloqueado: restricción de capítulo. {1}"
+	}
+	"VoteBlockedAllTalk"
+	{
+		"#format"	"{1:s}"
+		"en"		"You cannot change AllTalk. {1}"
+		"es"		"No puedes cambiar AllTalk. {1}"
+	}
+	"VoteBlockedGeneric"
+	{
+		"#format"	"{1:s},{2:s}"
+		"en"		"You cannot start {1} votes. {2}"
+		"es"		"No puedes iniciar votos de {1}. {2}"
+	}
 	"VoteBlockedValidation"
 	{
 		"en"		"Vote blocked: your restriction status could not be validated right now."
@@ -149,6 +167,45 @@
 	{
 		"en"		"Your vote was blocked because the restriction backend could not be validated."
 		"es"		"Tu voto fue bloqueado porque no se pudo validar el backend de restricciones."
+	}
+	"ConsoleVoteBlockedTitle"
+	{
+		"en"		"VOTE RESTRICTION DETAILS"
+		"es"		"DETALLES DE RESTRICCION DE VOTO"
+	}
+	"ConsoleVoteBlockedExplanation"
+	{
+		"en"		"You are currently restricted from starting certain types of votes."
+		"es"		"Actualmente tienes restringido iniciar ciertos tipos de votos."
+	}
+	"ConsoleBanRestrictedVotes"
+	{
+		"#format"	"{1:s}"
+		"en"		"Restricted vote types: {1}"
+		"es"		"Tipos de voto restringidos: {1}"
+	}
+	"ConsoleBanDuration"
+	{
+		"#format"	"{1:s}"
+		"en"		"Duration: {1}"
+		"es"		"Duracion: {1}"
+	}
+	"ConsoleBanTimeLeft"
+	{
+		"#format"	"{1:s}"
+		"en"		"Time remaining: {1}"
+		"es"		"Tiempo restante: {1}"
+	}
+	"ConsoleBanExpired"
+	{
+		"en"		"Status: EXPIRED"
+		"es"		"Estado: EXPIRADO"
+	}
+	"ConsoleBanCreated"
+	{
+		"#format"	"{1:s}"
+		"en"		"Created on: {1}"
+		"es"		"Creado el: {1}"
 	}
 	"RestrictionDetailsHeader"
 	{
@@ -250,5 +307,21 @@
 		"#format"	"{1:s}"
 		"en"		"Successfully removed the restriction from {1}"
 		"es"		"Se removió la restricción de {1}"
+	}
+	"VoteTypeRestart"
+	{
+		"en"		"Restart"
+		"es"		"Reinicio"
+	}
+	"VoteTypeMission"
+	{
+		"en"		"Mission"
+		"es"		"Mision"
+	}
+	"VoteTypeUnknown"
+	{
+		"#format"	"{1:d}"
+		"en"		"Unknown ({1})"
+		"es"		"Desconocido ({1})"
 	}
 }

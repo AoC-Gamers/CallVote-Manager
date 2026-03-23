@@ -238,32 +238,16 @@ void OnClientMemoryCacheDisconnect(int client)
 	CVBLog.Cache("Client state cleaned for disconnect (AccountID: %d) - in-memory cache preserved", accountId);
 }
 
-/**
- * Force refresh of in-memory cache data for a specific AccountID
- * This removes the cached entry and forces a new database lookup
- * Use this when you need to ensure fresh data (e.g., after ban modifications)
- *
- * @param accountId	The AccountID to refresh
- */
-void ForceRefreshMemoryCacheEntry(int accountId)
+void CVB_RemoveMemoryCacheEntry(int accountId)
 {
-	if (g_smClientCache == null || accountId == 0)
+	if (g_smClientCache == null || accountId <= 0)
 		return;
-		
+
 	char accountKey[16];
 	IntToString(accountId, accountKey, sizeof(accountKey));
-	
-	bool wasRemoved = g_smClientCache.Remove(accountKey);
-	CVBLog.Cache("Force refresh for AccountID %d - entry %s", accountId, wasRemoved ? "removed" : "not found");
-	
-	for (int i = 1; i <= MaxClients; i++)
-	{
-		if (IsValidClient(i) && GetSteamAccountID(i) == accountId)
-		{
-			CVB_PrimeClientBanState(i, accountId, true);
-			break;
-		}
-	}
+
+	bool removed = g_smClientCache.Remove(accountKey);
+	CVBLog.Cache("Remove memory cache entry for AccountID %d - %s", accountId, removed ? "removed" : "not found");
 }
 
 /**
@@ -367,7 +351,10 @@ void SetClientRestrictionInfo(int client, int restrictionMask, int durationMinut
 		return;
 		
 	int accountId = g_ClientStates[client].accountId;
-	if (accountId == 0)
+	if (accountId <= 0)
+		accountId = GetClientAccountID(client);
+
+	if (accountId <= 0)
 		return;
 
 	PlayerRestrictionInfo restrictionInfo;
@@ -379,5 +366,6 @@ void SetClientRestrictionInfo(int client, int restrictionMask, int durationMinut
 	restrictionInfo.AdminAccountId = adminAccountId;
 	restrictionInfo.SetReason(reason);
 
+	SetClientLoadState(client, accountId, ClientBanLoad_Ready);
 	CVB_UpdateMemoryCache(restrictionInfo);
 }

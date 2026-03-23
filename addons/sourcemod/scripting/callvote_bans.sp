@@ -4,6 +4,8 @@
 #include <sourcemod>
 #include <colors>
 #include <callvote_stock>
+#include <callvote_localizer>
+#include <language_manager>
 #include <steamidtools_helpers>
 
 #undef REQUIRE_PLUGIN
@@ -36,9 +38,11 @@ Database
 bool
 	g_bLateLoad,
 	g_bCallVoteCoreLoaded,
+	g_bMySQLConnecting,
 	g_bSteamIDToolsLoaded;
 
 CallVoteLogger g_Log = null;
+Localizer g_loc = null;
 
 /**
  * Client state structure for connected players only
@@ -216,7 +220,6 @@ public void OnAllPluginsLoaded()
 {
 	g_bSteamIDToolsLoaded	 = LibraryExists(STEAMIDTOOLS_LIBRARY);
 	g_bCallVoteCoreLoaded = LibraryExists(CALLVOTECORE_LIBRARY);
-	CVB_RequestIdentityHealthChecks();
 }
 
 public void OnLibraryRemoved(const char[] sName)
@@ -230,24 +233,24 @@ public void OnLibraryRemoved(const char[] sName)
 public void OnLibraryAdded(const char[] sName)
 {
 	if (StrEqual(sName, STEAMIDTOOLS_LIBRARY))
-	{
 		g_bSteamIDToolsLoaded = true;
-		CVB_RequestIdentityHealthChecks();
-	}
 	if (StrEqual(sName, CALLVOTECORE_LIBRARY))
 		g_bCallVoteCoreLoaded = true;
 }
 
 public void OnPluginStart()
 {
+	g_loc = new Localizer();
+
 	LoadTranslations("callvote_bans.phrases");
 	LoadTranslations("callvote_common.phrases");
 	LoadTranslations("common.phrases");
+	HookEvent("player_team", Event_PlayerTeam);
 
 	g_cvarEnable	   = CreateConVar("sm_cvb_enable", "1", "Enable plugin", FCVAR_NOTIFY, true, 0.0, true, 1.0);
 	g_cvarMemoryCache  = CreateConVar("sm_cvb_memory_cache", "1", "Enable in-memory cache for ban lookups", FCVAR_NOTIFY, true, 0.0, true, 1.0);
 	g_cvarAnnounceJoin = CreateConVar("sm_cvb_announce_join", "1", "0=off, 1=admins, 2=everyone", FCVAR_NOTIFY, true, 0.0, true, 2.0);
-	g_cvarSQLConfig	   = CreateConVar("sm_cvb_sql_config", "callvote_bans", "Database config name from databases.cfg for the MySQL backend", FCVAR_NOTIFY);
+	g_cvarSQLConfig	   = CreateConVar("sm_cvb_sql_config", "callvote", "Database config name from databases.cfg for the MySQL backend", FCVAR_NOTIFY);
 	g_cvarLogMode	   = CallVoteEnsureLogModeConVar();
 	g_cvarDebugMask	   = CreateConVar("sm_cvb_debug_mask", "0", "Debug mask for callvote_bans. Core=1 SQL=2 Cache=4 Commands=8 Identity=16 All=255.", FCVAR_NONE, true, 0.0, true, 255.0);
 	g_Log			   = new CallVoteLogger(CVB_LOG_TAG, CVB_LOG_FILE, g_cvarLogMode, g_cvarDebugMask);
@@ -279,11 +282,16 @@ public void OnConfigsExecuted()
 		return;
 
 	InitDatabase();
-	CVB_RequestIdentityHealthChecks();
 }
 
 public void OnPluginEnd()
 {
+	if (g_loc != null)
+	{
+		g_loc.Close();
+		g_loc = null;
+	}
+
 	CloseDatabase();
 	ClosePendingIdentityRequests();
 	CloseMemoryCache();
@@ -305,7 +313,7 @@ public void OnClientPostAdminCheck(int client)
 	PlayerRestrictionInfo restrictionInfo;
 	restrictionInfo.Reset(accountId);
 
-	CVBLookupStatus status = CVB_LoadRestrictionInfo(restrictionInfo, true);
+	CVBLookupStatus status = CVB_LoadRestrictionInfo(restrictionInfo, false);
 	SetClientLoadState(client, accountId, ClientBanLoad_Ready);
 
 	if (status == CVBLookup_Found)
@@ -362,6 +370,32 @@ public void OnClientDisconnect(int client)
 	OnClientMemoryCacheDisconnect(client);
 }
 
+public void Event_PlayerTeam(Event event, const char[] name, bool dontBroadcast)
+{
+	if (!g_cvarEnable.BoolValue)
+		return;
+
+	if (!event.GetBool("disconnect", false))
+		return;
+
+	int userId = event.GetInt("userid", 0);
+	int client = GetClientOfUserId(userId);
+	if (!IsValidClientIndex(client) || IsFakeClient(client))
+		return;
+
+	int accountId = g_ClientStates[client].accountId;
+	if (accountId <= 0)
+		accountId = GetClientAccountID(client);
+
+	if (accountId > 0)
+	{
+		CVB_RemoveMemoryCacheEntry(accountId);
+		CVBLog.Cache("player_team disconnect detected for client %d; purged memory cache for AccountID %d", client, accountId);
+	}
+
+	OnClientMemoryCacheDisconnect(client);
+}
+
 /*****************************************************************
 			C A L L V O T E   M A N A G E R   F O R W A R D S
 *****************************************************************/
@@ -377,16 +411,68 @@ public Action CallVote_PreStart(int sessionId, int client, int callerAccountId, 
 	if (!IsValidClient(client))
 		return Plugin_Continue;
 
+	int resolvedCallerAccountId = callerAccountId;
+	if (resolvedCallerAccountId <= 0)
+		TryGetConnectedAccountId(client, resolvedCallerAccountId);
+
 	PlayerRestrictionInfo restrictionInfo;
-	restrictionInfo.Reset(callerAccountId);
+	restrictionInfo.Reset(resolvedCallerAccountId);
 	VoteType voteFlag = GetVoteFlag(voteType);
-	CVBLog.Debug("CallVote_PreStart: session=%d client=%N callerAccountId=%d voteType=%d targetAccountId=%d argument=%s", sessionId, client, callerAccountId, voteType, targetAccountId, argument);
+	CVBLog.Debug("CallVote_PreStart: session=%d client=%N callerAccountId=%d resolvedCallerAccountId=%d voteType=%d targetAccountId=%d argument=%s", sessionId, client, callerAccountId, resolvedCallerAccountId, voteType, targetAccountId, argument);
 
 	if (voteFlag == VOTE_NONE)
 		return Plugin_Continue;
 
-	CVBLookupStatus status = CVB_LoadRestrictionInfo(restrictionInfo, true);
+	if (restrictionInfo.AccountId <= 0)
+	{
+		CallVoteCore_SetPendingRestriction(VoteRestriction_Plugin);
+		ShowVoteBlockedValidationMessage(client);
+
+		CVBLog.Debug("Voto BLOQUEADO por AccountID no resuelto para %N (callerAccountId=%d, tipo=%d)", client, callerAccountId, voteType);
+		CVBLog.Event("BlockValidation", "Blocked vote for unresolved AccountID (client=%d callerAccountId=%d type=%d target=%d)", client, callerAccountId, voteType, target);
+		return Plugin_Handled;
+	}
+
+	CVBLookupStatus status = CVB_LoadRestrictionInfo(restrictionInfo, false);
 	SetClientLoadState(client, restrictionInfo.AccountId, ClientBanLoad_Ready);
+
+	int effectiveRestrictionMask = restrictionInfo.RestrictionMask;
+	if (effectiveRestrictionMask <= 0)
+	{
+		effectiveRestrictionMask = GetClientRestrictionMask(client);
+		if (effectiveRestrictionMask > 0)
+		{
+			restrictionInfo.RestrictionMask = effectiveRestrictionMask;
+			status = CVBLookup_Found;
+		}
+	}
+
+	if (effectiveRestrictionMask <= 0 && restrictionInfo.AccountId > 0)
+	{
+		PlayerRestrictionInfo backendRestrictionInfo;
+		backendRestrictionInfo.Reset(restrictionInfo.AccountId);
+		CVBLookupStatus backendStatus = CVB_CheckActiveRestriction(backendRestrictionInfo);
+		if (backendStatus == CVBLookup_Found && backendRestrictionInfo.IsBanned())
+		{
+			restrictionInfo = backendRestrictionInfo;
+			effectiveRestrictionMask = backendRestrictionInfo.RestrictionMask;
+			status = CVBLookup_Found;
+			CVB_UpdateMemoryCache(restrictionInfo);
+		}
+		else if (backendStatus == CVBLookup_Error)
+		{
+			status = CVBLookup_Error;
+		}
+	}
+
+	CVBLog.Cache(
+		"CallVote_PreStart lookup result: session=%d accountId=%d status=%d voteFlag=%d restrictionMask=%d",
+		sessionId,
+		restrictionInfo.AccountId,
+		view_as<int>(status),
+		view_as<int>(voteFlag),
+		effectiveRestrictionMask
+	);
 
 	if (status == CVBLookup_Error)
 	{
@@ -405,7 +491,7 @@ public Action CallVote_PreStart(int sessionId, int client, int callerAccountId, 
 		return Plugin_Handled;
 	}
 
-	if (status == CVBLookup_Found && (restrictionInfo.RestrictionMask & view_as<int>(voteFlag)))
+	if (status == CVBLookup_Found && (effectiveRestrictionMask & view_as<int>(voteFlag)))
 	{
 		CallVoteCore_SetPendingRestriction(VoteRestriction_Plugin);
 		ShowVoteBlockedMessage(client, voteType);
@@ -414,11 +500,11 @@ public Action CallVote_PreStart(int sessionId, int client, int callerAccountId, 
 		Call_PushCell(client);
 		Call_PushCell(view_as<int>(voteType));
 		Call_PushCell(target);
-		Call_PushCell(restrictionInfo.RestrictionMask);
+		Call_PushCell(effectiveRestrictionMask);
 		Call_Finish();
 
-		CVBLog.Debug("Voto BLOQUEADO para %N (AccountID: %d, tipo: %d, restrictionMask: %d)", client, restrictionInfo.AccountId, voteType, restrictionInfo.RestrictionMask);
-		CVBLog.Event("Block", "Blocked vote for AccountID %d (type=%d restrictionMask=%d target=%d)", restrictionInfo.AccountId, voteType, restrictionInfo.RestrictionMask, target);
+		CVBLog.Debug("Voto BLOQUEADO para %N (AccountID: %d, tipo: %d, restrictionMask: %d)", client, restrictionInfo.AccountId, voteType, effectiveRestrictionMask);
+		CVBLog.Event("Block", "Blocked vote for AccountID %d (type=%d restrictionMask=%d target=%d)", restrictionInfo.AccountId, voteType, effectiveRestrictionMask, target);
 
 		return Plugin_Handled;
 	}

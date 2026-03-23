@@ -1,0 +1,262 @@
+"Phrases"
+{
+	"CVBAdminMenuCategory"
+	{
+		"en"		"CallVote Bans"
+		"es"		"CallVote Bans"
+	}
+
+	"CVBAdminMenuRestrict"
+	{
+		"en"		"Restrict player"
+		"es"		"Restringir jugador"
+	}
+
+	"CVBAdminMenuUnrestrict"
+	{
+		"en"		"Remove restriction"
+		"es"		"Remover restricción"
+	}
+
+	"CVBAdminMenuCheck"
+	{
+		"en"		"Check restriction status"
+		"es"		"Revisar estado de restricción"
+	}
+
+	"CVBAdminMenuModuleUnavailable"
+	{
+		"en"		"CallVote Bans is not available"
+		"es"		"CallVote Bans no está disponible"
+	}
+
+	"CVBAdminMenuReasonPrompt"
+	{
+		"#format"	"{1:s}"
+		"en"		"Type the restriction reason for {1} in chat or use sm_cvb_reason <text>. Use !cancel to abort."
+		"es"		"Escribe en el chat la razón de la restricción para {1} o usa sm_cvb_reason <texto>. Usa !cancel para cancelar."
+	}
+
+	"CVBAdminMenuReasonRequired"
+	{
+		"en"		"Reason cannot be empty"
+		"es"		"La razón no puede estar vacía"
+	}
+
+	"CVBAdminMenuCancelled"
+	{
+		"en"		"Panel action cancelled"
+		"es"		"Acción del panel cancelada"
+	}
+
+	"CVBAdminMenuRestrictionApplied"
+	{
+		"#format"	"{1:s}"
+		"en"		"Restriction applied to {1}"
+		"es"		"Restricción aplicada a {1}"
+	}
+
+	"CVBAdminMenuRestrictionRemoved"
+	{
+		"#format"	"{1:s}"
+		"en"		"Restriction removed from {1}"
+		"es"		"Restricción removida de {1}"
+	}
+
+	"CVBAdminMenuActionFailed"
+	{
+		"en"		"Could not complete the action"
+		"es"		"No se pudo completar la acción"
+	}
+
+	"CVBAdminMenuNoActivePrompt"
+	{
+		"en"		"There is no active panel prompt"
+		"es"		"No hay un prompt de panel activo"
+	}
+
+	"MenuRestrictionManagementTitle"
+	{
+		"en"		"Restriction management"
+		"es"		"Gestión de restricciones"
+	}
+
+	"MenuUnrestrictManagementTitle"
+	{
+		"en"		"Remove restriction"
+		"es"		"Remover restricción"
+	}
+
+	"MenuCheckRestrictionStatusTitle"
+	{
+		"en"		"Check restriction status"
+		"es"		"Revisar estado de restricción"
+	}
+
+	"MenuNoPlayersConnected"
+	{
+		"en"		"No connected players"
+		"es"		"No hay jugadores conectados"
+	}
+
+	"MenuNoRestrictedPlayers"
+	{
+		"en"		"No restricted players"
+		"es"		"No hay jugadores restringidos"
+	}
+
+	"MenuPlayerDisconnected"
+	{
+		"en"		"Player disconnected"
+		"es"		"El jugador se desconectó"
+	}
+
+	"MenuRestrictedPlayerFormat"
+	{
+		"#format"	"{1:s},{2:s}"
+		"en"		"{1} [{2}]"
+		"es"		"{1} [{2}]"
+	}
+
+	"MenuUnrestrictPlayerFormat"
+	{
+		"#format"	"{1:s},{2:s}"
+		"en"		"{1} [{2}]"
+		"es"		"{1} [{2}]"
+	}
+
+	"MenuRestrictPlayerTitle"
+	{
+		"#format"	"{1:s}"
+		"en"		"Restrict player: {1}"
+		"es"		"Restringir jugador: {1}"
+	}
+
+	"MenuRestrictionDurationTitle"
+	{
+		"#format"	"{1:s},{2:s}"
+		"en"		"Duration for {1} ({2})"
+		"es"		"Duración para {1} ({2})"
+	}
+
+	"MenuRestrictionTypeDifficulty"
+	{
+		"en"		"Difficulty"
+		"es"		"Dificultad"
+	}
+
+	"MenuRestrictionTypeRestart"
+	{
+		"en"		"Restart"
+		"es"		"Reinicio"
+	}
+
+	"MenuRestrictionTypeKick"
+	{
+		"en"		"Kick"
+		"es"		"Expulsión"
+	}
+
+	"MenuRestrictionTypeMission"
+	{
+		"en"		"Mission"
+		"es"		"Misión"
+	}
+
+	"MenuRestrictionTypeLobby"
+	{
+		"en"		"Lobby"
+		"es"		"Lobby"
+	}
+
+	"MenuRestrictionTypeChapter"
+	{
+		"en"		"Chapter"
+		"es"		"Capítulo"
+	}
+
+	"MenuRestrictionTypeAllTalk"
+	{
+		"en"		"All talk"
+		"es"		"Hablar con todos"
+	}
+
+	"MenuRestrictionTypeAll"
+	{
+		"en"		"All"
+		"es"		"Todo"
+	}
+
+	"MenuRestrictionDurationPermanent"
+	{
+		"en"		"Permanent"
+		"es"		"Permanente"
+	}
+
+	"MenuRestrictionDuration30Min"
+	{
+		"en"		"30 minutes"
+		"es"		"30 minutos"
+	}
+
+	"MenuRestrictionDuration1Hour"
+	{
+		"en"		"1 hour"
+		"es"		"1 hora"
+	}
+
+	"MenuRestrictionDuration3Hours"
+	{
+		"en"		"3 hours"
+		"es"		"3 horas"
+	}
+
+	"MenuRestrictionDuration6Hours"
+	{
+		"en"		"6 hours"
+		"es"		"6 horas"
+	}
+
+	"MenuRestrictionDuration12Hours"
+	{
+		"en"		"12 hours"
+		"es"		"12 horas"
+	}
+
+	"MenuRestrictionDuration1Day"
+	{
+		"en"		"1 day"
+		"es"		"1 día"
+	}
+
+	"MenuRestrictionDuration3Days"
+	{
+		"en"		"3 days"
+		"es"		"3 días"
+	}
+
+	"MenuRestrictionDuration1Week"
+	{
+		"en"		"1 week"
+		"es"		"1 semana"
+	}
+
+	"MenuUnrestrictConfirmationTitle"
+	{
+		"#format"	"{1:s},{2:s},{3:s}"
+		"en"		"Remove restriction from {1} ({2}) [{3}]?"
+		"es"		"¿Remover restricción de {1} ({2}) [{3}]?"
+	}
+
+	"MenuUnrestrictConfirmYes"
+	{
+		"en"		"Yes, remove restriction"
+		"es"		"Sí, remover restricción"
+	}
+
+	"MenuRestrictionConfirmCancel"
+	{
+		"en"		"Cancel"
+		"es"		"Cancelar"
+	}
+}

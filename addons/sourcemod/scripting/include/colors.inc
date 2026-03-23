@@ -391,7 +391,7 @@ stock void CReplaceColor(Colors color, Colors newColor)
 	CProfile_TeamIndex[color] = CProfile_TeamIndex[newColor];
 
 	CTagReqSayText2[color] = CTagReqSayText2[newColor];
-	Format(CTagCode[color], sizeof(CTagCode[]), CTagCode[newColor])
+	Format(CTagCode[color], sizeof(CTagCode[]), CTagCode[newColor]);
 }
 
 /**
@@ -637,7 +637,7 @@ stock void CSetupProfile()
 		/* hl2mp profile is based on mp_teamplay convar */
 		static ConVar hCvarMpTeamPlay = null;
 		if (hCvarMpTeamPlay == null) {
-			hCvarMpTeamPlay = FindConVar("mp_teamplay")
+			hCvarMpTeamPlay = FindConVar("mp_teamplay");
 		}
 
 		if (hCvarMpTeamPlay.BoolValue) {

@@ -2,147 +2,161 @@
 {
 	"Tag"
 	{
-		"en"		"[{olive}CallVote{default}]"
+		"en" 		"[{olive}CallVote{default}]"
+		"es" 		"[{olive}CallVote{default}]"
 	}
 	"PluginDisabled"
 	{
-		"en"		"Plugin {red}disabled{default}."
-	}
-	"DBTableCreated"
-	{
-		"en"		"Table created {green}successfully{default}."
+		"en" 		"Plugin {red}disabled{default}."
+		"es" 		"Plugin {red}desactivado{default}."
 	}
 	"SQLDisabled"
 	{
-		"en"		"SQL {red}disabled{default}."
+		"en" 		"SQL {red}disabled{default}."
+		"es" 		"SQL {red}desactivado{default}."
 	}
 	"DBNoConnect"
 	{
-		"en"		"{red}Could not{default} connect to database."
+		"en" 		"{red}Could not{default} connect to database."
+		"es" 		"{red}No se pudo{default} conectar a la base de datos."
 	}
 	"DBUnknownDriver"
 	{
-		"en"		"Unknown database {red}driver{default}."
+		"en" 		"Unknown database {red}driver{default}."
+		"es" 		"Controlador de base de datos {red}desconocido{default}."
 	}
-	"DBQueryErrorTable"
+	"ValidClientOnly"
 	{
-		"en"		"Database table query {red}error{default}."
+		"en" 		"Votes can only be issued by a valid client."
+		"es" 		"Las votaciones solo pueden ser iniciadas por un cliente válido."
 	}
-	"DBTriggerIssue"
-	{
-		"#format"	"{1:s}"
-		"en"		"Database trigger {red}issue{default} for table {blue}{1}{default}."
-	}
+
 	"TryAgain"
 	{
-		"#format"	"{1:i}"
-		"en"		"A vote can't be called right now, try again in {1}s!"
+		"#format" 	"{1:i}"
+		"en" 		"A vote can't be called right now, try again in {1}s!"
+		"es" 		"No se puede solicitar una votación en este momento, ¡inténtalo de nuevo en {1}s!"
 	}
 	"ChangeDifficulty"
 	{
-		"#format"	"{1:N},{2:s}"
-		"en"		"{green}{1}{default} called vote for {olive}change difficulty{default}: {blue}{2}{default}"
+		"#format" 	"{1:N},{2:s}"
+		"en" 		"{green}{1}{default} started a vote to {olive}change difficulty{default}: {blue}{2}{default}"
+		"es" 		"{green}{1}{default} inició una votación para {olive}cambiar la dificultad{default}: {blue}{2}{default}"
 	}
 	"ChangeMission"
 	{
-		"#format"	"{1:N},{2:s}"
-		"en"		"{green}{1}{default} called vote for {olive}change campaign{default}: {blue}{2}{default}"
+		"#format" 	"{1:N},{2:s}"
+		"en" 		"{green}{1}{default} started a vote to {olive}change campaign{default}: {blue}{2}{default}"
+		"es" 		"{green}{1}{default} inició una votación para {olive}cambiar la campaña{default}: {blue}{2}{default}"
 	}
 	"ChangeChapter"
 	{
-		"#format"	"{1:N},{2:s}"
-		"en"		"{green}{1}{default} called vote to {olive}change chapter{default}: {blue}{2}{default}"
+		"#format" 	"{1:N},{2:s}"
+		"en" 		"{green}{1}{default} started a vote to {olive}change chapter{default}: {blue}{2}{default}"
+		"es" 		"{green}{1}{default} inició una votación para {olive}cambiar el capítulo{default}: {blue}{2}{default}"
 	}
 	"ChangeAllTalk"
 	{
-		"#format"	"{1:N},{2:s},{3:s}"
-		"en"		"{green}{1}{default} called vote for {olive}{2}{default}: {blue}{3}{default}"
+		"#format" 	"{1:N},{2:s},{3:s}"
+		"en" 		"{green}{1}{default} started a vote for {olive}{2}{default}: {blue}{3}{default}"
+		"es" 		"{green}{1}{default} inició una votación para {olive}{2}{default}: {blue}{3}{default}"
 	}
-    "VoteDisabled"
-    {
-        "en"        "This voting call was {red}deactivated{default}."
-    }
-    "SourceTVKick"
-    {
-        "en"        "It is not allowed to {red}kick{default} the {olive}SourceTV{default} bot"
-    }
+	"VoteDisabled"
+	{
+		"en"        "This vote type is {red}disabled{default}."
+		"es"        "Este tipo de votación está {red}desactivado{default}."
+	}
+	"SourceTVKick"
+	{
+		"en"        "It is not allowed to {red}kick{default} the {olive}SourceTV{default} bot"
+		"es"        "No está permitido {red}expulsar{default} al bot {olive}SourceTV{default}"
+	}
 	"BotKick"
 	{
-		"en"		"It is not allowed to {red}kick{default} a bot"
+		"en" 		"It is not allowed to {red}kick{default} a bot"
+		"es" 		"No está permitido {red}expulsar{default} a un bot"
 	}
-    "KickSelf"
-    {
-        "en"        "You can't {red}kick{default} yourself"
-    }
-    "KickDifferentTeam"
-    {
-        "en"        "You can only {red}kick{default} players from your {olive}same team{default}"
-    }
-    "Inmunity"
-    {
-        "en"        "You can't {red}kick{default} this player"
-    }
-    "InmunityTarget"
-    {
-		"#format"	"{1:N}"
-        "en"        "{1} tried to {red}kick{default} you"
-    }
-    "SpecVote"
-    {
-        "en"        "You can't call a vote while you are {olive}spectating{default}"
-    }
+	"KickSelf"
+	{
+		"en"        "You can't {red}kick{default} yourself"
+		"es"        "No puedes {red}expulsarte{default} a ti mismo"
+	}
+	"KickDifferentTeam"
+	{
+		"en"        "You can only {red}kick{default} players from your {olive}same team{default}"
+		"es"        "Solo puedes {red}expulsar{default} jugadores de tu {olive}mismo equipo{default}"
+	}
+	"Immunity"
+	{
+		"en"        "You can't {red}kick{default} this player"
+		"es"        "No puedes {red}expulsar{default} a este jugador"
+	}
+	"ImmunityTarget"
+	{
+		"#format" 	"{1:N}"
+		"en"        "{1} tried to {red}kick{default} you"
+		"es"        "{1} intentó {red}expulsarte{default}"
+	}
+	"SpecVote"
+	{
+		"en"        "You can't call a vote while you are {olive}spectating{default}"
+		"es"        "No puedes iniciar una votación mientras estás {olive}espectando{default}"
+	}
 	"SameDifficulty"
 	{
-		"en"		"Same difficulty"
+		"en" 		"Same difficulty"
+		"es" 		"Es la misma dificultad"
 	}
 	"VoteCastAnon"
 	{
-		"#format"	"{1:s},{2:s}"
-		"en"		"A {olive}{1}{default}: {2}"
+		"#format" 	"{1:s},{2:s}"
+		"en" 		"A {olive}{1}{default}: {2}"
+		"es" 		"Un {olive}{1}{default}: {2}"
 	}
 	"VoteCast"
 	{
-		"#format"	"{1:N},{2:s},{3:s}"
-		"en"		"{green}{1}{default} from team {olive}{2}{default}: {3}"
+		"#format" 	"{1:N},{2:s},{3:s}"
+		"en" 		"{green}{1}{default} from team {olive}{2}{default}: {3}"
+		"es" 		"{green}{1}{default} del equipo {olive}{2}{default}: {3}"
 	}
 	"InvalidTarget"
 	{
-		"en"		"Invalid target for kick vote"
+		"en" 		"Invalid target for kick vote"
+		"es" 		"Objetivo inválido para el voto de expulsión"
 	}
 	"VoteNotAllowedInGameMode"
 	{
-		"en"		"This type of vote is not enabled in this game mode"
+		"en" 		"This type of vote is not enabled in this game mode"
+		"es" 		"Este tipo de votación no está habilitado en este modo de juego"
 	}
 	"CleaningUpRecords"
 	{
-		"en"		"Cleaning up old records from the database..."
+		"en" 		"Cleaning up old records from the database..."
+		"es" 		"Limpiando registros antiguos de la base de datos..."
 	}
 	"InvalidDaysValue"
 	{
-		"en"		"Invalid number of days. Please provide a positive integer."
+		"en" 		"Invalid number of days. Please provide a positive integer."
+		"es" 		"Número de días inválido. Por favor proporciona un número entero positivo."
 	}
 	"MustTypeConfirm"
 	{
-		"en"		"You must type 'confirm' to proceed with this action."
+		"en" 		"You must type 'confirm' to proceed with this action."
+		"es" 		"Debes escribir 'confirm' para proceder con esta acción."
 	}
 	"TruncatingTable"
 	{
-		"en"		"Truncating table data..."
+		"en" 		"Truncating table data..."
+		"es" 		"Eliminando registros de la tabla..."
 	}
 	"UsageTruncateConfirm"
 	{
-		"en"		"Usage: sm_callvote_truncate confirm - This will delete ALL records!"
+		"en" 		"Usage: sm_cvc_sql_truncate confirm - This will delete ALL records!"
+		"es" 		"Uso: sm_cvc_sql_truncate confirm - ¡Esto eliminará TODOS los registros!"
 	}
 	"WarningDeleteAllRecords"
 	{
-		"en"		"WARNING: This will permanently delete ALL voting records!"
-	}
-	"Yes"
-	{
-		"en"		"Yes"
-	}
-	"No"
-	{
-		"en"		"No"
+		"en" 		"WARNING: This will permanently delete ALL voting records!"
+		"es" 		"ADVERTENCIA: ¡Esto eliminará permanentemente TODOS los registros de votación!"
 	}
 }

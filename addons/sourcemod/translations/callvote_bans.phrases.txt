@@ -1,1608 +1,327 @@
 "Phrases"
 {
-	// =================
-	// GENERAL MESSAGES
-	// =================
-
 	"Tag"
 	{
 		"en"		"[{green}CVB{default}]"
 		"es"		"[{green}CVB{default}]"
 	}
-
 	"Usage"
 	{
-		"en"		"Usage"
-		"es"		"Uso"
+		"en"		"Usage:"
+		"es"		"Uso:"
 	}
-
+	"SupportedSteamIDFormats"
+	{
+		"en"		"Supported SteamID formats:"
+		"es"		"Formatos de SteamID soportados:"
+	}
+	"RestrictionTypes"
+	{
+		"en"		"Available ban types:"
+		"es"		"Tipos de restricción disponibles:"
+	}
+	"CannotProcessSpecialCases"
+	{
+		"#format"	"{1:s}"
+		"en"		"Cannot process special SteamID cases: {1}"
+		"es"		"No se pueden procesar casos especiales de SteamID: {1}"
+	}
+	"SpecialCases"
+	{
+		"en"		"Special cases:"
+		"es"		"Casos especiales:"
+	}
+	"InvalidSteamIDFormat"
+	{
+		"#format"	"{1:s}"
+		"en"		"Invalid SteamID format: {1}"
+		"es"		"Formato de SteamID inválido: {1}"
+	}
+	"SupportedFormatsHeader"
+	{
+		"en"		"Supported formats:"
+		"es"		"Formatos soportados:"
+	}
+	"SteamID2Format"
+	{
+		"en"		"STEAM_X:Y:Z"
+		"es"		"STEAM_X:Y:Z"
+	}
+	"SteamID3Format"
+	{
+		"en"		"[U:1:123456] (SteamID3)"
+		"es"		"[U:1:123456] (SteamID3)"
+	}
+	"SteamID64Format"
+	{
+		"en"		"7656119XXXXXXXXXX (SteamID64)"
+		"es"		"7656119XXXXXXXXXX (SteamID64)"
+	}
+	"AccountIDFormat"
+	{
+		"en"		"AccountID: 12345678"
+		"es"		"AccountID: 12345678"
+	}
+	"InvalidPlayer"
+	{
+		"en"		"Invalid player specified."
+		"es"		"El jugador especificado no es válido."
+	}
 	"PluginDisabled"
 	{
-		"en"		"Plugin is currently disabled"
-		"es"		"El plugin esta actualmente deshabilitado"
+		"en"		"Plugin disabled."
+		"es"		"Plugin desactivado."
 	}
-
-	// =================
-	// GENERAL MESSAGES (callvote_bans.sp)
-	// =================
-
-	"BanReasonInputCancelled"
+	"InvalidRestrictionMask"
 	{
-		"en"		"Ban reason input cancelled"
-		"es"		"Entrada de razon de ban cancelada"
+		"#format"	"{1:d},{2:d}"
+		"en"		"Invalid ban type {1} (max {2})."
+		"es"		"Tipo de restricción inválido {1} (máx {2})."
 	}
-	
-	// =================
-	// VOTE BLOCKED MESSAGES (cvb_api.sp)
-	// =================
+	"InvalidDuration"
+	{
+		"#format"	"{1:d}"
+		"en"		"Invalid duration: {1}"
+		"es"		"Duración inválida: {1}"
+	}
+	"DatabaseError"
+	{
+		"en"		"Database error."
+		"es"		"Error en la base de datos."
+	}
+	"ErrorGettingAdminInfo"
+	{
+		"en"		"Error getting admin info."
+		"es"		"Error al obtener la información del administrador."
+	}
+	"PlayerJoinedWithRestrictions"
+	{
+		"#format"	"{1:N}"
+		"en"		"{olive}{1}{default} joined with active vote restrictions"
+		"es"		"{olive}{1}{default} se conectó con restricciones de voto activas"
+	}
+	"PlayerRestrictionApplied"
+	{
+		"en"		"A vote restriction has been applied to you"
+		"es"		"Se te aplicó una restricción de voto"
+	}
+	"CheckConsoleForDetails"
+	{
+		"en"		"Check console for details."
+		"es"		"Revisa la consola para más detalles."
+	}
 	"VoteBlockedDifficulty"
 	{
 		"#format"	"{1:s}"
-		"en"		"You cannot start difficulty votes. {1}"
-		"es"		"No puedes iniciar votos de dificultad. {1}"
+		"en"		"Vote blocked: difficulty restriction. {1}"
+		"es"		"Voto bloqueado: restricción por dificultad. {1}"
 	}
-
 	"VoteBlockedRestart"
 	{
 		"#format"	"{1:s}"
-		"en"		"You cannot restart the game. {1}"
-		"es"		"No puedes reiniciar el juego. {1}"
+		"en"		"Vote blocked: map restart restriction. {1}"
+		"es"		"Voto bloqueado: restricción de reinicio de mapa. {1}"
 	}
-
 	"VoteBlockedKick"
 	{
 		"#format"	"{1:s}"
-		"en"		"You cannot kick players. {1}"
-		"es"		"No puedes expulsar jugadores. {1}"
+		"en"		"Vote blocked: kick restriction. {1}"
+		"es"		"Voto bloqueado: restricción de expulsión. {1}"
 	}
-
 	"VoteBlockedMission"
 	{
 		"#format"	"{1:s}"
-		"en"		"You cannot change the mission. {1}"
-		"es"		"No puedes cambiar la mision. {1}"
+		"en"		"Vote blocked: mission restriction. {1}"
+		"es"		"Voto bloqueado: restricción de misión. {1}"
 	}
-
 	"VoteBlockedLobby"
 	{
 		"#format"	"{1:s}"
-		"en"		"You cannot return to lobby. {1}"
-		"es"		"No puedes volver al lobby. {1}"
+		"en"		"Vote blocked: lobby restriction. {1}"
+		"es"		"Voto bloqueado: restricción de lobby. {1}"
 	}
-
 	"VoteBlockedChapter"
 	{
 		"#format"	"{1:s}"
-		"en"		"You cannot change chapter. {1}"
-		"es"		"No puedes cambiar de capitulo. {1}"
+		"en"		"Vote blocked: chapter restriction. {1}"
+		"es"		"Voto bloqueado: restricción de capítulo. {1}"
 	}
-
 	"VoteBlockedAllTalk"
 	{
 		"#format"	"{1:s}"
 		"en"		"You cannot change AllTalk. {1}"
 		"es"		"No puedes cambiar AllTalk. {1}"
 	}
-
 	"VoteBlockedGeneric"
 	{
 		"#format"	"{1:s},{2:s}"
 		"en"		"You cannot start {1} votes. {2}"
 		"es"		"No puedes iniciar votos de {1}. {2}"
 	}
-
-	// =================
-	// CONSOLE BAN DETAILS
-	// =================
-
+	"VoteBlockedValidation"
+	{
+		"en"		"Vote blocked: your restriction status could not be validated right now."
+		"es"		"Voto bloqueado: no se pudo validar tu estado de restricción en este momento."
+	}
+	"ConsoleVoteBlockedValidation"
+	{
+		"en"		"Your vote was blocked because the restriction backend could not be validated."
+		"es"		"Tu voto fue bloqueado porque no se pudo validar el backend de restricciones."
+	}
 	"ConsoleVoteBlockedTitle"
 	{
 		"en"		"VOTE RESTRICTION DETAILS"
-		"es"		"DETALLES DE RESTRICCIoN DE VOTO"
+		"es"		"DETALLES DE RESTRICCION DE VOTO"
 	}
-
 	"ConsoleVoteBlockedExplanation"
 	{
 		"en"		"You are currently restricted from starting certain types of votes."
 		"es"		"Actualmente tienes restringido iniciar ciertos tipos de votos."
 	}
-
 	"ConsoleBanRestrictedVotes"
 	{
 		"#format"	"{1:s}"
 		"en"		"Restricted vote types: {1}"
 		"es"		"Tipos de voto restringidos: {1}"
 	}
-
 	"ConsoleBanDuration"
 	{
 		"#format"	"{1:s}"
 		"en"		"Duration: {1}"
 		"es"		"Duracion: {1}"
 	}
-
 	"ConsoleBanTimeLeft"
 	{
 		"#format"	"{1:s}"
 		"en"		"Time remaining: {1}"
 		"es"		"Tiempo restante: {1}"
 	}
-
 	"ConsoleBanExpired"
 	{
 		"en"		"Status: EXPIRED"
 		"es"		"Estado: EXPIRADO"
 	}
-
 	"ConsoleBanCreated"
 	{
 		"#format"	"{1:s}"
 		"en"		"Created on: {1}"
 		"es"		"Creado el: {1}"
 	}
-
-	// =================
-	// VOTE TYPE NAMES (cvb_api.sp)
-	// =================
-	"VoteTypeDifficulty"
+	"RestrictionDetailsHeader"
 	{
-		"en"		"Difficulty"
-		"es"		"Dificultad"
+		"en"		"Restriction details:"
+		"es"		"Detalles de la restricción:"
 	}
-
-	"VoteTypeRestart"
-	{
-		"en"		"Restart"
-		"es"		"Reinicio"
-	}
-
-	"VoteTypeKick"
-	{
-		"en"		"Kick"
-		"es"		"Expulsion"
-	}
-
-	"VoteTypeMission"
-	{
-		"en"		"Mission"
-		"es"		"Mision"
-	}
-
-	"VoteTypeLobby"
-	{
-		"en"		"Lobby"
-		"es"		"Lobby"
-	}
-
-	"VoteTypeChapter"
-	{
-		"en"		"Chapter"
-		"es"		"Capitulo"
-	}
-
-	"VoteTypeAllTalk"
-	{
-		"en"		"AllTalk"
-		"es"		"AllTalk"
-	}
-
-	"VoteTypeUnknown"
-	{
-		"#format"	"{1:d}"
-		"en"		"Unknown ({1})"
-		"es"		"Desconocido ({1})"
-	}
-
-	// =================
-	// BAN STATUS MESSAGES (cvb_api.sp)
-	// =================
-
-	"BanActive"
-	{
-		"en"		"Active"
-		"es"		"Activo"
-	}
-
-	// =================
-	// CONNECTION ANNOUNCEMENTS (cvb_api.sp)
-	// =================
-	"PlayerJoinedWithRestrictions"
-	{
-		"#format"	"{1:N}"
-		"en"		"{olive}{1}{default} joined with vote restrictions"
-		"es"		"{olive}{1}{default} se unio con restricciones de voto"
-	}
-
-	// =================
-	// COMMAND SYSTEM MESSAGES (cvb_commands.sp)
-	// =================
-	"CannotProcessSpecialCases"
+	"RestrictionDetailsTypes"
 	{
 		"#format"	"{1:s}"
-		"en"		"Cannot process special cases for SteamID: {1}"
-		"es"		"No se pueden procesar casos especiales para SteamID: {1}"
+		"en"		"Types: {1}"
+		"es"		"Tipos: {1}"
 	}
-
-	"SpecialCases"
-	{
-		"en"		"Special cases include: STEAM_ID_PENDING, STEAM_ID_BOT, invalid formats"
-		"es"		"Casos especiales incluyen: STEAM_ID_PENDING, STEAM_ID_BOT, formatos invalidos"
-	}
-
-	"InvalidSteamIDFormat"
+	"RestrictionDetailsDuration"
 	{
 		"#format"	"{1:s}"
-		"en"		"Invalid SteamID format: {1}"
-		"es"		"Formato de SteamID invalido: {1}"
+		"en"		"Duration: {1}"
+		"es"		"Duración: {1}"
 	}
-
-	"InternalError"
-	{
-		"#format"	"{1:d}"
-		"en"		"Internal error processing AccountID: {1}"
-		"es"		"Error interno procesando AccountID: {1}"
-	}
-
-	"SteamWorksOrSystem2Required"
-	{
-		"en"		"SteamWorks or System2 extension required for this operation"
-		"es"		"Se requiere la extension SteamWorks o System2 para esta operacion"
-	}
-
-	"PleaseUseOtherFormats"
-	{
-		"en"		"Please use other supported SteamID formats"
-		"es"		"Por favor usa otros formatos de SteamID soportados"
-	}
-
-	"SupportedFormatsHeader"
-	{
-		"en"		"Supported SteamID formats:"
-		"es"		"Formatos de SteamID soportados:"
-	}
-
-	"SteamID2Format"
-	{
-		"en"		"- SteamID2: STEAM_0:1:23456789"
-		"es"		"- SteamID2: STEAM_0:1:23456789"
-	}
-
-	"SteamID3Format"
-	{
-		"en"		"- SteamID3: [U:1:46913579]"
-		"es"		"- SteamID3: [U:1:46913579]"
-	}
-
-	"SteamID64Format"
-	{
-		"en"		"- SteamID64: 76561198007179307"
-		"es"		"- SteamID64: 76561198007179307"
-	}
-
-	"AccountIDFormat"
-	{
-		"en"		"- AccountID: 46913579"
-		"es"		"- AccountID: 46913579"
-	}
-
-	"SteamWorksHTTPRequestFailed"
-	{
-		"en"		"SteamWorks HTTP request failed"
-		"es"		"Peticion HTTP de SteamWorks fallo"
-	}
-
-	"System2HTTPRequestFailed"
-	{
-		"en"		"System2 HTTP request failed"
-		"es"		"Peticion HTTP de System2 fallo"
-	}
-
-	"ErrorGettingAdminInfo"
-	{
-		"en"		"Error getting admin information"
-		"es"		"Error obteniendo informacion del administrador"
-	}
-
-	"BanApplied"
-	{
-		"#format"	"{1:s},{2:s},{3:s}"
-		"en"		"Ban applied to {1} - Type: {2}, Duration: {3}"
-		"es"		"Ban aplicado a {1} - Tipo: {2}, Duracion: {3}"
-	}
-
-	"BanRemovedSuccess"
-	{
-		"#format"	"{1:s}"
-		"en"		"Ban successfully removed for {1}"
-		"es"		"Ban removido exitosamente para {1}"
-	}
-
-	"YourBanRemoved"
-	{
-		"en"		"Your voting restrictions have been removed"
-		"es"		"Tus restricciones de voto han sido removidas"
-	}
-
-	"DatabaseError"
-	{
-		"en"		"Database error occurred"
-		"es"		"Ocurrio un error de base de datos"
-	}
-
-	"NoBanFound"
-	{
-		"en"		"No active ban found for this player"
-		"es"		"No se encontro ban activo para este jugador"
-	}
-
-	"SQLiteNotAvailable"
-	{
-		"en"		"SQLite database not available"
-		"es"		"Base de datos SQLite no disponible"
-	}
-
-	"BanStatusVerifying"
-	{
-		"#format"	"{1:s}"
-		"en"		"Verifying ban status for {1}..."
-		"es"		"Verificando estado de ban para {1}..."
-	}
-
-	"SQLiteVerifyError"
-	{
-		"#format"	"{1:s}"
-		"en"		"SQLite verification error: {1}"
-		"es"		"Error de verificacion SQLite: {1}"
-	}
-
-	"SQLiteVerifyNotFound"
-	{
-		"#format"	"{1:s}"
-		"en"		"No ban found for {1} in SQLite database"
-		"es"		"No se encontro ban para {1} en la base de datos SQLite"
-	}
-
-	"SQLiteVerifyFound"
-	{
-		"#format"	"{1:s}"
-		"en"		"Ban found for {1} in SQLite database:"
-		"es"		"Ban encontrado para {1} en la base de datos SQLite:"
-	}
-
-	"BanReason"
-	{
-		"#format"	"{1:s}"
-		"en"		"Reason: {1}"
-		"es"		"Razon: {1}"
-	}
-
-	"BanAdmin"
+	"RestrictionDetailsAdmin"
 	{
 		"#format"	"{1:s}"
 		"en"		"Admin: {1}"
 		"es"		"Admin: {1}"
 	}
-
-	"BanDurationPermanent"
-	{
-		"en"		"Duration: Permanent"
-		"es"		"Duracion: Permanente"
-	}
-
-	"BanExpires"
+	"RestrictionDetailsExpiration"
 	{
 		"#format"	"{1:s}"
 		"en"		"Expires: {1}"
 		"es"		"Expira: {1}"
 	}
-
-	// =================
-	// CACHE MANAGEMENT MESSAGES (cvb_commands.sp)
-	// =================
-	"PlayerNotValid"
+	"RestrictionStatusHeader"
 	{
-		"en"		"Player not valid or not found"
-		"es"		"Jugador no valido o no encontrado"
+		"en"		"Restriction status for {1}:"
+		"es"		"Estado de restricción para {1}:"
 	}
-
-	"PlayerNotBanned"
-	{
-		"#format"	"{1:s}"
-		"en"		"Player {1} is not banned"
-		"es"		"El jugador {1} no esta baneado"
-	}
-
-	// =================
-	// DATABASE INSTALLATION MESSAGES (commands_sql.sp)
-	// =================
-	"MySQLNotAvailableForInstall"
-	{
-		"en"		"MySQL database connection not available"
-		"es"		"Conexion a base de datos MySQL no disponible"
-	}
-
-	"CheckMySQLConfig"
-	{
-		"en"		"Please check your MySQL configuration in databases.cfg"
-		"es"		"Por favor verifica tu configuracion MySQL en databases.cfg"
-	}
-
-	"SQLiteNotAvailableForInstall"
-	{
-		"en"		"SQLite database connection not available"
-		"es"		"Conexion a base de datos SQLite no disponible"
-	}
-
-	"CreatingMySQLTables"
-	{
-		"en"		"Creating MySQL tables and stored procedures..."
-		"es"		"Creando tablas MySQL y procedimientos almacenados..."
-	}
-
-	"CreatingSQLiteTables"
-	{
-		"en"		"Creating SQLite tables..."
-		"es"		"Creando tablas SQLite..."
-	}
-
-
-	"MySQLNotAvailable"
-	{
-		"en"		"MySQL connection not available"
-		"es"		"Conexion MySQL no disponible"
-	}
-
-	"InstallResultHeader"
-	{
-		"en"		"=== Installation Results ==="
-		"es"		"=== Resultados de Instalacion ==="
-	}
-
-
-
-	"MySQLStatus"
-	{
-		"#format"	"{1:s}"
-		"en"		"MySQL: {1}"
-		"es"		"MySQL: {1}"
-	}
-
-
-
-
-	"SQLiteStatus"
-	{
-		"#format"	"{1:s}"
-		"en"		"SQLite: {1}"
-		"es"		"SQLite: {1}"
-	}
-
-	"InstallSuccess"
-	{
-		"en"		"Installation completed successfully!"
-		"es"		"¡Instalacion completada exitosamente!"
-	}
-
-	"InstallationTimeout"
-	{
-		"en"		"Installation timeout reached"
-		"es"		"Tiempo de instalacion agotado"
-	}
-
-	"InstallationFailed"
-	{
-		"en"		"Installation failed"
-		"es"		"Instalacion fallo"
-	}
-
-	"TablesCreatedProceduresFailed"
-	{
-		"en"		"Tables created but procedures failed"
-		"es"		"Tablas creadas pero procedimientos fallaron"
-	}
-
-	"TablesFailedProceduresSuccess"
-	{
-		"en"		"Tables failed but procedures successful"
-		"es"		"Tablas fallaron pero procedimientos exitosos"
-	}
-
-	"TablesCreatedIndexesFailed"
-	{
-		"en"		"Tables created but indexes failed"
-		"es"		"Tablas creadas pero indices fallaron"
-	}
-
-	"TablesFailedIndexesSuccess"
-	{
-		"en"		"Tables failed but indexes successful"
-		"es"		"Tablas fallaron pero indices exitosos"
-	}
-
-	"ComponentSuccess"
-	{
-		"#format"	"{1:s}"
-		"en"		"✓ {1} - Created"
-		"es"		"✓ {1} - Creado"
-	}
-
-	"ComponentFailed"
-	{
-		"#format"	"{1:s}"
-		"en"		"✗ {1} - Failed"
-		"es"		"✗ {1} - Fallo"
-	}
-
-	// =================
-	// VERIFICATION MESSAGES (commands_sql.sp)
-	// =================
-	"MySQLRequiredStoredProcedures"
-	{
-		"en"		"MySQL connection required to verify stored procedures"
-		"es"		"Conexion MySQL requerida para verificar procedimientos almacenados"
-	}
-
-	"VerifyingStoredProcedures"
-	{
-		"en"		"Verifying MySQL stored procedures..."
-		"es"		"Verificando procedimientos almacenados MySQL..."
-	}
-
-
-	"VerificationError"
-	{
-		"#format"	"{1:s},{2:s}"
-		"en"		"Error verifying {1}: {2}"
-		"es"		"Error verificando {1}: {2}"
-	}
-
-	"VerificationInstalled"
-	{
-		"#format"	"{1:s}"
-		"en"		"✓ {1} - Installed and working"
-		"es"		"✓ {1} - Instalado y funcionando"
-	}
-
-	"VerificationNotFound"
-	{
-		"#format"	"{1:s}"
-		"en"		"✗ {1} - Not found or not working"
-		"es"		"✗ {1} - No encontrado o no funcionando"
-	}
-
-	"MissingOperation"
-	{
-		"#format"	"{1:s}"
-		"en"		"✗ Missing: {1}"
-		"es"		"✗ Faltante: {1}"
-	}
-
-	// =================
-	// PROCEDURE CONFIGURATION MESSAGES (cvb_database.sp)
-	// =================
-	"ProcedureConfigurationHeader"
-	{
-		"en"		"=== Procedure Configuration ==="
-		"es"		"=== Configuracion de Procedimientos ==="
-	}
-
-	"ProcedureEnabled"
-	{
-		"#format"	"{1:s}"
-		"en"		"✓ {1} - Enabled"
-		"es"		"✓ {1} - Habilitado"
-	}
-
-	"ProcedureDisabled"
-	{
-		"#format"	"{1:s}"
-		"en"		"✗ {1} - Disabled"
-		"es"		"✗ {1} - Deshabilitado"
-	}
-
-	"ProcedureDisabledHeader"
-	{
-		"en"		"--- Disabled Procedures ---"
-		"es"		"--- Procedimientos Deshabilitados ---"
-	}
-
-	"AllProceduresEnabled"
-	{
-		"en"		"All procedures are enabled"
-		"es"		"Todos los procedimientos estan habilitados"
-	}
-
-	// Procedure Names for Reports
-	"CheckActiveBan"
-	{
-		"en"		"Check Active Ban"
-		"es"		"Verificar Ban Activo"
-	}
-
-	"CheckFullBan"
-	{
-		"en"		"Check Full Ban"
-		"es"		"Verificar Ban Completo"
-	}
-
-	"InsertBan"
-	{
-		"en"		"Insert Ban"
-		"es"		"Insertar Ban"
-	}
-
-	"RemoveBan"
-	{
-		"en"		"Remove Ban"
-		"es"		"Remover Ban"
-	}
-
-	"CleanExpired"
-	{
-		"en"		"Clean Expired"
-		"es"		"Limpiar Expirados"
-	}
-
-	"GetStatistics"
-	{
-		"en"		"Get Statistics"
-		"es"		"Obtener Estadisticas"
-	}
-
-	// =================
-	// TRUNCATE MESSAGES (commands_sql.sp)
-	// =================
-	"TruncateConfirmation"
-	{
-		"en"		"This will delete ALL bans from the database. Add 'confirm' to proceed"
-		"es"		"Esto eliminara TODOS los bans de la base de datos. Agrega 'confirm' para proceder"
-	}
-
-	"MySQLTruncateSuccess"
-	{
-		"en"		"MySQL database cleared successfully"
-		"es"		"Base de datos MySQL limpiada exitosamente"
-	}
-
-	"SQLiteTruncateSuccess"
-	{
-		"en"		"SQLite cache cleared successfully"
-		"es"		"Cache SQLite limpiado exitosamente"
-	}
-
-	"CacheTruncateSuccess"
-	{
-		"en"		"Memory cache cleared successfully"
-		"es"		"Cache de memoria limpiado exitosamente"
-	}
-
-	// =================
-	// CLEANUP MESSAGES (commands_sql.sp)
-	// =================
-	"CleanupStarting"
-	{
-		"en"		"Starting cleanup process..."
-		"es"		"Iniciando proceso de limpieza..."
-	}
-
-	"DatabaseNotAvailable"
-	{
-		"en"		"Database not available for cleanup"
-		"es"		"Base de datos no disponible para limpieza"
-	}
-
-	"CacheCleanupMemorySuccess"
-	{
-		"en"		"Memory cache cleanup completed"
-		"es"		"Limpieza de cache de memoria completada"
-	}
-
-	"CacheCleanupExpiredBans"
-	{
-		"#format"	"{1:d}"
-		"en"		"Cleaned {1} expired entries from SQLite cache"
-		"es"		"Se limpiaron {1} entradas expiradas del cache SQLite"
-	}
-
-	"CacheCleanupSuccess"
-	{
-		"en"		"Cache cleanup completed successfully"
-		"es"		"Limpieza de cache completada exitosamente"
-	}
-
-	"CacheCleanupSQLiteWarning"
-	{
-		"en"		"Warning: SQLite cache not available for cleanup"
-		"es"		"Advertencia: Cache SQLite no disponible para limpieza"
-	}
-
-
-	"CleanupSuccess"
-	{
-		"en"		"Cleanup completed successfully"
-		"es"		"Limpieza completada exitosamente"
-	}
-
-
-	// =================
-	// STATISTICS MESSAGES (commands_sql.sp)
-	// =================
-	"BanStatsHeader"
-	{
-		"en"		"=== Ban System Statistics ==="
-		"es"		"=== Estadisticas del Sistema de Bans ==="
-	}
-
-	"CacheStatsHeader"
-	{
-		"en"		"=== Cache Statistics ==="
-		"es"		"=== Estadisticas de Cache ==="
-	}
-
-	"CacheStatsStringMap"
-	{
-		"#format"	"{1:d}"
-		"en"		"StringMap Cache: {1} entries"
-		"es"		"Cache StringMap: {1} entradas"
-	}
-
-	"CacheStatsPlayerBans"
-	{
-		"#format"	"{1:d}"
-		"en"		"Player Bans Cache: {1} entries"
-		"es"		"Cache Bans Jugadores: {1} entradas"
-	}
-
-	"Connected"
-	{
-		"en"		"Connected"
-		"es"		"Conectado"
-	}
-
-	"Disconnected"
-	{
-		"en"		"Disconnected"
-		"es"		"Desconectado"
-	}
-
-	"CacheStatsMySQL"
-	{
-		"#format"	"{1:s}"
-		"en"		"MySQL Database: {1}"
-		"es"		"Base de Datos MySQL: {1}"
-	}
-
-	"CacheStatsSQLite"
-	{
-		"#format"	"{1:s}"
-		"en"		"SQLite Cache: {1}"
-		"es"		"Cache SQLite: {1}"
-	}
-
-	"StatsError"
-	{
-		"#format"	"{1:s}"
-		"en"		"Statistics error: {1}"
-		"es"		"Error de estadisticas: {1}"
-	}
-
-	"ActiveBans"
-	{
-		"#format"	"{1:d}"
-		"en"		"Active Bans: {1}"
-		"es"		"Bans Activos: {1}"
-	}
-
-	"ExpiredBansStats"
-	{
-		"#format"	"{1:d}"
-		"en"		"Expired Bans: {1}"
-		"es"		"Bans Expirados: {1}"
-	}
-
-	"RecentBans"
-	{
-		"#format"	"{1:d}"
-		"en"		"Recent Bans (last 24h): {1}"
-		"es"		"Bans Recientes (ultimas 24h): {1}"
-	}
-
-	"UniquePlayers"
-	{
-		"#format"	"{1:d}"
-		"en"		"Unique Players Banned: {1}"
-		"es"		"Jugadores unicos Baneados: {1}"
-	}
-
-	"UniqueAdmins"
-	{
-		"#format"	"{1:d}"
-		"en"		"Unique Admins: {1}"
-		"es"		"Administradores unicos: {1}"
-	}
-
-	"BanStatsMemoryCache"
-	{
-		"#format"	"{1:d}"
-		"en"		"Memory Cache Size: {1} entries"
-		"es"		"Tamaño Cache Memoria: {1} entradas"
-	}
-
-	"BanStatsSQLiteActive"
-	{
-		"en"		"SQLite Cache: Active"
-		"es"		"Cache SQLite: Activo"
-	}
-
-	"BanStatsSQLiteInactive"
-	{
-		"en"		"SQLite Cache: Inactive"
-		"es"		"Cache SQLite: Inactivo"
-	}
-
-	"BanStatsStoredProceduresAvailable"
-	{
-		"en"		"Stored Procedures: Available"
-		"es"		"Procedimientos Almacenados: Disponibles"
-	}
-
-	"BanStatsStoredProceduresUnavailable"
-	{
-		"en"		"Stored Procedures: Unavailable"
-		"es"		"Procedimientos Almacenados: No Disponibles"
-	}
-
-	// =================
-	// SQLITE VERIFICATION MESSAGES (commands_sql.sp)
-	// =================
-
-	// MySQL Commands Section
-	"SupportedSteamIDFormats"
-	{
-		"en"		"Supported SteamID formats: SteamID2, SteamID3, SteamID64, AccountID"
-		"es"		"Formatos de SteamID soportados: SteamID2, SteamID3, SteamID64, AccountID"
-	}
-
-	"BanTypes"
-	{
-		"en"		"Ban types: 0 = all votes, 1 = kick votes, 2 = ban votes"
-		"es"		"Tipos de ban: 0 = todas las votaciones, 1 = votaciones de kick, 2 = votaciones de ban"
-	}
-
-	"InvalidBanType"
-	{
-		"#format"	"{1:d},{2:d}"
-		"en"		"Invalid ban type: {1}. Maximum allowed: {2}"
-		"es"		"Tipo de ban invalido: {1}. Maximo permitido: {2}"
-	}
-
-	"InvalidDuration"
-	{
-		"#format"	"{1:d}"
-		"en"		"Invalid duration: {1} minutes. Minimum: 0 (permanent)"
-		"es"		"Duracion invalida: {1} minutos. Minimo: 0 (permanente)"
-	}
-
-	"BanStatusMySQLUnavailable"
-	{
-		"en"		"MySQL database is not available"
-		"es"		"Base de datos MySQL no esta disponible"
-	}
-
-	"BanStatusQueryError"
-	{
-		"#format"	"{1:s}"
-		"en"		"Error executing query: {1}"
-		"es"		"Error ejecutando consulta: {1}"
-	}
-
-	"BanStatusPermanent"
-	{
-		"en"		"Permanent"
-		"es"		"Permanente"
-	}
-
-	"BanStatusHeaderOffline"
-	{
-		"#format"	"{1:s}"
-		"en"		"Ban status for {1} (offline player):"
-		"es"		"Estado de ban para {1} (jugador desconectado):"
-	}
-
-	"BanStatusBanned"
-	{
-		"en"		"Status: BANNED"
-		"es"		"Estado: BANEADO"
-	}
-
-	"BanStatusUnbanned"
-	{
-		"en"		"Status: NOT BANNED"
-		"es"		"Estado: NO BANEADO"
-	}
-
-	"BanStatusRestrictedTypes"
-	{
-		"#format"	"{1:s}"
-		"en"		"Restricted vote types: {1}"
-		"es"		"Tipos de votacion restringidos: {1}"
-	}
-
-	"BanStatusCreated"
-	{
-		"#format"	"{1:s}"
-		"en"		"Ban created: {1}"
-		"es"		"Ban creado: {1}"
-	}
-
-	"BanStatusExpiration"
-	{
-		"#format"	"{1:s}"
-		"en"		"Expires: {1}"
-		"es"		"Expira: {1}"
-	}
-
-	"BanStatusHeader"
-	{
-		"#format"	"{1:s}"
-		"en"		"Ban status for {1}:"
-		"es"		"Estado de ban para {1}:"
-	}
-
-	"BanStatusAccountID"
+	"RestrictionStatusAccountID"
 	{
 		"#format"	"{1:d}"
 		"en"		"AccountID: {1}"
 		"es"		"AccountID: {1}"
 	}
-
-	"BanStatusCheckingPlayer"
+	"RestrictionStatusClear"
 	{
-		"#format"	"{1:N}"
-		"en"		"Checking ban status for player {1}..."
-		"es"		"Verificando estado de ban para el jugador {1}..."
+		"en"		"No active restriction found."
+		"es"		"No se encontró restricción activa."
 	}
-
-	// SQLite Cache Commands Section
-	"SQLiteCheckingCache"
+	"RestrictionStatusActive"
 	{
-		"#format"	"{1:s}"
-		"en"		"Checking SQLite cache for {1}..."
-		"es"		"Verificando cache SQLite para {1}..."
+		"en"		"Active restriction:"
+		"es"		"Restricción activa:"
 	}
-
-	"SQLiteCheckError"
+	"RestrictionStatusTypes"
 	{
 		"#format"	"{1:s}"
-		"en"		"SQLite query error: {1}"
-		"es"		"Error de consulta SQLite: {1}"
+		"en"		"Restricted types: {1}"
+		"es"		"Tipos restringidos: {1}"
 	}
-
-	"SQLiteCheckNotBanned"
+	"RestrictionStatusExpiration"
 	{
 		"#format"	"{1:s}"
-		"en"		"Player {1} is not banned in SQLite cache"
-		"es"		"El jugador {1} no esta baneado en el cache SQLite"
+		"en"		"Expiration: {1}"
+		"es"		"Expiración: {1}"
 	}
-
-	"SQLiteCheckBanned"
-	{
-		"#format"	"{1:s}"
-		"en"		"Player {1} is banned in SQLite cache"
-		"es"		"El jugador {1} esta baneado en el cache SQLite"
-	}
-
-	"CacheNote"
-	{
-		"en"		"Note: This information is from cache and may not reflect the latest changes"
-		"es"		"Nota: Esta informacion es del cache y puede no reflejar los ultimos cambios"
-	}
-
-	// Debug Commands Section
-	"DatabaseConnectionNotAvailable"
-	{
-		"en"		"Database connection not available"
-		"es"		"Conexion de base de datos no disponible"
-	}
-
-	"SQLiteConnectionNotAvailable"
-	{
-		"en"		"SQLite connection not available"
-		"es"		"Conexion SQLite no disponible"
-	}
-
-	"TestMessage"
-	{
-		"#format"	"{1:s}"
-		"en"		"Message: {1}"
-		"es"		"Mensaje: {1}"
-	}
-	
-	"TestSQLiteStatistics"
-	{
-		"#format"	"{1:d},{2:d},{3:d},{4:d}"
-		"en"		"  Active: {1} | Inactive: {2} | Players: {3} | Total: {4}"
-		"es"		"  Activos: {1} | Inactivos: {2} | Jugadores: {3} | Total: {4}"
-	}
-
-	// ============================================================================
-	// 🎮 MENU SYSTEM TRANSLATIONS - cvb_menus.sp
-	// ============================================================================
-	"MenuBanManagementTitle"
-	{
-		"en"		"Ban Management"
-		"es"		"Gestion de Baneos"
-	}
-	
-	"MenuBannedPlayerFormat"
-	{
-		"#format"	"{1:s},{2:d}"
-		"en"		"[BANNED] {1} (Type: {2})"
-		"es"		"[BANEADO] {1} (Tipo: {2})"
-	}
-	
-	"MenuNoPlayersConnected"
-	{
-		"en"		"No players connected"
-		"es"		"No hay jugadores conectados"
-	}
-	
-	"MenuBanOfflineOption"
-	{
-		"en"		"Ban offline player"
-		"es"		"Banear jugador desconectado"
-	}
-	
-	"MenuCleanupBansOption"
-	{
-		"en"		"Cleanup expired bans"
-		"es"		"Limpiar baneos expirados"
-	}
-	
-	"MenuCleanupExecuted"
-	{
-		"en"		"Cleanup executed"
-		"es"		"Limpieza ejecutada"
-	}
-	
-	"MenuPlayerDisconnected"
-	{
-		"en"		"Player disconnected"
-		"es"		"Jugador desconectado"
-	}
-	
-	"MenuBanPlayerTitle"
-	{
-		"#format"	"{1:s}"
-		"en"		"Ban Player: {1}"
-		"es"		"Banear Jugador: {1}"
-	}
-	
-	"MenuBanTypeDifficulty"
-	{
-		"en"		"Difficulty votes"
-		"es"		"Votos de dificultad"
-	}
-	
-	"MenuBanTypeRestart"
-	{
-		"en"		"Restart votes"
-		"es"		"Votos de reinicio"
-	}
-	
-	"MenuBanTypeKick"
-	{
-		"en"		"Kick votes"
-		"es"		"Votos de expulsion"
-	}
-	
-	"MenuBanTypeMission"
-	{
-		"en"		"Mission votes"
-		"es"		"Votos de mision"
-	}
-	
-	"MenuBanTypeLobby"
-	{
-		"en"		"Lobby votes"
-		"es"		"Votos de lobby"
-	}
-	
-	"MenuBanTypeChapter"
-	{
-		"en"		"Chapter votes"
-		"es"		"Votos de capitulo"
-	}
-	
-	"MenuBanTypeAllTalk"
-	{
-		"en"		"AllTalk votes"
-		"es"		"Votos de AllTalk"
-	}
-	
-	"MenuBanTypeAll"
-	{
-		"en"		"All vote types"
-		"es"		"Todos los tipos de voto"
-	}
-	
-	"MenuBanTypeCustom"
-	{
-		"en"		"Custom ban type"
-		"es"		"Tipo de baneo personalizado"
-	}
-	
-	"MenuBanDurationTitle"
-	{
-		"#format"	"{1:s},{2:s}"
-		"en"		"Ban Duration for {1}: {2}"
-		"es"		"Duracion del Baneo para {1}: {2}"
-	}
-	
-	"MenuBanDurationPermanent"
+	"RestrictionStatusPermanent"
 	{
 		"en"		"Permanent"
 		"es"		"Permanente"
 	}
-	
-	"MenuBanDuration30Min"
+	"RestrictionStatusCheckingPlayer"
 	{
-		"en"		"30 minutes"
-		"es"		"30 minutos"
+		"#format"	"{1:N}"
+		"en"		"Checking player {1}..."
+		"es"		"Comprobando jugador {1}..."
 	}
-	
-	"MenuBanDuration1Hour"
+	"RestrictionStatusVerifying"
 	{
-		"en"		"1 hour"
-		"es"		"1 hora"
+		"#format"	"{1:s}"
+		"en"		"Verifying {1}..."
+		"es"		"Verificando {1}..."
 	}
-	
-	"MenuBanDuration3Hours"
-	{
-		"en"		"3 hours"
-		"es"		"3 horas"
-	}
-	
-	"MenuBanDuration6Hours"
-	{
-		"en"		"6 hours"
-		"es"		"6 horas"
-	}
-	
-	"MenuBanDuration12Hours"
-	{
-		"en"		"12 hours"
-		"es"		"12 horas"
-	}
-	
-	"MenuBanDuration1Day"
-	{
-		"en"		"1 day"
-		"es"		"1 dia"
-	}
-	
-	"MenuBanDuration3Days"
-	{
-		"en"		"3 days"
-		"es"		"3 dias"
-	}
-	
-	"MenuBanDuration1Week"
-	{
-		"en"		"1 week"
-		"es"		"1 semana"
-	}
-	
-	"MenuBanDurationCustom"
-	{
-		"en"		"Custom duration"
-		"es"		"Duracion personalizada"
-	}
-	
-	"MenuTargetDataError"
-	{
-		"en"		"Error in target data"
-		"es"		"Error en datos del objetivo"
-	}
-	
-	
-	"MenuBanConfirmYes"
-	{
-		"en"		"Yes, ban player"
-		"es"		"Si, banear jugador"
-	}
-	
-	"MenuBanConfirmCancel"
-	{
-		"en"		"Cancel"
-		"es"		"Cancelar"
-	}
-	
-	"MenuUnbanManagementTitle"
-	{
-		"en"		"Unban Management"
-		"es"		"Gestion de Desbaneos"
-	}
-	
-	"MenuUnbanPlayerFormat"
-	{
-		"#format"	"{1:s},{2:d}"
-		"en"		"[UNBAN] {1} (Type: {2})"
-		"es"		"[DESBANEAR] {1} (Tipo: {2})"
-	}
-	
-	"MenuNoBannedPlayers"
-	{
-		"en"		"No banned players online"
-		"es"		"No hay jugadores baneados conectados"
-	}
-	
-	"MenuUnbanOfflineOption"
-	{
-		"en"		"Unban offline player"
-		"es"		"Desbanear jugador desconectado"
-	}
-	
-	"MenuUnbanConfirmationTitle"
+	"RestrictionApplied"
 	{
 		"#format"	"{1:s},{2:s},{3:s}"
-		"en"		"Confirm Unban:\nPlayer: {1}\nSteamID: {2}\nBan Types: {3}"
-		"es"		"Confirmar Desbaneo:\nJugador: {1}\nSteamID: {2}\nTipos de Baneo: {3}"
+		"en"		"Vote restriction applied to {1} ({2}) for {3}"
+		"es"		"Restricción aplicada a {1} ({2}) por {3}"
 	}
-	
-	"MenuUnbanConfirmYes"
+	"NoRestrictionFound"
 	{
-		"en"		"Yes, unban player"
-		"es"		"Si, desbanear jugador"
+		"en"		"No active restriction found."
+		"es"		"No se encontró restricción activa."
 	}
-	
-	"MenuUnbanOfflineUsage"
+	"YourRestrictionRemoved"
 	{
-		"en"		"Usage: sm_cvb_unban <steamid>"
-		"es"		"Uso: sm_cvb_unban <steamid>"
+		"en"		"Your restriction was removed."
+		"es"		"Tu restricción fue removida."
 	}
-	
-	"MenuCheckBanStatusTitle"
+	"RestrictionRemovedSuccess"
 	{
-		"en"		"Check Ban Status"
-		"es"		"Verificar Estado de Baneo"
+		"#format"	"{1:s}"
+		"en"		"Successfully removed the restriction from {1}"
+		"es"		"Se removió la restricción de {1}"
 	}
-	
-	"MenuCheckOfflineOption"
+	"VoteTypeRestart"
 	{
-		"en"		"Check offline player"
-		"es"		"Verificar jugador desconectado"
+		"en"		"Restart"
+		"es"		"Reinicio"
 	}
-
-	"MenuCheckOfflineUsage"
+	"VoteTypeMission"
 	{
-		"en"		"Use: sm_cvb_checkid <steamid> to check offline players"
-		"es"		"Uso: sm_cvb_checkid <steamid> para verificar jugadores desconectados"
+		"en"		"Mission"
+		"es"		"Mision"
 	}
-
-	"MenuCustomBanTypeNotImplemented"
-	{
-		"en"		"Custom ban type not implemented yet"
-		"es"		"Tipo de baneo personalizado no implementado aun"
-	}
-	
-	"MenuCustomDurationNotImplemented"
-	{
-		"en"		"Custom duration not implemented yet"
-		"es"		"Duracion personalizada no implementada aun"
-	}
-	
-	// ============================================================================
-	// 🎯 ADDITIONAL MENU ACTIONS TRANSLATIONS
-	// ============================================================================
-	"BanAppliedToPlayer"
-	{
-		"#format"	"{1:s},{2:s},{3:s}"
-		"en"		"Ban applied to {1} - Type: {2}, Duration: {3}"
-		"es"		"Ban aplicado a {1} - Tipo: {2}, Duracion: {3}"
-	}
-	
-	"MinutesUnit"
+	"VoteTypeUnknown"
 	{
 		"#format"	"{1:d}"
-		"en"		"{1} minutes"
-		"es"		"{1} minutos"
-	}
-	
-	
-	"BanRestrictionsRemoved"
-	{
-		"en"		"Your vote restrictions have been removed"
-		"es"		"Tus restricciones de voto han sido removidas"
-	}
-	
-	"PlayerBanRestrictionApplied"
-	{
-		"en"		"A restriction has been applied to your vote calls"
-		"es"		"Se aplico una restriccion a tus llamadas de votaciones"
-	}
-	
-	"CheckConsoleForDetails"
-	{
-		"en"		"Check your console for more details"
-		"es"		"Lee tu consola para mas detalles"
-	}
-	
-	"BanDetailsHeader"
-	{
-		"en"		"VOTE RESTRICTION DETAILS"
-		"es"		"DETALLES DE LA RESTRICCIoN DE VOTO"
-	}
-	
-	"BanDetailsTypes"
-	{
-		"#format"	"{1:s}"
-		"en"		"Restricted vote types: {1}"
-		"es"		"Tipos de votacion restringidos: {1}"
-	}
-	
-	"BanDetailsDuration"
-	{
-		"#format"	"{1:s}"
-		"en"		"Duration: {1}"
-		"es"		"Duracion: {1}"
-	}
-	
-	"BanDetailsAdmin"
-	{
-		"#format"	"{1:s}"
-		"en"		"Applied by: {1}"
-		"es"		"Aplicado por: {1}"
-	}
-	
-	"BanDetailsExpiration"
-	{
-		"#format"	"{1:s}"
-		"en"		"Expires on: {1}"
-		"es"		"Expira el: {1}"
-	}
-	
-	"OfflineBanUsage"
-	{
-		"en"		"Usage: sm_cvb_ban <steamid> <type> <duration> [reason]"
-		"es"		"Uso: sm_cvb_ban <steamid> <tipo> <duracion> [razon]"
-	}
-	
-	// =================
-	// MENU BAN REASON INPUT
-	// =================
-
-	"MenuBanWithCustomReason"
-	{
-		"en"		"With Custom Reason"
-		"es"		"Con Razon Personalizada"
-	}
-
-	"MenuBanReasonInputPrompt"
-	{
-		"#format"	"{1:s}"
-		"en"		"Enter ban reason for {1}"
-		"es"		"Ingresa la razon del ban para {1}"
-	}
-
-	"TypeReasonInChat"
-	{
-		"#format"	"{1:s}"
-		"en"		"Type the ban reason in chat. {1} (Type 'cancel' to abort)"
-		"es"		"Escribe la razon del ban en el chat. {1} (Escribe 'cancel' para abortar)"
-	}
-	
-	// =================
-	// MENU BAN REASON SELECTION
-	// =================
-	"MenuBanReasonTitle"
-	{
-		"#format"	"{1:s},{2:s},{3:s}"
-		"en"		"Ban Reason for {1}\nType: {2} | Duration: {3}"
-		"es"		"Razon del Ban para {1}\nTipo: {2} | Duracion: {3}"
-	}
-
-	"MenuReasonAdminDecision"
-	{
-		"en"		"Admin Decision"
-		"es"		"Decision del Admin"  
-	}
-
-	"MenuReasonToxicBehavior"
-	{
-		"en"		"Toxic Behavior"
-		"es"		"Comportamiento Toxico"
-	}
-
-	"MenuReasonVoteSpam"
-	{
-		"en"		"Vote Spam"
-		"es"		"Spam de Votos"
-	}
-
-	"MenuReasonSystemAbuse"
-	{
-		"en"		"System Abuse"
-		"es"		"Abuso del Sistema"
-	}
-
-	"MenuReasonDisruptive"
-	{
-		"en"		"Disruptive Behavior"
-		"es"		"Comportamiento Disruptivo"
-	}
-
-	"MenuReasonInappropriate"
-	{
-		"en"		"Inappropriate Behavior"
-		"es"		"Comportamiento Inapropiado"
-	}
-
-	"MenuBanConfirmationWithReasonTitle"
-	{
-		"#format"	"{1:s},{2:s},{3:s},{4:s},{5:s}"
-		"en"		"Confirm Ban for {1} ({2})\nType: {3} | Duration: {4}\nReason: {5}"
-		"es"		"Confirmar Ban para {1} ({2})\nTipo: {3} | Duracion: {4}\nRazon: {5}"
-	}
-
-	"MatchedPredefinedReason"
-	{
-		"en"		"Matched predefined reason"
-		"es"		"Razon predefinida encontrada"
-	}
-
-	"UsingCustomReason"
-	{
-		"en"		"Using custom reason"
-		"es"		"Usando razon personalizada"
-	}
-
-	"NoBannedPlayersOnline"
-	{
-		"en"		"No banned players found online"
-		"es"		"No se encontraron jugadores baneados conectados"
-	}
-	
-	// =================
-	// INSTALLATION MESSAGES
-	// =================
-	"InstallationCompletedSuccessfully"
-	{
-		"en"		"✅ Database installation completed successfully!"
-		"es"		"✅ ¡Instalacion de base de datos completada exitosamente!"
-	}
-	
-	"InstallationCompletedWithTimeout"
-	{
-		"en"		"⚠️ Database installation completed with timeout"
-		"es"		"⚠️ Instalacion de base de datos completada con tiempo agotado"
-	}
-	
-	"InstallationCompletedWithErrors"
-	{
-		"en"		"❌ Database installation completed with errors"
-		"es"		"❌ Instalacion de base de datos completada con errores"
-	}
-	
-	// =================
-	// DATABASE MESSAGES (migrated from callvote_database.phrases.txt)
-	// =================
-	
-	// Codigos de error de validacion
-	"INVALID_ACCOUNT_ID"
-	{
-		"en"		"Invalid AccountID"
-		"es"		"AccountID invalido"
-	}
-	
-	"INVALID_BAN_TYPE"
-	{
-		"en"		"Invalid ban type"
-		"es"		"Tipo de ban invalido"
-	}
-	
-	// Codigos de resultado de insercion
-	"EXISTING_BAN_ACTIVE"
-	{
-		"en"		"Player already has an active ban (ID: {1})"
-		"es"		"El jugador ya tiene un ban activo (ID: {1})"
-	}
-	
-	"BAN_INSERTED_SUCCESS"
-	{
-		"en"		"Ban inserted successfully (ID: {1})"
-		"es"		"Ban insertado exitosamente (ID: {1})"
-	}
-	
-	// Codigos de resultado de remocion
-	"BAN_NOT_FOUND"
-	{
-		"en"		"No active ban found for this player"
-		"es"		"No se encontro ban activo para este jugador"
-	}
-	
-	
-	// Codigos de limpieza automatica
-	
-	// Codigos de estado de ban
-	"ISBANNED"
-	{
-		"en"		"You are banned from this server"
-		"es"		"Estas baneado de este servidor"
-	}
-	
-	"BAN_REASON"
-	{
-		"en"		"Reason: {1}"
-		"es"		"Razon: {1}"
-	}
-	
-	"BAN_EXPIRES"
-	{
-		"en"		"Ban expires: {1}"
-		"es"		"El ban expira: {1}"
-	}
-	
-	"BAN_PERMANENT"
-	{
-		"en"		"This is a permanent ban"
-		"es"		"Este es un ban permanente"
-	}
-	
-	"BAN_ADMIN"
-	{
-		"en"		"Banned by: {1}"
-		"es"		"Baneado por: {1}"
-	}
-	
-	// Codigos de informacion del sistema
-	"DATABASE_ERROR"
-	{
-		"en"		"Database error occurred"
-		"es"		"Ocurrio un error de base de datos"
-	}
-	
-	// Codigos de estadisticas
-	"STATS_ACTIVE_BANS"
-	{
-		"#format"	"{1:d}"
-		"en"		"Active bans: {1}"
-		"es"		"Bans activos: {1}"
-	}
-	
-	
-	"STATS_RECENT_BANS"
-	{
-		"#format"	"{1:d},{2:d}"
-		"en"		"Recent bans ({1} days): {2}"
-		"es"		"Bans recientes ({1} dias): {2}"
-	}
-	
-	// =================
-	// REINSTALLATION MESSAGES
-	// =================
-	
-	"ReinstallWarning"
-	{
-		"en"		"{red}WARNING:{default} This command will {red}DESTROY ALL DATA{default} and recreate everything from scratch!"
-		"es"		"{red}ADVERTENCIA:{default} ¡Este comando {red}DESTRUIRa TODOS LOS DATOS{default} y recreara todo desde cero!"
-	}
-	
-	"ReinstallConfirmationRequired"
-	{
-		"en"		"To confirm this {red}DANGEROUS{default} operation, add 'confirm' to the command"
-		"es"		"Para confirmar esta operacion {red}PELIGROSA{default}, añade 'confirm' al comando"
-	}
-	
-	"ReinstallingMySQL"
-	{
-		"en"		"{green}REINSTALLING MySQL:{default} Dropping and recreating all tables and procedures..."
-		"es"		"{green}REINSTALANDO MySQL:{default} Eliminando y recreando todas las tablas y procedimientos..."
-	}
-	
-	"ReinstallingSQLite"
-	{
-		"en"		"{green}REINSTALLING SQLite:{default} Dropping and recreating cache database..."
-		"es"		"{green}REINSTALANDO SQLite:{default} Eliminando y recreando base de datos de cache..."
+		"en"		"Unknown ({1})"
+		"es"		"Desconocido ({1})"
 	}
 }

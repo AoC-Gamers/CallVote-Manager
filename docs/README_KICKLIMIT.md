@@ -1,58 +1,96 @@
-# 🚫 Call Vote Kick Limit - Documentación Completa
+# CallVote Kick Limit
 
-[![License](https://img.shields.io/badge/license-GPL%20v3-blue.svg)](LICENSE)
-[![SourceMod](https://img.shields.io/badge/SourceMod-1.11%2B-orange.svg)](https://www.sourcemod.net/)
-[![Game](https://img.shields.io/badge/game-Left%204%20Dead%202-red.svg)](https://store.steampowered.com/app/550/Left_4_Dead_2/)
+Extension del core orientada a limitar abuso en votekick.
 
-**Sistema inteligente de prevención de abuso en votaciones de expulsión (VoteKick).**
+## Rol
 
-[🏠 Volver al índice principal](README.md) | [🎯 CallVote Manager](README_MANAGER.md) | [🔒 CallVote Bans](README_BANS.md)
+`callvote_kicklimit` no intercepta el motor por su cuenta. Se monta sobre la API publica de `callvote_core` y aplica una politica concreta:
 
----
+- controlar cuantas votaciones de expulsión puede iniciar un jugador
 
-## 🚧 **En Desarrollo**
+## Integracion con el core
 
-Esta documentación está en proceso de desarrollo. El plugin CallVote Kick Limit está funcional pero la documentación completa será agregada en una próxima actualización.
+El plugin consume directamente el lifecycle de `callvote_core`, especialmente:
 
-### **Características Básicas Disponibles**
-- ✅ Control de límites de kicks por jugador/mapa
-- ✅ Contador persistente con base de datos
-- ✅ Comando `sm_kicks` para ver estadísticas
-- ✅ Configuración flexible de límites
+- `CallVote_PreStart` para validacion previa al inicio
+- `CallVote_Blocked` para observar rechazos
+- `CallVote_End` para reaccionar al resultado final
 
-### **Configuración Rápida**
-```ini
-# CVARs principales
-sm_ckl_enable "1"           // Activar plugin
-sm_ckl_max_kicks "3"        // Máximo kicks por mapa
-sm_ckl_reset_time "60"      // Tiempo de reset en minutos
+Eso evita reconstruir el estado del voto desde hooks dispersos del motor.
+
+```mermaid
+flowchart TD
+    A[CallVote_PreStart] --> B{Es votekick?}
+    B -- No --> C[Ignorar]
+    B -- Si --> D[Resolver caller AccountID]
+    D --> E[Leer contador local o SQL]
+    E --> F{Limite alcanzado?}
+    F -- Si --> G[Fijar bloqueo y rechazar]
+    F -- No --> H[Permitir voto]
+    H --> I[CallVote_End]
+    I --> J{Resultado Passed?}
+    J -- No --> K[Sin cambios]
+    J -- Si --> L[Incrementar contador y persistir]
 ```
 
-### **Comandos Disponibles**
-| Comando | Descripción |
-|---------|-------------|
-| `sm_ckl_sql_install` | Instalar tablas SQL |
-| `sm_kicks` | Ver estadísticas de kicks |
+## Convencion publica
 
----
+La superficie publica de `callvote_kicklimit` usa una sola convencion:
 
-## 📋 **Pendiente de Documentar**
+- comandos con prefijo `sm_cvkl_*`
+- convars con prefijo `sm_cvkl_*`
 
-- [ ] Descripción detallada del sistema
-- [ ] Guía completa de instalación
-- [ ] Configuración avanzada
-- [ ] Lista completa de comandos
-- [ ] API para desarrolladores
-- [ ] Estructura de base de datos
-- [ ] Solución de problemas
-- [ ] Ejemplos de uso
+## Modelo de identidad
 
----
+Internamente trabaja con:
 
-**Documentación completa próximamente...**
+- `AccountID` para memoria y SQL
 
-**[🏠 Volver al índice principal](README.md) | [🔒 Siguiente: CallVote Bans →](README_BANS.md)**
+Y usa:
 
----
+- `SteamID2` solo cuando necesita una representacion legible para logs o chat
 
-*Plugin desarrollado por **lechuga16** - Parte del CallVote Manager Suite*
+## Persistencia
+
+La persistencia registra:
+
+- quien inicio el votekick
+- contra quien fue dirigido
+- cuando ocurrio
+
+El esquema sigue la misma convencion del core:
+
+- `caller_account_id`
+- `target_account_id`
+- `caller_steamid64` en MySQL
+- `target_steamid64` en MySQL
+
+`SteamID64` se guarda solo para lectura externa de estadisticas. El plugin sigue operando con `AccountID`.
+
+SQLite se bootstrapea desde el plugin. MySQL se provisiona con scripts SQL. El motor activo se elige desde `databases.cfg`.
+
+```mermaid
+flowchart LR
+    Caller[Caller AccountID]
+    Target[Target AccountID]
+    Session[Session congelada]
+    SQL[(SQLite/MySQL)]
+    Stats[Estadisticas externas]
+
+    Caller --> Session
+    Target --> Session
+    Session --> SQL
+    SQL --> Stats
+```
+
+## Alcance
+
+Este plugin resuelve una sola politica de negocio y no intenta convertirse en un subsistema general de sanciones o reputacion.
+
+Su valor esta en que demuestra como extender el core sin acoplarse directamente a detalles del motor.
+
+## Modelo de hooks
+
+- `CallVote_PreStart` es el punto de decision donde `kicklimit` valida el contador.
+- Si necesita bloquear, el plugin fija el motivo pendiente en el core y devuelve `Plugin_Handled`.
+- `CallVote_End` usa la sesion congelada del core para persistir el resultado cuando el voto realmente paso.

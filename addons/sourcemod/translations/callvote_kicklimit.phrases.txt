@@ -2,58 +2,76 @@
 {
 	"Tag"
 	{
-		"en"		"[{olive}CallVote{default}]"
+		"en" 		"[{olive}CallVote{default}]"
+		"es" 		"[{olive}CallVote{default}]"
 	}
 	"Usage"
 	{
-		"en"		"Usage:"
+		"en" 		"Usage:"
+		"es" 		"{green}Uso{default}:"
 	}
 	"PluginDisabled"
 	{
-		"en"		"Plugin {red}disabled{default}."
+		"en" 		"Plugin {red}disabled{default}."
+		"es" 		"Plugin {red}desactivado{default}."
 	}
 	"DBQueryError"
 	{
-		"en"		"Database query {red}error{default}"
-	}
-	"DBTableCreated"
-	{
-		"en"		"Table created {green}successfully{default}."
+		"en" 		"Database query {red}error{default}"
+		"es" 		"{red}Error{default} en la consulta a la base de datos"
 	}
 	"SQLDisabled"
 	{
-		"en"		"SQL {red}disabled{default}."
+		"en" 		"SQL {red}disabled{default}."
+		"es" 		"SQL {red}desactivado{default}."
 	}
 	"DBNoConnect"
 	{
-		"en"		"{red}Could not{default} connect to database."
+		"en" 		"{red}Could not{default} connect to database."
+		"es" 		"{red}No se pudo{default} conectar a la base de datos."
 	}
 	"BlockUserConsole"
 	{
-		"en"		"This command can only be executed by a player."
+		"en" 		"This command can only be executed by a player."
+		"es" 		"Este comando solo puede ser ejecutado por un jugador."
 	}
 	"KickReached"
 	{
-		"#format"	"{1:d},{2:d}"
-		"en"		"The limit for {green}kicking{default} calls has been reached ({red}{1}{default}/{olive}{2}{default})"
+		"#format" 	"{1:d},{2:d}"
+		"en" 		"You have reached the limit for {green}kick{default} votes ({red}{1}{default}/{olive}{2}{default})"
+		"es" 		"Has alcanzado el límite de votos para {green}expulsar{default} ({red}{1}{default}/{olive}{2}{default})"
 	}
 	"KickLimit"
 	{
-		"#format"	"{1:d},{2:d}"
-		"en"		"Your call limit to {green}kick{default} is ({olive}{1}{default}/{olive}{2}{default})"
+		"#format" 	"{1:d},{2:d}"
+		"en" 		"Your {green}kick{default} vote limit is ({olive}{1}{default}/{olive}{2}{default})"
+		"es" 		"Tu límite de votos para {green}expulsar{default} es ({olive}{1}{default}/{olive}{2}{default})"
 	}
 	"KickLimitTarget"
 	{
-		"#format"	"{1:s},{2:d},{3:d}"
-		"en"		"The call limit for ({olive}{1}{default}) for {green}kick{default} is ({olive}{2}{default}/{olive}{3}{default})"
+		"#format" 	"{1:s},{2:d},{3:d}"
+		"en" 		"The {green}kick{default} vote limit for {olive}{1}{default} is ({olive}{2}{default}/{olive}{3}{default})"
+		"es" 		"El límite de votos para {green}expulsar{default} de {olive}{1}{default} es ({olive}{2}{default}/{olive}{3}{default})"
 	}
 	"KickShow"
 	{
-		"#format"	"{1:s},{2:s},{3:d}"
-		"en"		"{blue}{1}{default} ({olive}{2}{default}) | Kick: {olive}{3}{default}"
+		"#format" 	"{1:s},{2:s},{3:d}"
+		"en" 		"{blue}{1}{default} ({olive}{2}{default}) | Kick: {olive}{3}{default}"
+		"es" 		"{blue}{1}{default} ({olive}{2}{default}) | Kick: {olive}{3}{default}"
 	}
-	"NoFound"
+	"NoKickRecords"
 	{
-		"en"		"There are {red}no registered{default} kicks"
+		"en" 		"There are {red}no registered{default} kick votes"
+		"es" 		"{red}No hay{default} votos de expulsión registrados"
+	}
+	"KickDataPending"
+	{
+		"en" 		"Your kick limit data is still loading. Try again in a moment."
+		"es" 		"Los datos de tu límite de expulsión aún se están cargando. Intenta nuevamente en un momento."
+	}
+	"KickDataUnavailable"
+	{
+		"en" 		"Your kick limit data could not be validated right now. Try again in a moment."
+		"es" 		"No se pudieron validar los datos de tu límite de expulsión en este momento. Intenta nuevamente en un momento."
 	}
 }

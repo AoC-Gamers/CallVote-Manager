@@ -234,6 +234,28 @@ stock void BuildCallVoteDebugLogPath(const char[] debugFileName, char[] sLogPath
 	BuildPath(Path_SM, sLogPath, maxLen, sRelativePath);
 }
 
+stock bool EnsureCallVoteParentFolderForFile(const char[] sFilePath)
+{
+	char sFolderPath[PLATFORM_MAX_PATH];
+	strcopy(sFolderPath, sizeof(sFolderPath), sFilePath);
+
+	int lastSlash = -1;
+	for (int i = 0; sFolderPath[i] != '\0'; i++)
+	{
+		if (sFolderPath[i] == '/' || sFolderPath[i] == '\\')
+			lastSlash = i;
+	}
+
+	if (lastSlash <= 0)
+		return false;
+
+	sFolderPath[lastSlash] = '\0';
+	if (!DirExists(sFolderPath))
+		CreateDirectory(sFolderPath, 511);
+
+	return DirExists(sFolderPath);
+}
+
 methodmap CallVoteLogger < StringMap
 {
 	public CallVoteLogger(const char[] pluginTag, const char[] debugFileName, ConVar cvLogMode, ConVar cvDebugMask = null)
@@ -264,6 +286,8 @@ methodmap CallVoteLogger < StringMap
 
 		char sLogPath[PLATFORM_MAX_PATH];
 		BuildCallVoteNormalLogPath(sLogPath, sizeof(sLogPath));
+		if (!EnsureCallVoteParentFolderForFile(sLogPath))
+			return;
 
 		char sPluginTag[32];
 		this.GetString("tag", sPluginTag, sizeof(sPluginTag));
@@ -289,6 +313,8 @@ methodmap CallVoteLogger < StringMap
 
 		char sLogPath[PLATFORM_MAX_PATH];
 		BuildCallVoteDebugLogPath(sDebugFile, sLogPath, sizeof(sLogPath));
+		if (!EnsureCallVoteParentFolderForFile(sLogPath))
+			return;
 
 		char sPluginTag[32];
 		this.GetString("tag", sPluginTag, sizeof(sPluginTag));

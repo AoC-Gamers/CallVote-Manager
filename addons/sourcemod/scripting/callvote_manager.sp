@@ -47,6 +47,8 @@ int g_iClientFlagsCache[MAXPLAYERS + 1];
 bool g_bClientFlagsCached[MAXPLAYERS + 1];
 bool g_bBuiltinVotes = false;
 float g_fLastVote;
+int g_iSuppressInitialYesSession = 0;
+int g_iSuppressInitialYesClient = 0;
 
 methodmap CVMLog
 {
@@ -127,6 +129,8 @@ public void OnPluginStart()
 	CallVoteAutoExecConfig(true, "callvote_manager");
 	g_bBuiltinVotes = LibraryExists("BuiltinVotes");
 	g_fLastVote = 0.0;
+	g_iSuppressInitialYesSession = 0;
+	g_iSuppressInitialYesClient = 0;
 }
 
 public void OnPluginEnd()
@@ -158,6 +162,22 @@ public void OnLibraryAdded(const char[] name)
 public void OnMapStart()
 {
 	g_fLastVote = 0.0;
+	g_iSuppressInitialYesSession = 0;
+	g_iSuppressInitialYesClient = 0;
+}
+
+public void OnConfigsExecuted()
+{
+	char sDebugPath[PLATFORM_MAX_PATH];
+	BuildCallVoteDebugLogPath(CVM_LOG_FILE, sDebugPath, sizeof(sDebugPath));
+
+	CVLog.Debug(
+		"[OnConfigsExecuted] mode=%d mask=%d announcer=%d path=%s",
+		g_cvarLogMode != null ? g_cvarLogMode.IntValue : -1,
+		g_cvarDebugMask != null ? g_cvarDebugMask.IntValue : -1,
+		g_cvarAnnouncer != null && g_cvarAnnouncer.BoolValue ? 1 : 0,
+		sDebugPath
+	);
 }
 
 public void ConVarChanged_AdminImmunity(Handle hConVar, const char[] sOldValue, const char[] sNewValue)
@@ -202,6 +222,16 @@ public Action CallVote_PreStart(int sessionId, int client, int callerAccountId, 
 	return Plugin_Handled;
 }
 
+public Action CallVote_PreExecute(int sessionId, int client, int callerAccountId, TypeVotes voteType, int target, int targetAccountId, const char[] argument)
+{
+	if (!g_cvarEnable.BoolValue)
+		return Plugin_Continue;
+
+	g_iSuppressInitialYesSession = sessionId;
+	g_iSuppressInitialYesClient = client;
+	return Plugin_Continue;
+}
+
 public void CallVote_Start(int sessionId)
 {
 	g_fLastVote = GetEngineTime();
@@ -218,6 +248,7 @@ public void CallVote_Start(int sessionId)
 
 	if (!CallVoteCore_GetSessionInfo(sessionId, callerClient, callerAccountId, voteType, targetClient, targetAccountId, argument, sizeof(argument)))
 		return;
+
 
 	if (!IsClientInGame(callerClient))
 		return;
@@ -258,6 +289,20 @@ void Event_VoteCastYes(Event event, const char[] sEventName, bool bDontBroadcast
 	int iClient = event.GetInt("entityid");
 	if (!IsValidClientIndex(iClient))
 		return;
+
+	if (g_iSuppressInitialYesSession > 0 && g_iSuppressInitialYesClient == iClient)
+	{
+		int currentSessionId = CallVoteCore_GetCurrentSession();
+		if (currentSessionId == g_iSuppressInitialYesSession)
+		{
+			g_iSuppressInitialYesSession = 0;
+			g_iSuppressInitialYesClient = 0;
+			return;
+		}
+
+		g_iSuppressInitialYesSession = 0;
+		g_iSuppressInitialYesClient = 0;
+	}
 
 	L4DTeam Team = L4D_GetClientTeam(iClient);
 
@@ -303,6 +348,15 @@ void Event_VoteCastNo(Event event, const char[] sEventName, bool bDontBroadcast)
 			CPrintToChat(i, "%t %t", "Tag", "VoteCastAnon", sTeamTranslation, "{red}F2{default}");
 		else
 			CPrintToChat(i, "%t %t", "Tag", "VoteCast", iClient, sTeamTranslation, "{red}F2{default}");
+	}
+}
+
+public void CallVote_End(int sessionId, CallVoteEndReason result, int yesCount, int noCount, int potentialVotes)
+{
+	if (g_iSuppressInitialYesSession == sessionId)
+	{
+		g_iSuppressInitialYesSession = 0;
+		g_iSuppressInitialYesClient = 0;
 	}
 }
 
@@ -364,4 +418,10 @@ void ClearClientAdminFlagsCache(int client)
 public void OnClientDisconnect(int client)
 {
 	ClearClientAdminFlagsCache(client);
+
+	if (g_iSuppressInitialYesClient == client)
+	{
+		g_iSuppressInitialYesSession = 0;
+		g_iSuppressInitialYesClient = 0;
+	}
 }

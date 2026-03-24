@@ -235,7 +235,7 @@ bool IsCurrentSessionCompatibleWithVoteStarted(Event event)
 		return false;
 
 	int eventTeam = event.GetInt("team");
-	if (eventTeam >= 0 && g_CurrentVoteSession.callerClient > 0)
+	if (eventTeam > 0 && g_CurrentVoteSession.callerClient > 0)
 	{
 		L4DTeam callerTeam = L4D_GetClientTeam(g_CurrentVoteSession.callerClient);
 		if (view_as<int>(callerTeam) > 0 && view_as<int>(callerTeam) != eventTeam)
@@ -246,6 +246,20 @@ bool IsCurrentSessionCompatibleWithVoteStarted(Event event)
 }
 
 bool IsCurrentSessionCompatibleWithVoteFailed(const int[] recipients, int recipientsNum)
+{
+	if (!g_bCurrentVoteSessionValid || g_CurrentVoteSession.status != CallVoteSession_Executing)
+		return false;
+
+	if (!IsClientInRecipients(g_CurrentVoteSession.callerClient, recipients, recipientsNum))
+		return false;
+
+	if (g_CurrentVoteSession.dispatchedAt <= 0.0)
+		return false;
+
+	return (GetEngineTime() - g_CurrentVoteSession.dispatchedAt) <= 3.0;
+}
+
+bool IsCurrentSessionCompatibleWithVoteStartMessage(const int[] recipients, int recipientsNum)
 {
 	if (!g_bCurrentVoteSessionValid || g_CurrentVoteSession.status != CallVoteSession_Executing)
 		return false;

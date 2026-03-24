@@ -58,7 +58,7 @@ methodmap CVLog
 			return;
 
 		static char sFormat[1024];
-		VFormat(sFormat, sizeof(sFormat), message, 2);
+		VFormat(sFormat, sizeof(sFormat), message, 3);
 		g_Log.Normal(eventTag, "%s", sFormat);
 	}
 

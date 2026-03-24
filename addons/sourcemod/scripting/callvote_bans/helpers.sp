@@ -463,7 +463,7 @@ bool GetAdminInfo(int client, int &adminAccountId, char[] adminSteamId2, int max
 
 bool CVB_HasAnyIdentityProviderAvailable()
 {
-	if (!g_bSteamIDToolsLoaded)
+	if (!g_bSteamIDToolsLibrary)
 		return false;
 
 	for (int i = 0; i < sizeof(g_eCVBIdentityProviders); i++)
@@ -477,7 +477,7 @@ bool CVB_HasAnyIdentityProviderAvailable()
 
 bool QueueSteamID64ToAccountIDRequest(int client, const char[] steamid64, AsyncContext context)
 {
-	if (!g_bSteamIDToolsLoaded || !SteamIDTools_IsLibraryAvailable())
+	if (!g_bSteamIDToolsLibrary || !SteamIDTools_IsLibraryAvailable())
 	{
 		CReplyToCommand(client, "%t %t", "Tag", "SteamIDToolsRequired");
 		CReplyToCommand(client, "%t %t", "Tag", "PleaseUseOtherFormats");

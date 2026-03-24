@@ -15,6 +15,7 @@
 #define CALLVOTE_BANS_ADMINMENU_MAX_REASON_LENGTH 256
 #define CVBAM_LOG_TAG "CVBAM"
 #define CVBAM_LOG_FILE "callvote_bans_adminmenu.log"
+#define CALLVOTE_ADMINMENU_LIBRARY "adminmenu"
 
 TopMenu g_hCVBAdminTopMenu;
 TopMenuObject g_oCVBAdminCategory = INVALID_TOPMENUOBJECT;
@@ -25,6 +26,10 @@ TopMenuObject g_oCVBAdminCheck = INVALID_TOPMENUOBJECT;
 ConVar g_cvarLogMode;
 ConVar g_cvarDebugMask;
 CallVoteLogger g_Log = null;
+bool g_bAdminMenuLibrary;
+bool g_bCallVoteBansLibrary;
+bool g_bL4D2CommCoreLibrary;
+bool g_bLateLoad;
 
 enum CVBAdminMenuPanelType
 {
@@ -84,6 +89,30 @@ public Plugin myinfo =
 	url = "https://github.com/AoC-Gamers/CallVote-Manager"
 };
 
+static void CVBAdminMenu_RefreshLibraryState()
+{
+	g_bAdminMenuLibrary = LibraryExists(CALLVOTE_ADMINMENU_LIBRARY);
+	g_bCallVoteBansLibrary = LibraryExists(CALLVOTE_BANS_LIBRARY);
+	g_bL4D2CommCoreLibrary = LibraryExists(L4D2_COMMCORE_LIBRARY);
+}
+
+static void CVBAdminMenu_TryBindAdminMenu()
+{
+	if (!g_bAdminMenuLibrary)
+		return;
+
+	TopMenu hTopMenu = GetAdminTopMenu();
+	if (hTopMenu != null)
+		OnAdminMenuReady(hTopMenu);
+}
+
+public APLRes AskPluginLoad2(Handle hMyself, bool bLate, char[] sError, int iErr_max)
+{
+	g_bLateLoad = bLate;
+	CVBAdminMenu_RefreshLibraryState();
+	return APLRes_Success;
+}
+
 public void OnPluginStart()
 {
 	LoadTranslations("common.phrases");
@@ -97,18 +126,23 @@ public void OnPluginStart()
 	RegAdminCmd("sm_cvb_restrict_panel", Command_CVBAdminBanPanel, ADMFLAG_BAN, "Open the CallVote restriction admin panel.");
 	RegAdminCmd("sm_cvb_unrestrict_panel", Command_CVBAdminUnbanPanel, ADMFLAG_UNBAN, "Open the CallVote restriction removal panel.");
 	RegAdminCmd("sm_cvb_status_panel", Command_CVBAdminCheckPanel, ADMFLAG_GENERIC, "Open the CallVote restriction status panel.");
-RegAdminCmd("sm_cvb_panel_abort", Command_CVBAdminAbort, ADMFLAG_GENERIC, "Abort the current CallVote Bans panel prompt.");
-RegAdminCmd("sm_cvb_panel_status", Command_CVBAdminStatus, ADMFLAG_GENERIC, "Show CallVote Bans admin menu runtime status.");
+	RegAdminCmd("sm_cvb_panel_abort", Command_CVBAdminAbort, ADMFLAG_GENERIC, "Abort the current CallVote Bans panel prompt.");
+	RegAdminCmd("sm_cvb_panel_status", Command_CVBAdminStatus, ADMFLAG_GENERIC, "Show CallVote Bans admin menu runtime status.");
 	RegAdminCmd("sm_cvb_reason", Command_CVBAdminReason, ADMFLAG_BAN, "Submit the active CallVote restriction reason prompt without public chat.");
 
 	CallVoteAutoExecConfig(true, "callvote_bans_adminmenu");
 
-	if (LibraryExists("adminmenu"))
-	{
-		TopMenu hTopMenu = GetAdminTopMenu();
-		if (hTopMenu != null)
-			OnAdminMenuReady(hTopMenu);
-	}
+	if (!g_bLateLoad)
+		return;
+
+	CVBAdminMenu_RefreshLibraryState();
+	CVBAdminMenu_TryBindAdminMenu();
+}
+
+public void OnAllPluginsLoaded()
+{
+	CVBAdminMenu_RefreshLibraryState();
+	CVBAdminMenu_TryBindAdminMenu();
 }
 
 public void OnPluginEnd()
@@ -127,7 +161,7 @@ public Action OnClientSayCommand(int iClient, const char[] szCommand, const char
 	if (!CVBAdminMenu_HasActivePrompt(iClient))
 		return Plugin_Continue;
 
-	if (LibraryExists(L4D2_COMMCORE_LIBRARY) && L4D2Comm_IsCoreReady())
+	if (g_bL4D2CommCoreLibrary && L4D2Comm_IsCoreReady())
 		return Plugin_Continue;
 
 	return CVBAdminMenu_ConsumeReasonInput(iClient, szArgs) ? Plugin_Handled : Plugin_Handled;
@@ -138,7 +172,7 @@ public Action L4D2Comm_OnChatMessage(int client, L4D2CommChannel channel, const 
 	if (!CVBAdminMenu_HasActivePrompt(client))
 		return Plugin_Continue;
 
-	if (!LibraryExists(L4D2_COMMCORE_LIBRARY) || !L4D2Comm_IsCoreReady())
+	if (!g_bL4D2CommCoreLibrary || !L4D2Comm_IsCoreReady())
 		return Plugin_Continue;
 
 	CVBAMLog.Commands("Captured prompt reason through l4d2_commcore from client %d channel=%d", client, view_as<int>(channel));
@@ -147,12 +181,46 @@ public Action L4D2Comm_OnChatMessage(int client, L4D2CommChannel channel, const 
 
 public void OnLibraryAdded(const char[] szName)
 {
-	if (StrEqual(szName, "adminmenu", false))
+	if (StrEqual(szName, CALLVOTE_ADMINMENU_LIBRARY, false))
 	{
+		g_bAdminMenuLibrary = true;
 		TopMenu hTopMenu = GetAdminTopMenu();
 		if (hTopMenu != null)
 			OnAdminMenuReady(hTopMenu);
+		return;
 	}
+
+	if (StrEqual(szName, CALLVOTE_BANS_LIBRARY, false))
+	{
+		g_bCallVoteBansLibrary = true;
+		return;
+	}
+
+	if (StrEqual(szName, L4D2_COMMCORE_LIBRARY, false))
+		g_bL4D2CommCoreLibrary = true;
+}
+
+public void OnLibraryRemoved(const char[] szName)
+{
+	if (StrEqual(szName, CALLVOTE_ADMINMENU_LIBRARY, false))
+	{
+		g_bAdminMenuLibrary = false;
+		g_hCVBAdminTopMenu = null;
+		g_oCVBAdminCategory = INVALID_TOPMENUOBJECT;
+		g_oCVBAdminBan = INVALID_TOPMENUOBJECT;
+		g_oCVBAdminUnban = INVALID_TOPMENUOBJECT;
+		g_oCVBAdminCheck = INVALID_TOPMENUOBJECT;
+		return;
+	}
+
+	if (StrEqual(szName, CALLVOTE_BANS_LIBRARY, false))
+	{
+		g_bCallVoteBansLibrary = false;
+		return;
+	}
+
+	if (StrEqual(szName, L4D2_COMMCORE_LIBRARY, false))
+		g_bL4D2CommCoreLibrary = false;
 }
 
 public void OnAdminMenuReady(Handle hTopMenuHandle)
@@ -225,7 +293,7 @@ static void CVBAdminMenu_HandleTopMenuItem(TopMenuAction eAction, int iClient, c
 
 		case TopMenuAction_SelectOption:
 		{
-			if (!LibraryExists(CALLVOTE_BANS_LIBRARY))
+			if (!g_bCallVoteBansLibrary)
 			{
 				CPrintToChat(iClient, "%t %t", "Tag", "CVBAdminMenuModuleUnavailable");
 				return;
@@ -302,9 +370,9 @@ Action Command_CVBAdminReason(int iClient, int iArgs)
 
 Action Command_CVBAdminStatus(int iClient, int iArgs)
 {
-	bool hasAdminMenu = LibraryExists("adminmenu");
-	bool hasBans = LibraryExists(CALLVOTE_BANS_LIBRARY);
-	bool hasCommCore = LibraryExists(L4D2_COMMCORE_LIBRARY);
+	bool hasAdminMenu = g_bAdminMenuLibrary;
+	bool hasBans = g_bCallVoteBansLibrary;
+	bool hasCommCore = g_bL4D2CommCoreLibrary;
 	bool hasPrompt = CVBAdminMenu_HasActivePrompt(iClient);
 
 	CReplyToCommand(iClient, "[CVBAM] adminmenu=%s callvote_bans=%s commcore=%s topmenu=%s prompt=%s targetUserId=%d panelType=%d promptStage=%d",
@@ -332,7 +400,7 @@ bool CVBAdminMenu_CanOpen(int iClient)
 	if (iClient <= 0 || iClient > MaxClients || !IsClientInGame(iClient))
 		return false;
 
-	if (!LibraryExists(CALLVOTE_BANS_LIBRARY))
+	if (!g_bCallVoteBansLibrary)
 	{
 		CPrintToChat(iClient, "%t %t", "Tag", "CVBAdminMenuModuleUnavailable");
 		return false;
@@ -588,7 +656,7 @@ static bool CVBAdminMenu_ConsumeReasonInput(int iClient, const char[] input)
 		return true;
 	}
 
-	if (!LibraryExists(CALLVOTE_BANS_LIBRARY))
+	if (!g_bCallVoteBansLibrary)
 	{
 		CVBAdminMenu_ResetState(iClient);
 		CPrintToChat(iClient, "%t %t", "Tag", "CVBAdminMenuModuleUnavailable");

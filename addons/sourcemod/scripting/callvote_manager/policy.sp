@@ -5,7 +5,7 @@ VoteRestrictionType ValidateCallerState(int client, int &cooldownSeconds)
 	if (L4D_GetClientTeam(client) == L4DTeam_Spectator)
 		return VoteRestriction_ClientState;
 
-	if (g_bBuiltinVotes && g_cvarBuiltinVote.BoolValue && !IsNewBuiltinVoteAllowed)
+	if (g_bBuiltinVotesLibrary && g_cvarBuiltinVote.BoolValue && !IsNewBuiltinVoteAllowed)
 	{
 		cooldownSeconds = CheckBuiltinVoteDelay();
 		if (cooldownSeconds < 1)

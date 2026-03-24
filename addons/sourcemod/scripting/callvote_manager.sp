@@ -17,6 +17,7 @@
 #define PLUGIN_VERSION "2.0.0"
 #define CVM_LOG_TAG "CVM"
 #define CVM_LOG_FILE "callvote_manager.log"
+#define CALLVOTE_BUILTINVOTES_LIBRARY "BuiltinVotes"
 
 ConVar
 	g_cvarEnable,
@@ -45,7 +46,8 @@ CallVoteLogger g_Log = null;
 int g_iFlagsAdmin;
 int g_iClientFlagsCache[MAXPLAYERS + 1];
 bool g_bClientFlagsCached[MAXPLAYERS + 1];
-bool g_bBuiltinVotes = false;
+bool g_bBuiltinVotesLibrary = false;
+bool g_bLateLoad = false;
 float g_fLastVote;
 int g_iSuppressInitialYesSession = 0;
 int g_iSuppressInitialYesClient = 0;
@@ -87,6 +89,18 @@ public Plugin myinfo =
 	url = "https://github.com/AoC-Gamers/CallVote-Manager"
 };
 
+static void CVM_RefreshLibraryState()
+{
+	g_bBuiltinVotesLibrary = LibraryExists(CALLVOTE_BUILTINVOTES_LIBRARY);
+}
+
+public APLRes AskPluginLoad2(Handle hMyself, bool bLate, char[] sError, int iErr_max)
+{
+	g_bLateLoad = bLate;
+	CVM_RefreshLibraryState();
+	return APLRes_Success;
+}
+
 public void OnPluginStart()
 {
 	g_loc = new Localizer();
@@ -127,10 +141,14 @@ public void OnPluginStart()
 	HookEvent("vote_cast_no", Event_VoteCastNo);
 
 	CallVoteAutoExecConfig(true, "callvote_manager");
-	g_bBuiltinVotes = LibraryExists("BuiltinVotes");
 	g_fLastVote = 0.0;
 	g_iSuppressInitialYesSession = 0;
 	g_iSuppressInitialYesClient = 0;
+
+	if (!g_bLateLoad)
+		return;
+
+	CVM_RefreshLibraryState();
 }
 
 public void OnPluginEnd()
@@ -144,19 +162,19 @@ public void OnPluginEnd()
 
 public void OnAllPluginsLoaded()
 {
-	g_bBuiltinVotes = LibraryExists("BuiltinVotes");
+	CVM_RefreshLibraryState();
 }
 
 public void OnLibraryRemoved(const char[] name)
 {
-	if (StrEqual(name, "BuiltinVotes"))
-		g_bBuiltinVotes = false;
+	if (StrEqual(name, CALLVOTE_BUILTINVOTES_LIBRARY))
+		g_bBuiltinVotesLibrary = false;
 }
 
 public void OnLibraryAdded(const char[] name)
 {
-	if (StrEqual(name, "BuiltinVotes"))
-		g_bBuiltinVotes = true;
+	if (StrEqual(name, CALLVOTE_BUILTINVOTES_LIBRARY))
+		g_bBuiltinVotesLibrary = true;
 }
 
 public void OnMapStart()

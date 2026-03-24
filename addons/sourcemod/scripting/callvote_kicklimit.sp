@@ -54,7 +54,7 @@ bool
 	g_bSQLConnected,
 	g_bSQLTableExists,
 	g_bSQLConnecting,
-	g_bCallVoteCore,
+	g_bCallVoteCoreLibrary,
 	g_bLateLoad = false;
 
 Database
@@ -358,6 +358,11 @@ public Plugin myinfo =
 	url			= "https://github.com/lechuga16/callvote_manager"
 }
 
+static void CVKL_RefreshLibraryState()
+{
+	g_bCallVoteCoreLibrary = LibraryExists(CALLVOTECORE_LIBRARY);
+}
+
 /*****************************************************************
 			F O R W A R D   P U B L I C S
 *****************************************************************/
@@ -365,24 +370,25 @@ public Plugin myinfo =
 public APLRes AskPluginLoad2(Handle hMyself, bool bLate, char[] sError, int iErr_max)
 {
 	g_bLateLoad = bLate;
+	CVKL_RefreshLibraryState();
 	return APLRes_Success;
 }
 
 public void OnAllPluginsLoaded()
 {
-	g_bCallVoteCore = LibraryExists(CALLVOTECORE_LIBRARY);
+	CVKL_RefreshLibraryState();
 }
 
 public void OnLibraryRemoved(const char[] sName)
 {
 	if (StrEqual(sName, CALLVOTECORE_LIBRARY))
-		g_bCallVoteCore = false;
+		g_bCallVoteCoreLibrary = false;
 }
 
 public void OnLibraryAdded(const char[] sName)
 {
 	if (StrEqual(sName, CALLVOTECORE_LIBRARY))
-		g_bCallVoteCore = true;
+		g_bCallVoteCoreLibrary = true;
 }
 
 public void OnPluginStart()
@@ -407,10 +413,10 @@ public void OnPluginStart()
 
 	CallVoteAutoExecConfig(true, "callvote_kicklimit");
 
-	if(!g_bLateLoad)
+	if (!g_bLateLoad)
 		return;
-	
-	g_bCallVoteCore = LibraryExists(CALLVOTECORE_LIBRARY);
+
+	CVKL_RefreshLibraryState();
 }
 
 Action Command_KickCount(int iClient, int sArgs)
@@ -587,7 +593,7 @@ public void Event_PlayerTeam(Event event, const char[] name, bool dontBroadcast)
 
 public Action CallVote_PreStart(int iSessionId, int iClient, int iCallerAccountId, TypeVotes iVotes, int iTarget, int iTargetAccountId, const char[] sArgument)
 {
-	if (!g_cvarEnable.BoolValue || !g_bCallVoteCore)
+	if (!g_cvarEnable.BoolValue || !g_bCallVoteCoreLibrary)
 		return Plugin_Continue;
 
 	if (iVotes != Kick)
@@ -636,7 +642,7 @@ public Action CallVote_PreStart(int iSessionId, int iClient, int iCallerAccountI
 
 public void CallVote_End(int iSessionId, CallVoteEndReason iResult, int iYesCount, int iNoCount, int iPotentialVotes)
 {
-	if (!g_cvarEnable.BoolValue || !g_bCallVoteCore)
+	if (!g_cvarEnable.BoolValue || !g_bCallVoteCoreLibrary)
 		return;
 
 	int iCallerClient;

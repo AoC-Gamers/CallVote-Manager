@@ -37,9 +37,9 @@ Database
 
 bool
 	g_bLateLoad,
-	g_bCallVoteCoreLoaded,
+	g_bCallVoteCoreLibrary,
 	g_bMySQLConnecting,
-	g_bSteamIDToolsLoaded;
+	g_bSteamIDToolsLibrary;
 
 CallVoteLogger g_Log = null;
 Localizer g_loc = null;
@@ -201,6 +201,12 @@ public Plugin myinfo =
 
 }
 
+static void CVB_RefreshLibraryState()
+{
+	g_bSteamIDToolsLibrary = LibraryExists(STEAMIDTOOLS_LIBRARY);
+	g_bCallVoteCoreLibrary = LibraryExists(CALLVOTECORE_LIBRARY);
+}
+
 /*****************************************************************
 			F O R W A R D   P U B L I C S
 *****************************************************************/
@@ -213,29 +219,29 @@ public APLRes
 	RegPluginLibrary("callvote_bans");
 
 	g_bLateLoad = bLate;
+	CVB_RefreshLibraryState();
 	return APLRes_Success;
 }
 
 public void OnAllPluginsLoaded()
 {
-	g_bSteamIDToolsLoaded	 = LibraryExists(STEAMIDTOOLS_LIBRARY);
-	g_bCallVoteCoreLoaded = LibraryExists(CALLVOTECORE_LIBRARY);
+	CVB_RefreshLibraryState();
 }
 
 public void OnLibraryRemoved(const char[] sName)
 {
 	if (StrEqual(sName, STEAMIDTOOLS_LIBRARY))
-		g_bSteamIDToolsLoaded = false;
+		g_bSteamIDToolsLibrary = false;
 	if (StrEqual(sName, CALLVOTECORE_LIBRARY))
-		g_bCallVoteCoreLoaded = false;
+		g_bCallVoteCoreLibrary = false;
 }
 
 public void OnLibraryAdded(const char[] sName)
 {
 	if (StrEqual(sName, STEAMIDTOOLS_LIBRARY))
-		g_bSteamIDToolsLoaded = true;
+		g_bSteamIDToolsLibrary = true;
 	if (StrEqual(sName, CALLVOTECORE_LIBRARY))
-		g_bCallVoteCoreLoaded = true;
+		g_bCallVoteCoreLibrary = true;
 }
 
 public void OnPluginStart()
@@ -263,10 +269,7 @@ public void OnPluginStart()
 	if (!g_bLateLoad)
 		return;
 
-	g_bSteamIDToolsLoaded	 = LibraryExists(STEAMIDTOOLS_LIBRARY);
-	g_bCallVoteCoreLoaded = LibraryExists(CALLVOTECORE_LIBRARY);
-
-	OnAllPluginsLoaded();
+	CVB_RefreshLibraryState();
 	for (int i = 1; i <= MaxClients; i++)
 	{
 		if (!IsValidClient(i))
@@ -331,7 +334,7 @@ public void OnClientPostAdminCheck(int client)
 
 void AnnouncerJoin(int client)
 {
-	if (!g_cvarEnable.BoolValue || !g_bCallVoteCoreLoaded || g_cvarAnnounceJoin.IntValue == 0 || !IsValidClient(client))
+	if (!g_cvarEnable.BoolValue || !g_bCallVoteCoreLibrary || g_cvarAnnounceJoin.IntValue == 0 || !IsValidClient(client))
 		return;
 
 	if (!IsClientBannedWithInfo(client))

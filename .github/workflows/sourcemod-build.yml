@@ -115,13 +115,13 @@ jobs:
             if [[ "${{ steps.artifact.outputs.prerelease }}" == "true" ]]; then
               gh release edit "$tag" --title "$title" --prerelease
             else
-              gh release edit "$tag" --title "$title" --latest
+              gh release edit "$tag" --title "$title"
             fi
           else
             if [[ "${{ steps.artifact.outputs.prerelease }}" == "true" ]]; then
-              gh release create "$tag" --title "$title" --prerelease --target "$GITHUB_SHA"
+              gh release create "$tag" --title "$title" --prerelease --latest=false --target "$GITHUB_SHA"
             else
-              gh release create "$tag" --title "$title" --latest --target "$GITHUB_SHA"
+              gh release create "$tag" --title "$title" --latest=false --target "$GITHUB_SHA"
             fi
           fi
 

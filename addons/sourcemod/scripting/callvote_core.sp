@@ -191,6 +191,7 @@ public void OnPluginStart()
 	HookEvent("vote_started", Event_VoteStarted);
 	HookEvent("vote_ended", Event_VoteEnded);
 	HookEvent("vote_changed", Event_VoteChanged);
+	HookUserMessage(GetUserMessageId("VoteStart"), Message_VoteStart);
 	HookUserMessage(GetUserMessageId("CallVoteFailed"), Message_CallVoteFailed);
 
 	CallVoteAutoExecConfig(true, "callvote_core");
@@ -217,6 +218,11 @@ public void OnConfigsExecuted()
 {
 	if (!g_cvarEnable.BoolValue)
 		return;
+
+	char sDebugPath[PLATFORM_MAX_PATH];
+	BuildCallVoteDebugLogPath(CVC_LOG_FILE, sDebugPath, sizeof(sDebugPath));
+
+	CVLog.Debug("[OnConfigsExecuted] version=%s mode=%d mask=%d path=%s", PLUGIN_VERSION, g_cvarLogMode.IntValue, g_cvarDebugMask != null ? g_cvarDebugMask.IntValue : -1, sDebugPath);
 
 	OnConfigsExecuted_SQL();
 }

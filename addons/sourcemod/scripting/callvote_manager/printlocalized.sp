@@ -14,6 +14,7 @@ void PrintLocalizedMissionName(const char[] sMissionCode, int iAnnouncer)
 	if (!g_cvarAnnouncer.BoolValue)
 		return;
 
+
 	char sChapter[8];
 	Campaign_RemoveMapPrefix(sMissionCode, sChapter, sizeof(sChapter));
 
@@ -21,7 +22,6 @@ void PrintLocalizedMissionName(const char[] sMissionCode, int iAnnouncer)
 	Format(sKey, sizeof(sKey), "#L4D360UI_CampaignName_%s", sChapter);
 
 	bool bFound = false;
-	CVLog.Localization("[PrintLocalizedMissionName] Mission: %s | Chapter: %s | Key: %s", sMissionCode, sChapter, sKey);
 
 	if (g_loc != null && g_loc.IsReady())
 	{
@@ -36,23 +36,14 @@ void PrintLocalizedMissionName(const char[] sMissionCode, int iAnnouncer)
 			{
 				CPrintToChat(i, "%t %t", "Tag", "ChangeMission", iAnnouncer, sTranslation);
 				bFound = true;
-				CVLog.Localization("[PrintLocalizedMissionName] Sent localized message to %N: %s", i, sTranslation);
-			}
-			else
-			{
-				CVLog.Localization("[PrintLocalizedMissionName] No translation found for %s for client %N", sKey, i);
 			}
 		}
-	}
-	else
-	{
-		CVLog.Localization("[PrintLocalizedMissionName] Localizer not ready or null");
 	}
 
 	if (!bFound)
 	{
-		CVLog.Localization("[PrintLocalizedMissionName] Using fallback mission name: %s", sMissionCode);
 		CPrintToChatAll("%t %t", "Tag", "ChangeMission", iAnnouncer, sMissionCode);
+		CVLog.Localization("[PrintLocalizedMissionName] Fallback used for mission=%s key=%s", sMissionCode, sKey);
 	}
 }
 

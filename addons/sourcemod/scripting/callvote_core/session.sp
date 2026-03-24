@@ -259,6 +259,20 @@ bool IsCurrentSessionCompatibleWithVoteFailed(const int[] recipients, int recipi
 	return (GetEngineTime() - g_CurrentVoteSession.dispatchedAt) <= 3.0;
 }
 
+bool IsCurrentSessionCompatibleWithVoteStartMessage(const int[] recipients, int recipientsNum)
+{
+	if (!g_bCurrentVoteSessionValid || g_CurrentVoteSession.status != CallVoteSession_Executing)
+		return false;
+
+	if (!IsClientInRecipients(g_CurrentVoteSession.callerClient, recipients, recipientsNum))
+		return false;
+
+	if (g_CurrentVoteSession.dispatchedAt <= 0.0)
+		return false;
+
+	return (GetEngineTime() - g_CurrentVoteSession.dispatchedAt) <= 3.0;
+}
+
 bool IsCurrentSessionCompatibleWithVoteEnded(Event event)
 {
 	if (!g_bCurrentVoteSessionValid || g_CurrentVoteSession.status != CallVoteSession_Started)

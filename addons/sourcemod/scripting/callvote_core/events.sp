@@ -1,16 +1,41 @@
-void Event_VoteStarted(Event event, const char[] sEventName, bool bDontBroadcast)
+static Action Timer_DeferredForwardCallVoteStart(Handle timer, any data)
 {
-	if (!IsCurrentSessionCompatibleWithVoteStarted(event))
+	int sessionId = data;
+	ForwardCallVoteStart(sessionId);
+	return Plugin_Stop;
+}
+
+static void DispatchCallVoteStartForward(int sessionId, bool defer)
+{
+	if (defer)
+	{
+		CreateTimer(0.0, Timer_DeferredForwardCallVoteStart, sessionId, TIMER_FLAG_NO_MAPCHANGE);
+		return;
+	}
+
+	ForwardCallVoteStart(sessionId);
+}
+
+static void FinalizeVoteStartFromSignal(const char[] source, const char[] issue, const char[] param1, const char[] param2, int team, int initiator, bool deferForward = false)
+{
+	if (!g_bCurrentVoteSessionValid)
 		return;
 
-	event.GetString("issue", g_CurrentVoteSession.engineIssue, sizeof(g_CurrentVoteSession.engineIssue));
-	event.GetString("param1", g_CurrentVoteSession.engineParam1, sizeof(g_CurrentVoteSession.engineParam1));
-	event.GetString("param2", g_CurrentVoteSession.engineParam2, sizeof(g_CurrentVoteSession.engineParam2));
-	g_CurrentVoteSession.engineTeam = event.GetInt("team");
-	g_CurrentVoteSession.engineInitiatorClient = event.GetInt("initiator");
+	if (g_CurrentVoteSession.status == CallVoteSession_Started)
+		return;
+
+	if (g_CurrentVoteSession.status != CallVoteSession_Executing)
+		return;
+
+	strcopy(g_CurrentVoteSession.engineIssue, sizeof(g_CurrentVoteSession.engineIssue), issue);
+	strcopy(g_CurrentVoteSession.engineParam1, sizeof(g_CurrentVoteSession.engineParam1), param1);
+	strcopy(g_CurrentVoteSession.engineParam2, sizeof(g_CurrentVoteSession.engineParam2), param2);
+	g_CurrentVoteSession.engineTeam = team;
+	g_CurrentVoteSession.engineInitiatorClient = initiator;
 	g_CurrentVoteSession.status = CallVoteSession_Started;
 
-	CVLog.Session("[Event_VoteStarted] session=%d issue=%s param1=%s param2=%s team=%d initiator=%d",
+	CVLog.Session("[%s] session=%d issue=%s param1=%s param2=%s team=%d initiator=%d",
+		source,
 		g_CurrentVoteSession.sessionId,
 		g_CurrentVoteSession.engineIssue,
 		g_CurrentVoteSession.engineParam1,
@@ -29,7 +54,40 @@ void Event_VoteStarted(Event event, const char[] sEventName, bool bDontBroadcast
 		RegSQLVote(g_CurrentVoteSession.voteType, g_CurrentVoteSession.callerClient);
 	}
 
-	ForwardCallVoteStart(g_CurrentVoteSession.sessionId);
+	DispatchCallVoteStartForward(g_CurrentVoteSession.sessionId, deferForward);
+}
+
+void Event_VoteStarted(Event event, const char[] sEventName, bool bDontBroadcast)
+{
+	if (!IsCurrentSessionCompatibleWithVoteStarted(event))
+		return;
+
+	char issue[128];
+	char param1[128];
+	char param2[128];
+	event.GetString("issue", issue, sizeof(issue));
+	event.GetString("param1", param1, sizeof(param1));
+	event.GetString("param2", param2, sizeof(param2));
+	FinalizeVoteStartFromSignal("Event_VoteStarted", issue, param1, param2, event.GetInt("team"), event.GetInt("initiator"));
+}
+
+public Action Message_VoteStart(UserMsg hMsgId, BfRead hBf, const int[] recipients, int recipientsNum, bool bReliable, bool bInit)
+{
+	// L4D2 can surface the vote start through VoteStart without emitting vote_started for some vote types.
+	int team = BfReadByte(hBf);
+	int initiator = BfReadByte(hBf);
+	char issue[128];
+	char param1[128];
+	char unusedInitiatorName[128];
+	hBf.ReadString(issue, sizeof(issue));
+	hBf.ReadString(param1, sizeof(param1));
+	hBf.ReadString(unusedInitiatorName, sizeof(unusedInitiatorName));
+
+	if (!IsCurrentSessionCompatibleWithVoteStartMessage(recipients, recipientsNum))
+		return Plugin_Continue;
+
+	FinalizeVoteStartFromSignal("Message_VoteStart", issue, param1, "", team, initiator, true);
+	return Plugin_Continue;
 }
 
 void Event_VoteEnded(Event event, const char[] sEventName, bool bDontBroadcast)

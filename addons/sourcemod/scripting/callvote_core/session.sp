@@ -235,7 +235,7 @@ bool IsCurrentSessionCompatibleWithVoteStarted(Event event)
 		return false;
 
 	int eventTeam = event.GetInt("team");
-	if (eventTeam >= 0 && g_CurrentVoteSession.callerClient > 0)
+	if (eventTeam > 0 && g_CurrentVoteSession.callerClient > 0)
 	{
 		L4DTeam callerTeam = L4D_GetClientTeam(g_CurrentVoteSession.callerClient);
 		if (view_as<int>(callerTeam) > 0 && view_as<int>(callerTeam) != eventTeam)

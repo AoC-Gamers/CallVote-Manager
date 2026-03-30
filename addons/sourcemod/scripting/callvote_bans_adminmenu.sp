@@ -145,6 +145,11 @@ public void OnAllPluginsLoaded()
 	CVBAdminMenu_TryBindAdminMenu();
 }
 
+public void OnConfigsExecuted()
+{
+	EnsureCallVoteDebugLogFolderForMode(g_cvarLogMode);
+}
+
 public void OnPluginEnd()
 {
 	if (g_Log != null)

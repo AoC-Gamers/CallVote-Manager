@@ -186,6 +186,8 @@ public void OnMapStart()
 
 public void OnConfigsExecuted()
 {
+	EnsureCallVoteDebugLogFolderForMode(g_cvarLogMode);
+
 	char sDebugPath[PLATFORM_MAX_PATH];
 	BuildCallVoteDebugLogPath(CVM_LOG_FILE, sDebugPath, sizeof(sDebugPath));
 

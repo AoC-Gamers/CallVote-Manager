@@ -216,6 +216,8 @@ public void OnPluginEnd()
 
 public void OnConfigsExecuted()
 {
+	EnsureCallVoteDebugLogFolderForMode(g_cvarLogMode);
+
 	if (!g_cvarEnable.BoolValue)
 		return;
 

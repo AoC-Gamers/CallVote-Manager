@@ -165,10 +165,13 @@ stock void CallVoteAutoExecConfig(bool autoCreate, const char[] name)
 stock ConVar CallVoteEnsureLogModeConVar()
 {
 	ConVar cvLogMode = CreateConVar("sm_cv_log_mode", "0", "CallVote suite log mode. 0=off, 1=normal, 2=debug.", FCVAR_NONE, true, 0.0, true, 2.0);
-	if (cvLogMode != null)
-		return cvLogMode;
+	if (cvLogMode == null)
+		cvLogMode = FindConVar("sm_cv_log_mode");
 
-	return FindConVar("sm_cv_log_mode");
+	if (cvLogMode != null)
+		cvLogMode.AddChangeHook(CallVote_OnLogModeChanged_EnsureDebugLogFolder);
+
+	return cvLogMode;
 }
 
 stock bool CallVoteIsNormalLogMode(ConVar cvLogMode)
@@ -179,6 +182,19 @@ stock bool CallVoteIsNormalLogMode(ConVar cvLogMode)
 stock bool CallVoteIsDebugLogMode(ConVar cvLogMode)
 {
 	return (cvLogMode != null && cvLogMode.IntValue == view_as<int>(CVLogMode_Debug));
+}
+
+stock void EnsureCallVoteDebugLogFolderForMode(ConVar cvLogMode)
+{
+	if (!CallVoteIsDebugLogMode(cvLogMode))
+		return;
+
+	EnsureCallVoteDebugLogFolder();
+}
+
+stock void CallVote_OnLogModeChanged_EnsureDebugLogFolder(ConVar cvLogMode, const char[] sOldValue, const char[] sNewValue)
+{
+	EnsureCallVoteDebugLogFolderForMode(cvLogMode);
 }
 
 stock bool CallVoteDebugMaskEnabled(ConVar cvLogMode, ConVar cvDebugMask, int mask)
@@ -227,8 +243,6 @@ stock void BuildCallVoteNormalLogPath(char[] sLogPath, int maxLen)
 
 stock void BuildCallVoteDebugLogPath(const char[] debugFileName, char[] sLogPath, int maxLen)
 {
-	EnsureCallVoteDebugLogFolder();
-
 	char sRelativePath[PLATFORM_MAX_PATH];
 	FormatEx(sRelativePath, sizeof(sRelativePath), "%s/%s", CALLVOTE_LOG_FOLDER, debugFileName);
 	BuildPath(Path_SM, sLogPath, maxLen, sRelativePath);

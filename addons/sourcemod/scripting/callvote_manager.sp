@@ -9,10 +9,10 @@
 #include <language_manager>
 #include <campaign_manager>
 
-#undef REQUIRE_EXTENSIONS
+#undef REQUIRE_PLUGIN
 #include <confogl>
 #include <builtinvotes>
-#define REQUIRE_EXTENSIONS
+#define REQUIRE_PLUGIN
 
 #define PLUGIN_VERSION "2.0.0"
 #define CVM_LOG_TAG "CVM"

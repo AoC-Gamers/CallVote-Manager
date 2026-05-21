@@ -4,83 +4,72 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ARTIFACT_DIR="${SOURCEMOD_ARTIFACT_DIR:-$ROOT_DIR/dist/sourcemod/artifact}"
+PACKAGE_MAP_PATH="$ROOT_DIR/plugin-package-map.json"
 
 if [[ ! -d "$ARTIFACT_DIR" ]]; then
   echo "SourceMod artifact directory not found at $ARTIFACT_DIR" >&2
   exit 1
 fi
 
-python3 - "$ARTIFACT_DIR" <<'PY'
+python3 - "$ROOT_DIR" "$ARTIFACT_DIR" "$PACKAGE_MAP_PATH" <<'PY'
+import json
 import os
 import sys
 
-artifact_dir = sys.argv[1]
 
-plugin_dir = os.path.join(artifact_dir, "addons", "sourcemod", "plugins", "callvote")
-expected_plugins = {
-    "callvote_core.smx",
-    "callvote_manager.smx",
-    "callvote_kicklimit.smx",
-    "callvote_bans.smx",
-    "callvote_bans_adminmenu.smx",
-}
+def validate_manifest_tree(source_root: str, artifact_root: str, manifest: dict) -> None:
+    for relative_file in manifest.get("files", []):
+        source_path = os.path.join(source_root, relative_file)
+        artifact_path = os.path.join(artifact_root, relative_file)
+        if not os.path.isfile(source_path):
+            raise SystemExit(f"Missing source artifact file declared in manifest: {source_path}")
+        if not os.path.isfile(artifact_path):
+            raise SystemExit(f"Missing packaged artifact file: {artifact_path}")
 
-if not os.path.isdir(plugin_dir):
-    raise SystemExit(f"Missing plugin directory: {plugin_dir}")
+    for relative_dir in manifest.get("dirs", []):
+        source_path = os.path.join(source_root, relative_dir)
+        artifact_path = os.path.join(artifact_root, relative_dir)
+        if not os.path.isdir(source_path):
+            raise SystemExit(f"Missing source artifact directory declared in manifest: {source_path}")
+        if not os.path.isdir(artifact_path):
+            raise SystemExit(f"Missing packaged artifact directory: {artifact_path}")
 
-plugins = {entry for entry in os.listdir(plugin_dir) if os.path.isfile(os.path.join(plugin_dir, entry))}
-if plugins != expected_plugins:
-    raise SystemExit(f"Unexpected compiled plugins: {sorted(plugins)}")
+    for key, value in manifest.items():
+        if key in {"all", "files", "dirs"}:
+            continue
+        if isinstance(value, dict):
+            validate_manifest_tree(os.path.join(source_root, key), os.path.join(artifact_root, key), value)
 
-root_plugin_dir = os.path.join(artifact_dir, "addons", "sourcemod", "plugins")
-for plugin_name in expected_plugins:
-    if os.path.isfile(os.path.join(root_plugin_dir, plugin_name)):
-        raise SystemExit(f"Plugin should not exist at root plugins directory: {plugin_name}")
 
-include_dir = os.path.join(artifact_dir, "addons", "sourcemod", "scripting", "include")
-expected_includes = ["callvote_bans.inc", "callvote_core.inc", "callvote_stock.inc"]
-include_entries = sorted(entry for entry in os.listdir(include_dir) if os.path.isfile(os.path.join(include_dir, entry)))
-if include_entries != expected_includes:
-    raise SystemExit(f"Unexpected public includes: {include_entries}")
+root_dir, artifact_dir, package_map_path = sys.argv[1], sys.argv[2], sys.argv[3]
 
-scripting_dir = os.path.join(artifact_dir, "addons", "sourcemod", "scripting")
-expected_source_entries = {
-    "callvote_bans",
-    "callvote_bans.sp",
-    "callvote_bans_adminmenu.sp",
-    "callvote_core",
-    "callvote_core.sp",
-    "callvote_kicklimit.sp",
-    "callvote_manager",
-    "callvote_manager.sp",
-    "include",
-}
+with open(package_map_path, "r", encoding="utf-8") as fh:
+    package_map = json.load(fh)
 
-if not os.path.isdir(scripting_dir):
-    raise SystemExit(f"Missing scripting directory: {scripting_dir}")
+artifact_plugins_dir = os.path.join(artifact_dir, "addons", "sourcemod", "plugins")
+expected_plugins = {}
+for bucket, plugins in package_map.get("build", {}).get("plugins", {}).items():
+    for plugin in plugins:
+        expected_plugins[plugin] = bucket
 
-source_entries = {entry for entry in os.listdir(scripting_dir)}
-missing_source_entries = sorted(expected_source_entries - source_entries)
-if missing_source_entries:
-    raise SystemExit(f"Missing scripting sources: {missing_source_entries}")
+for plugin, bucket in expected_plugins.items():
+    compiled_path = (
+        os.path.join(artifact_plugins_dir, f"{plugin}.smx")
+        if bucket == "root"
+        else os.path.join(artifact_plugins_dir, bucket, f"{plugin}.smx")
+    )
+    if not os.path.isfile(compiled_path):
+        raise SystemExit(f"Missing compiled plugin: {compiled_path}")
 
-config_dir = os.path.join(artifact_dir, "addons", "sourcemod", "configs")
-sql_init_dir = os.path.join(config_dir, "sql-init-callvote")
-if not os.path.isdir(sql_init_dir):
-    raise SystemExit("Missing sql-init-callvote directory")
+source_root = os.path.join(root_dir, "addons", "sourcemod")
+artifact_root = os.path.join(artifact_dir, "addons", "sourcemod")
+artifact_manifest = package_map.get("artifact", {}).get("addons", {}).get("sourcemod", {})
+validate_manifest_tree(source_root, artifact_root, artifact_manifest)
 
-translations_dir = os.path.join(artifact_dir, "addons", "sourcemod", "translations")
-expected_translations = [
-    os.path.join(translations_dir, "callvote_bans_adminmenu.phrases.txt"),
-    os.path.join(translations_dir, "callvote_bans.phrases.txt"),
-    os.path.join(translations_dir, "callvote_common.phrases.txt"),
-    os.path.join(translations_dir, "callvote_kicklimit.phrases.txt"),
-    os.path.join(translations_dir, "callvote_manager.phrases.txt"),
-]
-
-for translation_path in expected_translations:
-    if not os.path.isfile(translation_path):
-        raise SystemExit(f"Missing translation file: {translation_path}")
+for rel_path in ("README.md", "plugin-package-map.json", "docs", "compile.log"):
+    artifact_path = os.path.join(artifact_dir, rel_path)
+    if not os.path.exists(artifact_path):
+        raise SystemExit(f"Missing packaged project asset: {artifact_path}")
 
 print("ARTIFACT_VALIDATION_OK")
 PY

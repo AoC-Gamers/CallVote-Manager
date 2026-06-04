@@ -68,6 +68,7 @@ Superficie publica principal:
 - [Implementacion Core AccountID](docs/IMPLEMENTACION_CORE_ACCOUNTID.md)
 - [Investigacion HL2SDK y Votaciones](docs/INVESTIGACION_HL2SDK_VOTACIONES.md)
 - [Migracion SQL a AccountID](docs/MIGRACION_ACCOUNTID_SQL.md)
+- [Sistema de Build](docs/BUILD_SYSTEM.md)
 
 ## Artefactos
 
@@ -113,6 +114,13 @@ Los binarios publicos de la suite viven en `addons/sourcemod/plugins/callvote/`.
 El artefacto no incluye bibliotecas adicionales ajenas a la suite ni requiere limpieza posterior de includes antes de instalarse. El zip ya viene listo para copiar sobre el servidor.
 
 Para integradores como Docker-L4D2-AoC esto significa que el instalador debe consumir el artefacto ya empaquetado y preservar el subdirectorio `callvote` para mantener la suite agrupada.
+
+## Build local
+
+- `make deps-smx`
+- `make build-smx`
+- `make package-smx`
+- `make release`
 
 ## Estado
 

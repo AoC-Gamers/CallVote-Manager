@@ -1,0 +1,55 @@
+{
+  "build": {
+    "plugins": {
+      "callvote": [
+        "callvote_bans",
+        "callvote_bans_adminmenu",
+        "callvote_core",
+        "callvote_kicklimit",
+        "callvote_manager"
+      ]
+    }
+  },
+  "artifact": {
+    "addons": {
+      "sourcemod": {
+        "configs": {
+          "dirs": [
+            "sql-init-callvote"
+          ]
+        },
+        "scripting": {
+          "files": [
+            "callvote_bans.sp",
+            "callvote_bans_adminmenu.sp",
+            "callvote_core.sp",
+            "callvote_kicklimit.sp",
+            "callvote_manager.sp"
+          ],
+          "dirs": [
+            "callvote_bans",
+            "callvote_core",
+            "callvote_manager"
+          ],
+          "include": {
+            "files": [
+              "callvote_bans.inc",
+              "callvote_core.inc",
+              "callvote_stock.inc"
+            ]
+          }
+        },
+        "translations": {
+          "files": [
+            "callvote_bans_adminmenu.phrases.txt",
+            "callvote_bans.phrases.txt",
+            "callvote_common.phrases.txt",
+            "callvote_core.phrases.txt",
+            "callvote_kicklimit.phrases.txt",
+            "callvote_manager.phrases.txt"
+          ]
+        }
+      }
+    }
+  }
+}

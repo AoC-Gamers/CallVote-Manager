@@ -2,3 +2,14 @@
 /.vscode
 /.tmp/
 /dist/
+/.build/
+/build/
+/build-linux/
+/build-windows/
+/deps/
+__pycache__/
+*.pyc
+*.log
+*.zip
+*.tar
+*.tar.gz

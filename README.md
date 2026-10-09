@@ -83,8 +83,8 @@ Superficie publica principal:
 
 - [Contrato y ciclo de vida del Core](docs/README_CORE.md)
 - [Diagnostico de votaciones](docs/README_TESTING.md)
-- [Investigacion HL2SDK y Votaciones](docs/INVESTIGACION_HL2SDK_VOTACIONES.md)
-- [Votaciones por modo de juego](docs/VOTACIONES_POR_MODO.md)
+- [Investigacion HL2SDK y Votaciones](docs/HL2SDK_VOTING_RESEARCH.md)
+- [Votaciones por modo de juego](docs/VOTING_BY_GAME_MODE.md)
 - [Sistema de Build](docs/BUILD_SYSTEM.md)
 
 ## Artefactos

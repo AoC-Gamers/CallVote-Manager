@@ -35,7 +35,7 @@ jugadores humanos, como en la experiencia anterior.
 - No iniciar votaciones como espectador.
 - Respetar ConVars del motor para dificultad, reinicio, kick y campaña; Manager
   controla lobby, capítulo y AllTalk mediante sus propias ConVars.
-- Aplicar la [matriz por modo base](VOTACIONES_POR_MODO.md), también a mutaciones,
+- Aplicar la [matriz por modo base](VOTING_BY_GAME_MODE.md), también a mutaciones,
   consultando `L4D_GetGameModeType()` al evaluar cada solicitud. Una base
   desconocida se entrega a las comprobaciones del motor.
 - Rechazar cambios a la dificultad que ya está activa.

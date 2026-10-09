@@ -11,7 +11,7 @@
 #include <l4d2_commcore>
 #define REQUIRE_PLUGIN
 
-#define CALLVOTE_BANS_ADMINMENU_VERSION "1.0.0"
+#define CALLVOTE_BANS_ADMINMENU_VERSION "1.1.0"
 #define CALLVOTE_BANS_ADMINMENU_MAX_REASON_LENGTH 256
 #define CVBAM_LOG_TAG "CVBAM"
 #define CVBAM_LOG_FILE "callvote_bans_adminmenu.log"
@@ -29,7 +29,8 @@ CallVoteLogger g_Log = null;
 bool g_bAdminMenuLibrary;
 bool g_bCallVoteBansLibrary;
 bool g_bL4D2CommCoreLibrary;
-bool g_bLateLoad;
+bool g_bBindPending;
+bool g_bResetPending;
 
 enum CVBAdminMenuPanelType
 {
@@ -50,6 +51,7 @@ enum struct CVBAdminMenuState
 	CVBAdminMenuPanelType panelType;
 	CVBAdminMenuPromptStage promptStage;
 	int targetUserId;
+	int targetAccountId;
 	int restrictionMask;
 	int durationMinutes;
 	char targetName[MAX_NAME_LENGTH];
@@ -106,13 +108,6 @@ static void CVBAdminMenu_TryBindAdminMenu()
 		OnAdminMenuReady(hTopMenu);
 }
 
-public APLRes AskPluginLoad2(Handle hMyself, bool bLate, char[] sError, int iErr_max)
-{
-	g_bLateLoad = bLate;
-	CVBAdminMenu_RefreshLibraryState();
-	return APLRes_Success;
-}
-
 public void OnPluginStart()
 {
 	LoadTranslations("common.phrases");
@@ -123,26 +118,40 @@ public void OnPluginStart()
 	g_cvarDebugMask = CreateConVar("sm_cvbam_debug_mask", "0", "Debug mask for callvote_bans_adminmenu. Core=1 SQL=2 Cache=4 Commands=8 Identity=16 Forwards=32 Session=64 Localization=128 All=255.", FCVAR_NONE, true, 0.0, true, 255.0);
 	g_Log = new CallVoteLogger(CVBAM_LOG_TAG, CVBAM_LOG_FILE, g_cvarLogMode, g_cvarDebugMask);
 
-	RegAdminCmd("sm_cvb_restrict_panel", Command_CVBAdminBanPanel, ADMFLAG_BAN, "Open the CallVote restriction admin panel.");
-	RegAdminCmd("sm_cvb_unrestrict_panel", Command_CVBAdminUnbanPanel, ADMFLAG_UNBAN, "Open the CallVote restriction removal panel.");
+	RegAdminCmd("sm_cvb_ban_panel", Command_CVBAdminBanPanel, ADMFLAG_BAN, "Open the CallVote restriction admin panel.");
+	RegAdminCmd("sm_cvb_unban_panel", Command_CVBAdminUnbanPanel, ADMFLAG_UNBAN, "Open the CallVote restriction removal panel.");
 	RegAdminCmd("sm_cvb_status_panel", Command_CVBAdminCheckPanel, ADMFLAG_GENERIC, "Open the CallVote restriction status panel.");
 	RegAdminCmd("sm_cvb_panel_abort", Command_CVBAdminAbort, ADMFLAG_GENERIC, "Abort the current CallVote Bans panel prompt.");
 	RegAdminCmd("sm_cvb_panel_status", Command_CVBAdminStatus, ADMFLAG_GENERIC, "Show CallVote Bans admin menu runtime status.");
 	RegAdminCmd("sm_cvb_reason", Command_CVBAdminReason, ADMFLAG_BAN, "Submit the active CallVote restriction reason prompt without public chat.");
 
 	CallVoteAutoExecConfig(true, "callvote_bans_adminmenu");
-
-	if (!g_bLateLoad)
-		return;
-
-	CVBAdminMenu_RefreshLibraryState();
-	CVBAdminMenu_TryBindAdminMenu();
 }
 
 public void OnAllPluginsLoaded()
 {
 	CVBAdminMenu_RefreshLibraryState();
+	g_bBindPending = false;
 	CVBAdminMenu_TryBindAdminMenu();
+}
+
+public void OnGameFrame()
+{
+	if (g_bResetPending)
+	{
+		g_bResetPending = false;
+		CVBAdminMenu_ResetAllStates();
+	}
+	if (g_bBindPending)
+	{
+		g_bBindPending = false;
+		CVBAdminMenu_TryBindAdminMenu();
+	}
+}
+
+public void OnMapStart()
+{
+	CVBAdminMenu_ResetAllStates();
 }
 
 public void OnConfigsExecuted()
@@ -169,7 +178,8 @@ public Action OnClientSayCommand(int iClient, const char[] szCommand, const char
 	if (g_bL4D2CommCoreLibrary && L4D2Comm_IsCoreReady())
 		return Plugin_Continue;
 
-	return CVBAdminMenu_ConsumeReasonInput(iClient, szArgs) ? Plugin_Handled : Plugin_Handled;
+	CVBAdminMenu_ConsumeReasonInput(iClient, szArgs);
+	return Plugin_Handled;
 }
 
 public Action L4D2Comm_OnChatMessage(int client, L4D2CommChannel channel, const char[] text)
@@ -181,7 +191,8 @@ public Action L4D2Comm_OnChatMessage(int client, L4D2CommChannel channel, const 
 		return Plugin_Continue;
 
 	CVBAMLog.Commands("Captured prompt reason through l4d2_commcore from client %d channel=%d", client, view_as<int>(channel));
-	return CVBAdminMenu_ConsumeReasonInput(client, text) ? Plugin_Handled : Plugin_Handled;
+	CVBAdminMenu_ConsumeReasonInput(client, text);
+	return Plugin_Handled;
 }
 
 public void OnLibraryAdded(const char[] szName)
@@ -189,9 +200,7 @@ public void OnLibraryAdded(const char[] szName)
 	if (StrEqual(szName, CALLVOTE_ADMINMENU_LIBRARY, false))
 	{
 		g_bAdminMenuLibrary = true;
-		TopMenu hTopMenu = GetAdminTopMenu();
-		if (hTopMenu != null)
-			OnAdminMenuReady(hTopMenu);
+		g_bBindPending = true;
 		return;
 	}
 
@@ -210,6 +219,7 @@ public void OnLibraryRemoved(const char[] szName)
 	if (StrEqual(szName, CALLVOTE_ADMINMENU_LIBRARY, false))
 	{
 		g_bAdminMenuLibrary = false;
+		g_bBindPending = false;
 		g_hCVBAdminTopMenu = null;
 		g_oCVBAdminCategory = INVALID_TOPMENUOBJECT;
 		g_oCVBAdminBan = INVALID_TOPMENUOBJECT;
@@ -221,6 +231,7 @@ public void OnLibraryRemoved(const char[] szName)
 	if (StrEqual(szName, CALLVOTE_BANS_LIBRARY, false))
 	{
 		g_bCallVoteBansLibrary = false;
+		g_bResetPending = true;
 		return;
 	}
 
@@ -252,12 +263,12 @@ static void CVBAdminMenu_TryAddItems()
 
 	if (g_oCVBAdminBan == INVALID_TOPMENUOBJECT)
 	{
-		g_oCVBAdminBan = g_hCVBAdminTopMenu.AddItem("callvote_bans_ban_panel", CVBAdminMenu_BanHandler, g_oCVBAdminCategory, "sm_cvb_restrict_panel", ADMFLAG_BAN);
+		g_oCVBAdminBan = g_hCVBAdminTopMenu.AddItem("callvote_bans_ban_panel", CVBAdminMenu_BanHandler, g_oCVBAdminCategory, "sm_cvb_ban_panel", ADMFLAG_BAN);
 	}
 
 	if (g_oCVBAdminUnban == INVALID_TOPMENUOBJECT)
 	{
-		g_oCVBAdminUnban = g_hCVBAdminTopMenu.AddItem("callvote_bans_unban_panel", CVBAdminMenu_UnbanHandler, g_oCVBAdminCategory, "sm_cvb_unrestrict_panel", ADMFLAG_UNBAN);
+		g_oCVBAdminUnban = g_hCVBAdminTopMenu.AddItem("callvote_bans_unban_panel", CVBAdminMenu_UnbanHandler, g_oCVBAdminCategory, "sm_cvb_unban_panel", ADMFLAG_UNBAN);
 	}
 
 	if (g_oCVBAdminCheck == INVALID_TOPMENUOBJECT)
@@ -274,12 +285,12 @@ public void CVBAdminMenu_CategoryHandler(TopMenu hTopMenu, TopMenuAction eAction
 
 public void CVBAdminMenu_BanHandler(TopMenu hTopMenu, TopMenuAction eAction, TopMenuObject oObject, int iClient, char[] szBuffer, int iMaxLength)
 {
-	CVBAdminMenu_HandleTopMenuItem(eAction, iClient, szBuffer, iMaxLength, "CVBAdminMenuRestrict", "sm_cvb_restrict_panel");
+	CVBAdminMenu_HandleTopMenuItem(eAction, iClient, szBuffer, iMaxLength, "CVBAdminMenuRestrict", "sm_cvb_ban_panel");
 }
 
 public void CVBAdminMenu_UnbanHandler(TopMenu hTopMenu, TopMenuAction eAction, TopMenuObject oObject, int iClient, char[] szBuffer, int iMaxLength)
 {
-	CVBAdminMenu_HandleTopMenuItem(eAction, iClient, szBuffer, iMaxLength, "CVBAdminMenuUnrestrict", "sm_cvb_unrestrict_panel");
+	CVBAdminMenu_HandleTopMenuItem(eAction, iClient, szBuffer, iMaxLength, "CVBAdminMenuUnrestrict", "sm_cvb_unban_panel");
 }
 
 public void CVBAdminMenu_CheckHandler(TopMenu hTopMenu, TopMenuAction eAction, TopMenuObject oObject, int iClient, char[] szBuffer, int iMaxLength)
@@ -432,6 +443,7 @@ void CVBAdminMenu_ResetState(int iClient)
 	g_eCVBAdminState[iClient].panelType = CVBAdminMenuPanel_None;
 	g_eCVBAdminState[iClient].promptStage = CVBAdminMenuPrompt_None;
 	g_eCVBAdminState[iClient].targetUserId = 0;
+	g_eCVBAdminState[iClient].targetAccountId = 0;
 	g_eCVBAdminState[iClient].restrictionMask = 0;
 	g_eCVBAdminState[iClient].durationMinutes = 0;
 	g_eCVBAdminState[iClient].targetName[0] = '\0';
@@ -439,18 +451,66 @@ void CVBAdminMenu_ResetState(int iClient)
 
 bool CVBAdminMenu_IsValidTarget(int iClient)
 {
-	return iClient > 0 && iClient <= MaxClients && IsClientInGame(iClient) && !IsFakeClient(iClient);
+	return iClient > 0 && iClient <= MaxClients && IsClientInGame(iClient) && !IsFakeClient(iClient) && GetSteamAccountID(iClient) > 0;
+}
+
+void CVBAdminMenu_ResetAllStates()
+{
+	for (int client = 1; client <= MaxClients; client++)
+		CVBAdminMenu_ResetState(client);
+}
+
+static int CVBAdminMenu_GetStoredTarget(int client)
+{
+	int target = GetClientOfUserId(g_eCVBAdminState[client].targetUserId);
+	if (!CVBAdminMenu_IsValidTarget(target)
+		|| GetSteamAccountID(target) != g_eCVBAdminState[client].targetAccountId)
+		return 0;
+	return target;
+}
+
+static bool CVBAdminMenu_CheckAccess(int client, CVBAdminMenuPanelType panel)
+{
+	if (client <= 0 || client > MaxClients || !IsClientInGame(client) || IsFakeClient(client))
+		return false;
+	if (!g_bCallVoteBansLibrary)
+	{
+		CVBAdminMenu_ResetState(client);
+		CPrintToChat(client, "%t %t", "Tag", "CVBAdminMenuModuleUnavailable");
+		return false;
+	}
+
+	char command[32];
+	int flags;
+	switch (panel)
+	{
+		case CVBAdminMenuPanel_Ban: { strcopy(command, sizeof(command), "sm_cvb_ban_panel"); flags = ADMFLAG_BAN; }
+		case CVBAdminMenuPanel_Unban: { strcopy(command, sizeof(command), "sm_cvb_unban_panel"); flags = ADMFLAG_UNBAN; }
+		case CVBAdminMenuPanel_Check: { strcopy(command, sizeof(command), "sm_cvb_status_panel"); flags = ADMFLAG_GENERIC; }
+		default: return false;
+	}
+	if (!CheckCommandAccess(client, command, flags))
+	{
+		CVBAdminMenu_ResetState(client);
+		CPrintToChat(client, "%t %t", "Tag", "CVBAdminMenuAccessDenied");
+		return false;
+	}
+	return true;
 }
 
 void CVBAdminMenu_SetTargetState(int iClient, CVBAdminMenuPanelType ePanelType, int iTarget)
 {
 	g_eCVBAdminState[iClient].panelType = ePanelType;
 	g_eCVBAdminState[iClient].targetUserId = GetClientUserId(iTarget);
+	g_eCVBAdminState[iClient].targetAccountId = GetSteamAccountID(iTarget);
 	GetClientName(iTarget, g_eCVBAdminState[iClient].targetName, sizeof(g_eCVBAdminState[].targetName));
 }
 
 void CVBAdminMenu_ShowBanTargetPanel(int iClient)
 {
+	if (!CVBAdminMenu_CheckAccess(iClient, CVBAdminMenuPanel_Ban))
+		return;
+
 	Menu hMenu = new Menu(CVBAdminMenu_MenuHandlerBanTarget, MENU_ACTIONS_DEFAULT);
 
 	char szTitle[128];
@@ -492,6 +552,10 @@ void CVBAdminMenu_ShowBanTargetPanel(int iClient)
 
 public int CVBAdminMenu_MenuHandlerBanTarget(Menu hMenu, MenuAction eAction, int iClient, int iItem)
 {
+	if ((eAction == MenuAction_Select || eAction == MenuAction_Cancel)
+		&& !CVBAdminMenu_CheckAccess(iClient, CVBAdminMenuPanel_Ban))
+		return 0;
+
 	switch (eAction)
 	{
 		case MenuAction_Select:
@@ -519,6 +583,9 @@ public int CVBAdminMenu_MenuHandlerBanTarget(Menu hMenu, MenuAction eAction, int
 
 void CVBAdminMenu_ShowRestrictionTypePanel(int iClient)
 {
+	if (!CVBAdminMenu_CheckAccess(iClient, CVBAdminMenuPanel_Ban))
+		return;
+
 	Menu hMenu = new Menu(CVBAdminMenu_MenuHandlerRestrictionType, MENU_ACTIONS_DEFAULT);
 
 	char szTitle[128];
@@ -550,6 +617,10 @@ void CVBAdminMenu_ShowRestrictionTypePanel(int iClient)
 
 public int CVBAdminMenu_MenuHandlerRestrictionType(Menu hMenu, MenuAction eAction, int iClient, int iItem)
 {
+	if ((eAction == MenuAction_Select || eAction == MenuAction_Cancel)
+		&& !CVBAdminMenu_CheckAccess(iClient, CVBAdminMenuPanel_Ban))
+		return 0;
+
 	switch (eAction)
 	{
 		case MenuAction_Select:
@@ -575,6 +646,9 @@ public int CVBAdminMenu_MenuHandlerRestrictionType(Menu hMenu, MenuAction eActio
 
 void CVBAdminMenu_ShowRestrictionDurationPanel(int iClient)
 {
+	if (!CVBAdminMenu_CheckAccess(iClient, CVBAdminMenuPanel_Ban))
+		return;
+
 	Menu hMenu = new Menu(CVBAdminMenu_MenuHandlerRestrictionDuration, MENU_ACTIONS_DEFAULT);
 
 	char szRestrictionType[64];
@@ -611,6 +685,10 @@ void CVBAdminMenu_ShowRestrictionDurationPanel(int iClient)
 
 public int CVBAdminMenu_MenuHandlerRestrictionDuration(Menu hMenu, MenuAction eAction, int iClient, int iItem)
 {
+	if ((eAction == MenuAction_Select || eAction == MenuAction_Cancel)
+		&& !CVBAdminMenu_CheckAccess(iClient, CVBAdminMenuPanel_Ban))
+		return 0;
+
 	switch (eAction)
 	{
 		case MenuAction_Select:
@@ -637,11 +715,17 @@ public int CVBAdminMenu_MenuHandlerRestrictionDuration(Menu hMenu, MenuAction eA
 
 void CVBAdminMenu_ShowReasonPrompt(int iClient)
 {
+	if (!CVBAdminMenu_CheckAccess(iClient, CVBAdminMenuPanel_Ban))
+		return;
+
 	CPrintToChat(iClient, "%t %t", "Tag", "CVBAdminMenuReasonPrompt", g_eCVBAdminState[iClient].targetName);
 }
 
 static bool CVBAdminMenu_ConsumeReasonInput(int iClient, const char[] input)
 {
+	if (!CVBAdminMenu_CheckAccess(iClient, CVBAdminMenuPanel_Ban))
+		return false;
+
 	char szReason[CALLVOTE_BANS_ADMINMENU_MAX_REASON_LENGTH];
 	strcopy(szReason, sizeof(szReason), input);
 	TrimString(szReason);
@@ -668,7 +752,7 @@ static bool CVBAdminMenu_ConsumeReasonInput(int iClient, const char[] input)
 		return false;
 	}
 
-	int iTarget = GetClientOfUserId(g_eCVBAdminState[iClient].targetUserId);
+	int iTarget = CVBAdminMenu_GetStoredTarget(iClient);
 	if (!CVBAdminMenu_IsValidTarget(iTarget))
 	{
 		CVBAdminMenu_ResetState(iClient);
@@ -683,13 +767,16 @@ static bool CVBAdminMenu_ConsumeReasonInput(int iClient, const char[] input)
 		return false;
 	}
 
-	CPrintToChat(iClient, "%t %t", "Tag", "CVBAdminMenuRestrictionApplied", g_eCVBAdminState[iClient].targetName);
+	CPrintToChat(iClient, "%t %t", "Tag", "CVBAdminMenuRestrictionRequested", g_eCVBAdminState[iClient].targetName);
 	CVBAdminMenu_ResetState(iClient);
 	return true;
 }
 
 void CVBAdminMenu_ShowUnbanTargetPanel(int iClient)
 {
+	if (!CVBAdminMenu_CheckAccess(iClient, CVBAdminMenuPanel_Unban))
+		return;
+
 	Menu hMenu = new Menu(CVBAdminMenu_MenuHandlerUnbanTarget, MENU_ACTIONS_DEFAULT);
 
 	char szTitle[128];
@@ -727,6 +814,10 @@ void CVBAdminMenu_ShowUnbanTargetPanel(int iClient)
 
 public int CVBAdminMenu_MenuHandlerUnbanTarget(Menu hMenu, MenuAction eAction, int iClient, int iItem)
 {
+	if ((eAction == MenuAction_Select || eAction == MenuAction_Cancel)
+		&& !CVBAdminMenu_CheckAccess(iClient, CVBAdminMenuPanel_Unban))
+		return 0;
+
 	switch (eAction)
 	{
 		case MenuAction_Select:
@@ -754,6 +845,9 @@ public int CVBAdminMenu_MenuHandlerUnbanTarget(Menu hMenu, MenuAction eAction, i
 
 void CVBAdminMenu_ShowUnbanConfirmPanel(int iClient, int iTarget)
 {
+	if (!CVBAdminMenu_CheckAccess(iClient, CVBAdminMenuPanel_Unban))
+		return;
+
 	Menu hMenu = new Menu(CVBAdminMenu_MenuHandlerUnbanConfirm, MENU_ACTIONS_DEFAULT);
 
 	char szTargetName[MAX_NAME_LENGTH];
@@ -780,6 +874,10 @@ void CVBAdminMenu_ShowUnbanConfirmPanel(int iClient, int iTarget)
 
 public int CVBAdminMenu_MenuHandlerUnbanConfirm(Menu hMenu, MenuAction eAction, int iClient, int iItem)
 {
+	if ((eAction == MenuAction_Select || eAction == MenuAction_Cancel)
+		&& !CVBAdminMenu_CheckAccess(iClient, CVBAdminMenuPanel_Unban))
+		return 0;
+
 	switch (eAction)
 	{
 		case MenuAction_Select:
@@ -789,7 +887,7 @@ public int CVBAdminMenu_MenuHandlerUnbanConfirm(Menu hMenu, MenuAction eAction, 
 			if (!StrEqual(szInfo, "confirm"))
 				return 0;
 
-			int iTarget = GetClientOfUserId(g_eCVBAdminState[iClient].targetUserId);
+			int iTarget = CVBAdminMenu_GetStoredTarget(iClient);
 			if (!CVBAdminMenu_IsValidTarget(iTarget))
 			{
 				CPrintToChat(iClient, "%t %t", "Tag", "MenuPlayerDisconnected");
@@ -804,7 +902,7 @@ public int CVBAdminMenu_MenuHandlerUnbanConfirm(Menu hMenu, MenuAction eAction, 
 				return 0;
 			}
 
-			CPrintToChat(iClient, "%t %t", "Tag", "CVBAdminMenuRestrictionRemoved", g_eCVBAdminState[iClient].targetName);
+			CPrintToChat(iClient, "%t %t", "Tag", "CVBAdminMenuRemovalRequested", g_eCVBAdminState[iClient].targetName);
 			CVBAdminMenu_ResetState(iClient);
 		}
 
@@ -823,6 +921,9 @@ public int CVBAdminMenu_MenuHandlerUnbanConfirm(Menu hMenu, MenuAction eAction, 
 
 void CVBAdminMenu_ShowCheckTargetPanel(int iClient)
 {
+	if (!CVBAdminMenu_CheckAccess(iClient, CVBAdminMenuPanel_Check))
+		return;
+
 	Menu hMenu = new Menu(CVBAdminMenu_MenuHandlerCheckTarget, MENU_ACTIONS_DEFAULT);
 
 	char szTitle[128];
@@ -864,6 +965,10 @@ void CVBAdminMenu_ShowCheckTargetPanel(int iClient)
 
 public int CVBAdminMenu_MenuHandlerCheckTarget(Menu hMenu, MenuAction eAction, int iClient, int iItem)
 {
+	if ((eAction == MenuAction_Select || eAction == MenuAction_Cancel)
+		&& !CVBAdminMenu_CheckAccess(iClient, CVBAdminMenuPanel_Check))
+		return 0;
+
 	switch (eAction)
 	{
 		case MenuAction_Select:

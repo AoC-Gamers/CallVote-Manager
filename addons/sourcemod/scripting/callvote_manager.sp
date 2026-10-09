@@ -10,11 +10,10 @@
 #include <campaign_manager>
 
 #undef REQUIRE_PLUGIN
-#include <confogl>
 #include <builtinvotes>
 #define REQUIRE_PLUGIN
 
-#define PLUGIN_VERSION "2.0.0"
+#define PLUGIN_VERSION "2.2.1"
 #define CVM_LOG_TAG "CVM"
 #define CVM_LOG_FILE "callvote_manager.log"
 #define CALLVOTE_BUILTINVOTES_LIBRARY "BuiltinVotes"
@@ -34,6 +33,7 @@ ConVar
 	g_cvarSTVImmunity,
 	g_cvarSelfImmunity,
 	g_cvarBotImmunity,
+	sv_alltalk,
 	sv_vote_creation_timer,
 	sv_vote_issue_change_difficulty_allowed,
 	sv_vote_issue_restart_game_allowed,
@@ -44,13 +44,69 @@ ConVar
 Localizer g_loc;
 CallVoteLogger g_Log = null;
 int g_iFlagsAdmin;
-int g_iClientFlagsCache[MAXPLAYERS + 1];
-bool g_bClientFlagsCached[MAXPLAYERS + 1];
-bool g_bBuiltinVotesLibrary = false;
-bool g_bLateLoad = false;
-float g_fLastVote;
-int g_iSuppressInitialYesSession = 0;
-int g_iSuppressInitialYesClient = 0;
+enum struct ManagerRuntimeState
+{
+	bool lateLoad;
+	bool hasBuiltinVotes;
+
+	void Reset()
+	{
+		this.lateLoad = false;
+		this.hasBuiltinVotes = false;
+	}
+
+	void DetectLibraries()
+	{
+		this.hasBuiltinVotes = LibraryExists(CALLVOTE_BUILTINVOTES_LIBRARY);
+	}
+
+	void SetLibraryAvailability(const char[] name, bool available)
+	{
+		if (!StrEqual(name, CALLVOTE_BUILTINVOTES_LIBRARY))
+			return;
+		this.hasBuiltinVotes = available;
+	}
+}
+
+ManagerRuntimeState g_Runtime;
+float g_fLastVote = -1.0;
+int g_iActiveSession;
+int g_iInitialYesCallerSerial;
+int g_iRejectedSession;
+int g_iRejectedCallerSerial;
+int g_iRejectedTargetSerial;
+int g_iRejectedCooldown;
+VoteRestrictionType g_RejectedRestriction;
+
+bool CVM_IsLiveClient(int client)
+{
+	return client >= 1 && client <= MaxClients && IsClientInGame(client);
+}
+
+bool CVM_MatchesSnapshotClient(int client, int accountId)
+{
+	if (!CVM_IsLiveClient(client))
+		return false;
+	if (IsFakeClient(client))
+		return accountId == 0;
+	return accountId > 0 && GetSteamAccountID(client) == accountId;
+}
+
+void CVM_ClearRejection()
+{
+	g_iRejectedSession = 0;
+	g_iRejectedCallerSerial = 0;
+	g_iRejectedTargetSerial = 0;
+	g_iRejectedCooldown = 0;
+	g_RejectedRestriction = VoteRestriction_None;
+}
+
+void CVM_ClearVoteState()
+{
+	g_iActiveSession = 0;
+	g_iInitialYesCallerSerial = 0;
+	CVM_ClearRejection();
+}
 
 methodmap CVMLog
 {
@@ -89,15 +145,10 @@ public Plugin myinfo =
 	url = "https://github.com/AoC-Gamers/CallVote-Manager"
 };
 
-static void CVM_RefreshLibraryState()
-{
-	g_bBuiltinVotesLibrary = LibraryExists(CALLVOTE_BUILTINVOTES_LIBRARY);
-}
-
 public APLRes AskPluginLoad2(Handle hMyself, bool bLate, char[] sError, int iErr_max)
 {
-	g_bLateLoad = bLate;
-	CVM_RefreshLibraryState();
+	g_Runtime.Reset();
+	g_Runtime.lateLoad = bLate;
 	return APLRes_Success;
 }
 
@@ -110,7 +161,7 @@ public void OnPluginStart()
 
 	g_cvarEnable = CreateConVar("sm_cvm_enable", "1", "Enable callvote_manager default policy and UX", FCVAR_NOTIFY, true, 0.0, true, 1.0);
 	g_cvarLogMode = CallVoteEnsureLogModeConVar();
-	g_cvarDebugMask = CreateConVar("sm_cvm_debug_mask", "0", "Debug mask for callvote_manager. Core=1 SQL=2 Cache=4 Commands=8 Identity=16 Forwards=32 Session=64 Localization=128 All=255.", FCVAR_NONE, true, 0.0, true, 255.0);
+	g_cvarDebugMask = CreateConVar("sm_cvm_debug_mask", "0", "Debug mask for callvote_manager. Core=1 Localization=128 All=129.", FCVAR_NONE, true, 0.0, true, 129.0);
 	g_Log = new CallVoteLogger(CVM_LOG_TAG, CVM_LOG_FILE, g_cvarLogMode, g_cvarDebugMask);
 
 	g_cvarAnnouncer = CreateConVar("sm_cvm_announcer", "1", "Announce voting calls", FCVAR_NOTIFY, true, 0.0, true, 1.0);
@@ -130,6 +181,7 @@ public void OnPluginStart()
 	sv_vote_issue_kick_allowed = FindConVar("sv_vote_issue_kick_allowed");
 	sv_vote_issue_change_mission_allowed = FindConVar("sv_vote_issue_change_mission_allowed");
 	sv_vote_creation_timer = FindConVar("sv_vote_creation_timer");
+	sv_alltalk = FindConVar("sv_alltalk");
 	z_difficulty = FindConVar("z_difficulty");
 
 	char sTempAdmin[32];
@@ -137,18 +189,11 @@ public void OnPluginStart()
 	g_cvarAdminImmunity.GetString(sTempAdmin, sizeof(sTempAdmin));
 	g_iFlagsAdmin = ReadFlagString(sTempAdmin);
 
-	HookEvent("vote_cast_yes", Event_VoteCastYes);
-	HookEvent("vote_cast_no", Event_VoteCastNo);
+	g_cvarEnable.AddChangeHook(ConVarChanged_Enable);
 
 	CallVoteAutoExecConfig(true, "callvote_manager");
-	g_fLastVote = 0.0;
-	g_iSuppressInitialYesSession = 0;
-	g_iSuppressInitialYesClient = 0;
-
-	if (!g_bLateLoad)
-		return;
-
-	CVM_RefreshLibraryState();
+	g_fLastVote = -1.0;
+	CVM_ClearVoteState();
 }
 
 public void OnPluginEnd()
@@ -162,26 +207,33 @@ public void OnPluginEnd()
 
 public void OnAllPluginsLoaded()
 {
-	CVM_RefreshLibraryState();
+	g_Runtime.DetectLibraries();
 }
 
 public void OnLibraryRemoved(const char[] name)
 {
-	if (StrEqual(name, CALLVOTE_BUILTINVOTES_LIBRARY))
-		g_bBuiltinVotesLibrary = false;
+	g_Runtime.SetLibraryAvailability(name, false);
 }
 
 public void OnLibraryAdded(const char[] name)
 {
-	if (StrEqual(name, CALLVOTE_BUILTINVOTES_LIBRARY))
-		g_bBuiltinVotesLibrary = true;
+	g_Runtime.SetLibraryAvailability(name, true);
 }
 
 public void OnMapStart()
 {
-	g_fLastVote = 0.0;
-	g_iSuppressInitialYesSession = 0;
-	g_iSuppressInitialYesClient = 0;
+	g_fLastVote = -1.0;
+	CVM_ClearVoteState();
+}
+
+public void OnMapEnd()
+{
+	CVM_ClearVoteState();
+}
+
+public void ConVarChanged_Enable(ConVar convar, const char[] oldValue, const char[] newValue)
+{
+	CVM_ClearVoteState();
 }
 
 public void OnConfigsExecuted()
@@ -205,179 +257,133 @@ public void ConVarChanged_AdminImmunity(Handle hConVar, const char[] sOldValue, 
 	char sTempAdmin[32];
 	g_cvarAdminImmunity.GetString(sTempAdmin, sizeof(sTempAdmin));
 	g_iFlagsAdmin = ReadFlagString(sTempAdmin);
-	ClearAdminFlagsCache();
 }
 
 public Action CallVote_PreStart(int sessionId, int client, int callerAccountId, TypeVotes voteType, int target, int targetAccountId, const char[] argument)
 {
+	CVM_ClearRejection();
 	if (!g_cvarEnable.BoolValue)
 		return Plugin_Continue;
 
 	int cooldownSeconds;
-	VoteRestrictionType earlyRestriction = ValidateCallerState(client, cooldownSeconds);
-	if (earlyRestriction != VoteRestriction_None)
-	{
-		SendRestrictionFeedback(client, earlyRestriction, voteType, target, cooldownSeconds);
-		CallVoteCore_SetPendingRestriction(earlyRestriction);
-		return Plugin_Handled;
-	}
-
-	VoteRestrictionType restriction;
-	if (voteType == Kick)
-		restriction = ValidateVote(client, voteType, target);
-	else if (argument[0] != '\0')
-		restriction = ValidateVote(client, voteType, 0, argument);
-	else
-		restriction = ValidateVote(client, voteType);
-
+	VoteRestrictionType restriction = CVM_MatchesSnapshotClient(client, callerAccountId)
+		? ValidateCallerState(client, cooldownSeconds) : VoteRestriction_InvalidCaller;
+	if (restriction == VoteRestriction_None)
+		restriction = voteType == Kick && !CVM_MatchesSnapshotClient(target, targetAccountId)
+			? VoteRestriction_Target : ValidateVote(client, voteType, target, argument);
 	if (restriction == VoteRestriction_None)
 		return Plugin_Continue;
 
-	if (voteType == Kick)
-		SendRestrictionFeedback(client, restriction, voteType, target);
-	else
-		SendRestrictionFeedback(client, restriction, voteType);
-
+	g_iRejectedSession = sessionId;
+	g_iRejectedCallerSerial = CVM_IsLiveClient(client) ? GetClientSerial(client) : 0;
+	g_iRejectedTargetSerial = CVM_IsLiveClient(target) ? GetClientSerial(target) : 0;
+	g_iRejectedCooldown = cooldownSeconds;
+	g_RejectedRestriction = restriction;
 	CallVoteCore_SetPendingRestriction(restriction);
 	return Plugin_Handled;
 }
 
-public Action CallVote_PreExecute(int sessionId, int client, int callerAccountId, TypeVotes voteType, int target, int targetAccountId, const char[] argument)
+public void CallVote_Blocked(int sessionId, int client, int callerAccountId, TypeVotes voteType, VoteRestrictionType restriction, int target, int targetAccountId, const char[] argument)
 {
-	if (!g_cvarEnable.BoolValue)
-		return Plugin_Continue;
-
-	g_iSuppressInitialYesSession = sessionId;
-	g_iSuppressInitialYesClient = client;
-	return Plugin_Continue;
+	// Only present our own rule when it matches the core's canonical rejection.
+	if (g_cvarEnable.BoolValue && g_iRejectedSession == sessionId
+		&& g_RejectedRestriction == restriction && g_iRejectedCallerSerial != 0
+		&& GetClientFromSerial(g_iRejectedCallerSerial) == client && CVM_MatchesSnapshotClient(client, callerAccountId))
+	{
+		int feedbackTarget = g_iRejectedTargetSerial != 0 ? GetClientFromSerial(g_iRejectedTargetSerial) : 0;
+		if (!CVM_MatchesSnapshotClient(feedbackTarget, targetAccountId))
+			feedbackTarget = 0;
+		SendRestrictionFeedback(client, restriction, voteType, feedbackTarget, g_iRejectedCooldown);
+	}
+	if (g_iRejectedSession == sessionId)
+		CVM_ClearRejection();
 }
 
 public void CallVote_Start(int sessionId)
 {
-	g_fLastVote = GetEngineTime();
-
-	if (!g_cvarAnnouncer.BoolValue)
+	if (!g_cvarEnable.BoolValue)
 		return;
 
-	int callerClient;
-	int callerAccountId;
+	int callerClient, callerAccountId, targetClient, targetAccountId;
 	TypeVotes voteType;
-	int targetClient;
-	int targetAccountId;
 	char argument[64];
-
 	if (!CallVoteCore_GetSessionInfo(sessionId, callerClient, callerAccountId, voteType, targetClient, targetAccountId, argument, sizeof(argument)))
 		return;
 
+	g_fLastVote = GetEngineTime();
+	g_iActiveSession = sessionId;
+	g_iInitialYesCallerSerial = CVM_MatchesSnapshotClient(callerClient, callerAccountId) ? GetClientSerial(callerClient) : 0;
+	CVM_ClearRejection();
 
-	if (!IsClientInGame(callerClient))
+	if (!g_cvarAnnouncer.BoolValue || !CVM_MatchesSnapshotClient(callerClient, callerAccountId))
 		return;
 
 	switch (voteType)
 	{
-		case ChangeDifficulty:
-			PrintLocalizedDifficulty(argument, callerClient);
-
-		case RestartGame:
-			PrintLocalizedRestartGame(callerClient);
-
+		case ChangeDifficulty: PrintLocalizedDifficulty(argument, callerClient);
+		case RestartGame: PrintLocalizedRestartGame(callerClient);
 		case Kick:
 		{
-			if (IsClientInGame(targetClient))
+			if (CVM_MatchesSnapshotClient(targetClient, targetAccountId))
 				PrintLocalizedKick(callerClient, targetClient);
 		}
-
-		case ChangeMission:
-			PrintLocalizedMissionName(argument, callerClient);
-
-		case ReturnToLobby:
-			PrintLocalizedReturnToLobby(callerClient);
-
-		case ChangeChapter:
-			PrintLocalizedChapterName(argument, callerClient);
-
-		case ChangeAllTalk:
-			PrintLocalizedAllTalk(callerClient);
+		case ChangeMission: PrintLocalizedMissionName(argument, callerClient);
+		case ReturnToLobby: PrintLocalizedReturnToLobby(callerClient);
+		case ChangeChapter: PrintLocalizedChapterName(argument, callerClient);
+		case ChangeAllTalk: PrintLocalizedAllTalk(callerClient);
 	}
 }
 
-void Event_VoteCastYes(Event event, const char[] sEventName, bool bDontBroadcast)
+public void CallVote_BallotCast(int sessionId, int client, int accountId, bool votedYes, int team)
 {
+	if (!g_cvarEnable.BoolValue || g_iActiveSession != sessionId || !CVM_MatchesSnapshotClient(client, accountId))
+		return;
+
+	// The engine initially votes Yes for the caller; the announcement covers it.
+	// Consume it even with progress disabled, so a later toggle cannot hide a ballot.
+	if (votedYes && g_iInitialYesCallerSerial != 0 && GetClientSerial(client) == g_iInitialYesCallerSerial)
+	{
+		g_iInitialYesCallerSerial = 0;
+		return;
+	}
 	if (!g_cvarProgress.BoolValue)
 		return;
 
-	int iClient = event.GetInt("entityid");
-	if (!IsValidClientIndex(iClient))
-		return;
-
-	if (g_iSuppressInitialYesSession > 0 && g_iSuppressInitialYesClient == iClient)
+	// Forward team is vote scope; the displayed team belongs to the live voter.
+	L4DTeam voterTeam = L4D_GetClientTeam(client);
+	char teamName[64];
+	bool anonymous = g_cvarProgressAnonymous.BoolValue;
+	for (int recipient = 1; recipient <= MaxClients; recipient++)
 	{
-		int currentSessionId = CallVoteCore_GetCurrentSession();
-		if (currentSessionId == g_iSuppressInitialYesSession)
+		if (!IsClientInGame(recipient) || IsFakeClient(recipient))
+			continue;
+		if (!Lang_GetLocalizedTeamName(voterTeam, recipient, teamName, sizeof(teamName), g_loc))
 		{
-			g_iSuppressInitialYesSession = 0;
-			g_iSuppressInitialYesClient = 0;
-			return;
+			char phrase[32];
+			switch (voterTeam)
+			{
+				case L4DTeam_Survivor: strcopy(phrase, sizeof(phrase), "TeamSurvivor");
+				case L4DTeam_Infected: strcopy(phrase, sizeof(phrase), "TeamInfected");
+				default: strcopy(phrase, sizeof(phrase), "TeamSpectator");
+			}
+			Format(teamName, sizeof(teamName), "%T", phrase, recipient);
 		}
-
-		g_iSuppressInitialYesSession = 0;
-		g_iSuppressInitialYesClient = 0;
-	}
-
-	L4DTeam Team = L4D_GetClientTeam(iClient);
-
-	char sTeamTranslation[64];
-	bool bAnonymous = g_cvarProgressAnonymous.BoolValue;
-
-	for (int i = 1; i <= MaxClients; i++)
-	{
-		if (!IsClientInGame(i) || IsFakeClient(i))
-			continue;
-
-		Lang_GetLocalizedTeamName(Team, i, sTeamTranslation, sizeof(sTeamTranslation), g_loc);
-
-		if (bAnonymous)
-			CPrintToChat(i, "%t %t", "Tag", "VoteCastAnon", sTeamTranslation, "{blue}F1{default}");
+		if (anonymous)
+			CPrintToChat(recipient, "%t %t", "Tag", "VoteCastAnon", teamName, votedYes ? "{olive}F1{default}" : "{green}F2{default}");
 		else
-			CPrintToChat(i, "%t %t", "Tag", "VoteCast", iClient, sTeamTranslation, "{blue}F1{default}");
-	}
-}
-
-void Event_VoteCastNo(Event event, const char[] sEventName, bool bDontBroadcast)
-{
-	if (!g_cvarProgress.BoolValue)
-		return;
-
-	int iClient = event.GetInt("entityid");
-	if (!IsValidClientIndex(iClient))
-		return;
-
-	L4DTeam Team = L4D_GetClientTeam(iClient);
-
-	char sTeamTranslation[64];
-	bool bAnonymous = g_cvarProgressAnonymous.BoolValue;
-
-	for (int i = 1; i <= MaxClients; i++)
-	{
-		if (!IsClientInGame(i) || IsFakeClient(i))
-			continue;
-
-		Lang_GetLocalizedTeamName(Team, i, sTeamTranslation, sizeof(sTeamTranslation), g_loc);
-
-		if (bAnonymous)
-			CPrintToChat(i, "%t %t", "Tag", "VoteCastAnon", sTeamTranslation, "{red}F2{default}");
-		else
-			CPrintToChat(i, "%t %t", "Tag", "VoteCast", iClient, sTeamTranslation, "{red}F2{default}");
+			CPrintToChat(recipient, "%t %t", "Tag", "VoteCast", client, teamName, votedYes ? "{olive}F1{default}" : "{green}F2{default}");
 	}
 }
 
 public void CallVote_End(int sessionId, CallVoteEndReason result, int yesCount, int noCount, int potentialVotes)
 {
-	if (g_iSuppressInitialYesSession == sessionId)
+	if (g_iActiveSession == sessionId)
 	{
-		g_iSuppressInitialYesSession = 0;
-		g_iSuppressInitialYesClient = 0;
+		g_iActiveSession = 0;
+		g_iInitialYesCallerSerial = 0;
 	}
+	if (g_iRejectedSession == sessionId)
+		CVM_ClearRejection();
 }
 
 bool HasAdminFlags(int client, int flags = 0)
@@ -385,18 +391,7 @@ bool HasAdminFlags(int client, int flags = 0)
 	if (client < 1 || client > MaxClients || !IsClientInGame(client))
 		return false;
 
-	int clientFlags;
-	if (g_bClientFlagsCached[client])
-	{
-		clientFlags = g_iClientFlagsCache[client];
-	}
-	else
-	{
-		clientFlags = GetUserFlagBits(client);
-		g_iClientFlagsCache[client] = clientFlags;
-		g_bClientFlagsCached[client] = true;
-	}
-
+	int clientFlags = GetUserFlagBits(client);
 	if (clientFlags & ADMFLAG_ROOT)
 		return true;
 
@@ -408,7 +403,7 @@ bool HasAdminFlags(int client, int flags = 0)
 
 bool IsAdmin(int client)
 {
-	CVLog.Debug("[IsAdmin] Checking %N for admin immunity flags: %d", client, g_iFlagsAdmin);
+	CVLog.Debug("[IsAdmin] Checking client=%d for admin immunity flags: %d", client, g_iFlagsAdmin);
 	return HasAdminFlags(client, g_iFlagsAdmin);
 }
 
@@ -417,31 +412,8 @@ bool CanKick(int client)
 	return HasAdminFlags(client, FlagToBit(Admin_Kick));
 }
 
-void ClearAdminFlagsCache()
-{
-	for (int i = 1; i <= MaxClients; i++)
-	{
-		g_bClientFlagsCached[i] = false;
-		g_iClientFlagsCache[i] = 0;
-	}
-}
-
-void ClearClientAdminFlagsCache(int client)
-{
-	if (client >= 1 && client <= MaxClients)
-	{
-		g_bClientFlagsCached[client] = false;
-		g_iClientFlagsCache[client] = 0;
-	}
-}
-
 public void OnClientDisconnect(int client)
 {
-	ClearClientAdminFlagsCache(client);
-
-	if (g_iSuppressInitialYesClient == client)
-	{
-		g_iSuppressInitialYesSession = 0;
-		g_iSuppressInitialYesClient = 0;
-	}
+	if (g_iInitialYesCallerSerial != 0 && GetClientFromSerial(g_iInitialYesCallerSerial) == client)
+		g_iInitialYesCallerSerial = 0;
 }

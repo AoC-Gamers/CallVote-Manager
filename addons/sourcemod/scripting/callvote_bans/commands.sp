@@ -5,8 +5,8 @@
 
 void RegisterCommands()
 {
-	RegAdminCmd("sm_cvb_restrict", Command_Restrict, ADMFLAG_BAN, "Apply vote restrictions: sm_cvb_restrict <target|steamid|accountid> <restrictionmask> [duration] [reason]");
-	RegAdminCmd("sm_cvb_unrestrict", Command_Unrestrict, ADMFLAG_UNBAN, "Remove vote restrictions: sm_cvb_unrestrict <target|steamid|accountid>");
+	RegAdminCmd("sm_cvb_ban", Command_Ban, ADMFLAG_BAN, "Apply vote restrictions: sm_cvb_ban <target|steamid|accountid> <restrictionmask> [duration] [reason]");
+	RegAdminCmd("sm_cvb_unban", Command_Unban, ADMFLAG_UNBAN, "Remove vote restrictions: sm_cvb_unban <target|steamid|accountid>");
 	RegAdminCmd("sm_cvb_status", Command_Status, ADMFLAG_GENERIC, "Check player restriction status: sm_cvb_status <target|steamid|accountid>");
 }
 
@@ -30,16 +30,16 @@ bool CVB_EnsureCommandBackendReady(int client)
 	return false;
 }
 
-static void CVB_ReplyRestrictUsage(int client)
+static void CVB_ReplyBanUsage(int client)
 {
-	CReplyToCommand(client, "%t %t: sm_cvb_restrict <target|steamid|accountid> <restrictionmask> [duration] [reason]", "Tag", "Usage");
+	CReplyToCommand(client, "%t %t: sm_cvb_ban <target|steamid|accountid> <restrictionmask> [duration] [reason]", "Tag", "Usage");
 	CReplyToCommand(client, "%t %t", "Tag", "SupportedSteamIDFormats");
 	CReplyToCommand(client, "%t %t", "Tag", "RestrictionTypes");
 }
 
-static void CVB_ReplyUnrestrictUsage(int client)
+static void CVB_ReplyUnbanUsage(int client)
 {
-	CReplyToCommand(client, "%t %t: sm_cvb_unrestrict <target|steamid|accountid>", "Tag", "Usage");
+	CReplyToCommand(client, "%t %t: sm_cvb_unban <target|steamid|accountid>", "Tag", "Usage");
 	CReplyToCommand(client, "%t %t", "Tag", "SupportedSteamIDFormats");
 }
 
@@ -73,7 +73,7 @@ static void CVB_ReplyResolveFailure(int client, const char[] input)
 	CReplyToCommand(client, "%t %t", "Tag", "InvalidPlayer");
 }
 
-public Action Command_Restrict(int client, int args)
+public Action Command_Ban(int client, int args)
 {
 	if (!g_cvarEnable.BoolValue)
 	{
@@ -86,7 +86,7 @@ public Action Command_Restrict(int client, int args)
 
 	if (args < 2)
 	{
-		CVB_ReplyRestrictUsage(client);
+		CVB_ReplyBanUsage(client);
 		return Plugin_Handled;
 	}
 
@@ -113,14 +113,14 @@ public Action Command_Restrict(int client, int args)
 	if (banType <= 0 || banType > view_as<int>(VOTE_ALL))
 	{
 		CReplyToCommand(client, "%t %t", "Tag", "InvalidRestrictionMask", banType, view_as<int>(VOTE_ALL));
-		CVB_ReplyRestrictUsage(client);
+		CVB_ReplyBanUsage(client);
 		return Plugin_Handled;
 	}
 
 	if (durationMinutes < 0)
 	{
 		CReplyToCommand(client, "%t %t", "Tag", "InvalidDuration", durationMinutes);
-		CVB_ReplyRestrictUsage(client);
+		CVB_ReplyBanUsage(client);
 		return Plugin_Handled;
 	}
 
@@ -136,7 +136,7 @@ public Action Command_Restrict(int client, int args)
 	if (!CVB_TryResolveInputAccountId(client, input, targetAccountId, targetClient, targetDisplay, sizeof(targetDisplay)))
 	{
 		CVB_ReplyResolveFailure(client, input);
-		CVB_ReplyRestrictUsage(client);
+		CVB_ReplyBanUsage(client);
 		return Plugin_Handled;
 	}
 
@@ -144,7 +144,7 @@ public Action Command_Restrict(int client, int args)
 	return Plugin_Handled;
 }
 
-public Action Command_Unrestrict(int client, int args)
+public Action Command_Unban(int client, int args)
 {
 	if (!g_cvarEnable.BoolValue)
 	{
@@ -157,7 +157,7 @@ public Action Command_Unrestrict(int client, int args)
 
 	if (args < 1)
 	{
-		CVB_ReplyUnrestrictUsage(client);
+		CVB_ReplyUnbanUsage(client);
 		return Plugin_Handled;
 	}
 
@@ -178,7 +178,7 @@ public Action Command_Unrestrict(int client, int args)
 	if (!CVB_TryResolveInputAccountId(client, input, targetAccountId, targetClient, targetDisplay, sizeof(targetDisplay)))
 	{
 		CVB_ReplyResolveFailure(client, input);
-		CVB_ReplyUnrestrictUsage(client);
+		CVB_ReplyUnbanUsage(client);
 		return Plugin_Handled;
 	}
 

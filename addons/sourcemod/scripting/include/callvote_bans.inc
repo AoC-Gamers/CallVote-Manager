@@ -13,11 +13,12 @@
 *****************************************************************/
 
 /**
- * Fired when a vote is blocked by callvote_bans.
+ * Fired from the Core canonical Blocked callback for a pending Bans veto.
+ * It is not emitted speculatively during PreStart.
  *
- * @param client        Client index that attempted to start the vote
+ * @param client        Captured caller connection, or 0 if no longer valid
  * @param voteType      Vote type that was blocked
- * @param target        Vote target client index, if any
+ * @param target        Captured target connection, or 0 if no longer valid
  * @param banType       Active restriction mask that caused the block.
  *                      This is 0 when the vote was blocked because the
  *                      backend restriction state could not be validated.

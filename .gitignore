@@ -1,6 +1,6 @@
 
 /.vscode
-/.tmp/
+/tmp/
 /dist/
 /.build/
 /build/

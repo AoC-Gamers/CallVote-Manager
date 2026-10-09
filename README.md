@@ -7,6 +7,7 @@ Suite de plugins SourceMod para controlar votaciones en Left 4 Dead 2.
 La suite se organiza alrededor de un core:
 
 - `callvote_core`: intercepta, crea sesiones y expone el lifecycle
+- `callvote_sql`: persistencia SQL opcional de votaciones confirmadas
 - `callvote_manager`: satelite de politica y UX por defecto
 - `callvote_kicklimit`: aplica politicas de abuso sobre votekick
 - `callvote_bans`: aplica restricciones de voto y expone API administrativa simple
@@ -16,9 +17,9 @@ El objetivo actual del proyecto es consolidar el core como una API estable para 
 ## Direccion actual
 
 - `AccountID` es la identidad canonica interna
-- `SteamID2` se usa solo para presentacion y logs legibles
-- MySQL persiste `AccountID` y `SteamID64` para analitica externa
-- SQLite se crea automaticamente desde los plugins cuando el entry de `databases.cfg` usa ese motor y mantiene el esquema local minimo
+- el core entrega pares `client` + `accountId`; las conversiones SteamID2/SteamID64 pertenecen a los satélites
+- `callvote_sql` persiste `AccountID` y `SteamID64` en MySQL para analitica externa
+- el satelite SQL crea SQLite automaticamente cuando el entry de `databases.cfg` usa ese motor y mantiene el esquema local minimo
 - el core expone ciclo de vida de votacion y contexto enriquecido
 - las restricciones de voto se mantienen como componente acotado, no como suite general de sanciones
 
@@ -31,18 +32,33 @@ flowchart LR
     Manager[callvote_manager]
     KickLimit[callvote_kicklimit]
     Bans[callvote_bans]
+    SQL[callvote_sql]
     External[Suites externas]
 
     Player --> Core
     Core --> Manager
     Core --> KickLimit
     Core --> Bans
+    Core --> SQL
     Core --> External
 ```
 
+
+### [CallVote Core](docs/README_CORE.md)
+
+Nucleo reutilizable que correlaciona las señales del motor y expone sesiones,
+identidades capturadas y el ciclo de vida. Las politicas, sanciones, conversiones
+Steam y persistencia corresponden a sus satelites.
+
+### [CallVote SQL](docs/README_SQL.md)
+
+Satelite opcional de persistencia y administracion SQL. Consume el inicio
+confirmado del core y conserva el esquema existente de `callvote_log`.
+Configuracion y comandos administrativos independientes del core.
+
 ### [CallVote Manager](docs/README_MANAGER.md)
 
-Plugin satelite de politica y UX por defecto. Consume `CallVote_PreStart` para aplicar inmunidades y reglas base, y luego usa `CallVote_Start` y eventos de progreso para mostrar la experiencia visible del voto.
+Plugin satélite opcional de política y UX. Evalúa reglas en `CallVote_PreStart`, presenta el rechazo confirmado en `CallVote_Blocked` y muestra inicios y respuestas mediante `CallVote_Start` y `CallVote_BallotCast`. No escucha votos del motor directamente ni conserva historial.
 
 ### [CallVote Kick Limit](docs/README_KICKLIMIT.md)
 
@@ -59,15 +75,16 @@ Plugin acotado de restricciones de voto. El runtime base queda reducido a API, p
 
 Superficie publica principal:
 
-- comandos `sm_cvb_restrict`, `sm_cvb_unrestrict` y `sm_cvb_status`
-- paneles `sm_cvb_restrict_panel`, `sm_cvb_unrestrict_panel` y `sm_cvb_status_panel`
+- comandos `sm_cvb_ban`, `sm_cvb_unban` y `sm_cvb_status`
+- paneles `sm_cvb_ban_panel`, `sm_cvb_unban_panel` y `sm_cvb_status_panel`
 - natives `CVB_HasActiveRestriction`, `CVB_GetPlayerRestrictionMask`, `CVB_RestrictPlayer`, `CVB_RemoveRestriction`, `CVB_GetRestrictionInfo`
 
 ## Documentos tecnicos
 
-- [Implementacion Core AccountID](docs/IMPLEMENTACION_CORE_ACCOUNTID.md)
+- [Contrato y ciclo de vida del Core](docs/README_CORE.md)
+- [Diagnostico de votaciones](docs/README_TESTING.md)
 - [Investigacion HL2SDK y Votaciones](docs/INVESTIGACION_HL2SDK_VOTACIONES.md)
-- [Migracion SQL a AccountID](docs/MIGRACION_ACCOUNTID_SQL.md)
+- [Votaciones por modo de juego](docs/VOTACIONES_POR_MODO.md)
 - [Sistema de Build](docs/BUILD_SYSTEM.md)
 
 ## Artefactos
@@ -83,6 +100,7 @@ Layout instalable del artefacto:
 ```text
 addons/sourcemod/plugins/callvote/
     callvote_core.smx
+    callvote_sql.smx
     callvote_manager.smx
     callvote_kicklimit.smx
     callvote_bans.smx
@@ -95,10 +113,13 @@ addons/sourcemod/scripting/include/
 
 addons/sourcemod/scripting/
     callvote_core.sp
+    callvote_sql.sp
     callvote_manager.sp
     callvote_kicklimit.sp
     callvote_bans.sp
     callvote_bans_adminmenu.sp
+    callvote_core/
+    callvote_sql/
     callvote_manager/
     callvote_bans/
 

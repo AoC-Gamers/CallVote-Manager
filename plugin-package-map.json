@@ -6,7 +6,8 @@
         "callvote_bans_adminmenu",
         "callvote_core",
         "callvote_kicklimit",
-        "callvote_manager"
+        "callvote_manager",
+        "callvote_sql"
       ]
     }
   },
@@ -24,12 +25,14 @@
             "callvote_bans_adminmenu.sp",
             "callvote_core.sp",
             "callvote_kicklimit.sp",
-            "callvote_manager.sp"
+            "callvote_manager.sp",
+            "callvote_sql.sp"
           ],
           "dirs": [
             "callvote_bans",
             "callvote_core",
-            "callvote_manager"
+            "callvote_manager",
+            "callvote_sql"
           ],
           "include": {
             "files": [
@@ -46,7 +49,8 @@
             "callvote_common.phrases.txt",
             "callvote_core.phrases.txt",
             "callvote_kicklimit.phrases.txt",
-            "callvote_manager.phrases.txt"
+            "callvote_manager.phrases.txt",
+            "callvote_sql.phrases.txt"
           ]
         }
       }

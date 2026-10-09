@@ -117,7 +117,7 @@ static void CVB_AppendRestrictedVoteType(char[] output, int maxlen, TypeVotes vo
 	StrCat(output, maxlen, voteTypeName);
 }
 
-void ShowVoteBlockedMessage(int client, TypeVotes voteType)
+void ShowVoteBlockedMessage(int client, TypeVotes voteType, PlayerRestrictionInfo restrictionInfo)
 {
 	if (!IsValidClient(client))
 		return;
@@ -127,7 +127,7 @@ void ShowVoteBlockedMessage(int client, TypeVotes voteType)
 
 	char consoleMessage[32];
 	Format(consoleMessage, sizeof(consoleMessage), "%T", "CheckConsoleForDetails", client);
-	bool hasLoadedBanState = (g_ClientStates[client].loadState == ClientBanLoad_Ready);
+	bool hasLoadedBanState = restrictionInfo.IsBanned();
 
 	switch (voteType)
 	{
@@ -150,7 +150,7 @@ void ShowVoteBlockedMessage(int client, TypeVotes voteType)
 	}
 
 	if (hasLoadedBanState)
-		ShowVoteBlockedDetailsInConsole(client);
+		ShowVoteBlockedDetailsInConsole(client, restrictionInfo);
 }
 
 void ShowVoteBlockedValidationMessage(int client)
@@ -164,14 +164,14 @@ void ShowVoteBlockedValidationMessage(int client)
 	PrintToConsole(client, "========================================");
 }
 
-void ShowVoteBlockedDetailsInConsole(int client)
+void ShowVoteBlockedDetailsInConsole(int client, PlayerRestrictionInfo restrictionInfo)
 {
-	if (g_ClientStates[client].loadState != ClientBanLoad_Ready)
+	if (!IsValidClient(client) || !restrictionInfo.IsBanned())
 		return;
 
-	int banType = GetClientRestrictionMask(client);
-	int expiresTimestamp = GetClientBanExpiration(client);
-	int createdTimestamp = GetClientBanCreationTime(client);
+	int banType = restrictionInfo.RestrictionMask;
+	int expiresTimestamp = restrictionInfo.ExpiresTimestamp;
+	int createdTimestamp = restrictionInfo.CreatedTimestamp;
 
 	PrintToConsole(client, "========================================");
 	PrintToConsole(client, "%T", "ConsoleVoteBlockedTitle", client);

@@ -2,29 +2,35 @@ VoteRestrictionType ValidateCallerState(int client, int &cooldownSeconds)
 {
 	cooldownSeconds = 0;
 
+	if (!CVM_IsLiveClient(client) || IsFakeClient(client))
+		return VoteRestriction_InvalidCaller;
+
 	if (L4D_GetClientTeam(client) == L4DTeam_Spectator)
 		return VoteRestriction_ClientState;
 
-	if (g_bBuiltinVotesLibrary && g_cvarBuiltinVote.BoolValue && !IsNewBuiltinVoteAllowed)
+	if (g_Runtime.hasBuiltinVotes && g_cvarBuiltinVote.BoolValue)
 	{
 		cooldownSeconds = CheckBuiltinVoteDelay();
-		if (cooldownSeconds < 1)
-			cooldownSeconds = 1;
-		return VoteRestriction_Cooldown;
+		if (IsBuiltinVoteInProgress() || cooldownSeconds > 0)
+		{
+			if (cooldownSeconds < 1)
+				cooldownSeconds = 1;
+			return VoteRestriction_Cooldown;
+		}
 	}
 
 	float sinceLastVote = GetEngineTime() - g_fLastVote;
-	if (sinceLastVote <= 5.5)
+	if (g_fLastVote >= 0.0 && sinceLastVote < 5.5)
 	{
-		cooldownSeconds = RoundFloat(5.5 - sinceLastVote);
+		cooldownSeconds = RoundToCeil(5.5 - sinceLastVote);
 		if (cooldownSeconds < 1)
 			cooldownSeconds = 1;
 		return VoteRestriction_Cooldown;
 	}
 
-	if (sv_vote_creation_timer != null && sinceLastVote <= sv_vote_creation_timer.FloatValue)
+	if (g_fLastVote >= 0.0 && sinceLastVote < sv_vote_creation_timer.FloatValue)
 	{
-		cooldownSeconds = RoundFloat(sv_vote_creation_timer.FloatValue - sinceLastVote);
+		cooldownSeconds = RoundToCeil(sv_vote_creation_timer.FloatValue - sinceLastVote);
 		if (cooldownSeconds < 1)
 			cooldownSeconds = 1;
 		return VoteRestriction_Cooldown;
@@ -109,7 +115,7 @@ VoteRestrictionType ValidateVote(int client, TypeVotes voteType, int target = 0,
 	{
 		case ChangeDifficulty:
 		{
-			if (strlen(argument) > 0)
+			if (argument[0] != '\0')
 			{
 				char sCVarDifficulty[32];
 				z_difficulty.GetString(sCVarDifficulty, sizeof(sCVarDifficulty));
@@ -123,7 +129,7 @@ VoteRestrictionType ValidateVote(int client, TypeVotes voteType, int target = 0,
 
 		case Kick:
 		{
-			if (target <= NO_INDEX)
+			if (!CVM_IsLiveClient(target))
 				return VoteRestriction_Target;
 
 			if (g_cvarSTVImmunity.BoolValue && IsClientConnected(target) && IsClientSourceTV(target))
@@ -161,8 +167,13 @@ VoteRestrictionType ValidateVote(int client, TypeVotes voteType, int target = 0,
 
 void SendRestrictionFeedback(int client, VoteRestrictionType restrictionType, TypeVotes voteType, int target = 0, int cooldownSeconds = 0)
 {
+	if (!CVM_IsLiveClient(client) || IsFakeClient(client))
+		return;
+
 	switch (restrictionType)
 	{
+		case VoteRestriction_InvalidCaller:
+			CPrintToChat(client, "%t %t", "Tag", "ValidClientOnly");
 		case VoteRestriction_ClientState:
 		{
 			CPrintToChat(client, "%t %t", "Tag", "SpecVote");
@@ -209,7 +220,7 @@ void SendRestrictionFeedback(int client, VoteRestrictionType restrictionType, Ty
 			{
 				case Kick:
 				{
-					if (target > 0)
+					if (CVM_IsLiveClient(target))
 					{
 						if (IsClientSourceTV(target))
 							CPrintToChat(client, "%t %t", "Tag", "SourceTVKick");
@@ -217,7 +228,7 @@ void SendRestrictionFeedback(int client, VoteRestrictionType restrictionType, Ty
 							CPrintToChat(client, "%t %t", "Tag", "BotKick");
 						else if (target == client)
 							CPrintToChat(client, "%t %t", "Tag", "KickSelf");
-						else if (IsAdmin(target))
+						else if (IsAdmin(target) && !IsFakeClient(target))
 						{
 							CPrintToChat(client, "%t %t", "Tag", "Immunity");
 							CPrintToChat(target, "%t %t", "Tag", "ImmunityTarget", client);

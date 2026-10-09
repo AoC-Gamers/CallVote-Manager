@@ -1,842 +1,557 @@
 #pragma semicolon 1
 #pragma newdecls required
 
-#include <sourcemod> 
-#include <colors>
+#include <sourcemod>
+#include <sdktools>
 #include <callvote_core>
-#include <dbi>
 
-/*****************************************************************
-			G L O B A L   V A R S
-*****************************************************************/
-
-#define PLUGIN_VERSION	"2.0"
-#define TAG				"[{olive}CallVote Debug{default}]"
-#define CVT_LOG_TAG "CVT"
 #define CVT_LOG_FILE "callvote_testing.log"
+#define CVT_MISSING_INT 2147483647
 
-ConVar
-	g_cvarEnable,
-	g_cvarLogMode,
-	g_cvarDebugMask,
-	g_cvarForwardManager,
-	g_cvarVoteStarted,
-	g_cvarVoteEnded,
-	g_cvarVoteChanged,
-	g_cvarVotePassed,
-	g_cvarVoteFailed,
-	g_cvarVoteCastYes,
-	g_cvarVoteCastNo,
-	g_cvarVoteStart,
-	g_cvarVotePass,
-	g_cvarVoteFail,
-	g_cvarVoteRegistered,
-	g_cvarCallVoteFailed,
-	g_cvarListenerVote,
-	g_cvarListenerCallVote,
-	g_cvarForwardPreStart,
-	g_cvarForwardBlocked,
-	g_cvarForwardPreExecute
-	;
+ConVar g_cvEnabled, g_cvLogMode, g_cvDebugMask, g_cvChat;
+ConVar g_cvEvents[7], g_cvMessages[5];
+ConVar g_cvController, g_cvConVars, g_cvBallot;
+ConVar g_cvListenerVote, g_cvListenerCallVote;
+ConVar g_cvForwardStart, g_cvForwardPreStart, g_cvForwardPreExecute, g_cvForwardBlocked, g_cvForwardEnd;
+char g_LogPath[PLATFORM_MAX_PATH];
+bool g_bLogReady;
+int g_Sequence;
 
-bool
-	g_bSQLConnected;
-
-Database
-	g_db;
-
-enum SQLDriver
-{
-	SQL_MySQL = 0,
-	SQL_SQLite
-}
-
-SQLDriver
-	g_SQLDriver;
-
-CallVoteLogger g_Log = null;
-
-#define MAX_STEAM_ID_LENGTH 32
-
-stock char sTypeVotes[TypeVotes_Size][] = {
-	"ChangeDifficulty",
-	"RestartGame",
-	"Kick",
-	"ChangeMission",
-	"ReturnToLobby",
-	"ChangeChapter",
-	"ChangeAllTalk"
+static const char g_EventNames[][] = {
+	"vote_started", "vote_ended", "vote_changed", "vote_passed", "vote_failed", "vote_cast_yes", "vote_cast_no"
+};
+static const char g_EventConVars[][] = {
+	"sm_cvt_votestarted", "sm_cvt_voteended", "sm_cvt_votechanged", "sm_cvt_votepassed", "sm_cvt_votefailed", "sm_cvt_votecastyes", "sm_cvt_votecastno"
+};
+static const char g_MessageNames[][] = {
+	"VoteStart", "VotePass", "VoteFail", "VoteRegistered", "CallVoteFailed"
+};
+static const char g_MessageConVars[][] = {
+	"sm_cvt_votestart", "sm_cvt_votepass", "sm_cvt_votefail", "sm_cvt_voteregistered", "sm_cvt_callvotefailed"
 };
 
-/*****************************************************************
-			P L U G I N   I N F O
-*****************************************************************/
+public Plugin myinfo = {
+	name = "Call Vote Testing",
+	author = "lechuga",
+	description = "Observes voting commands, engine signals and core forwards without changing votes",
+	version = "3.0.0",
+	url = "https://github.com/AoC-Gamers/CallVote-Manager"
+};
 
-/**
- * Plugin information properties. Plugins can declare a global variable with
- * their info. Example,
- * SourceMod will display this information when a user inspects plugins in the
- * console.
- */
-public Plugin myinfo =
-{
-	name		= "Call Vote Testing",
-	author		= "lechuga",
-	description = "Performs callvote manager forward testing",
-	version		= PLUGIN_VERSION,
-	url			= "https://github.com/lechuga16/callvote_manager"
-
-}
-
-/*****************************************************************
-			F O R W A R D   P U B L I C S
-*****************************************************************/
-
-/**
- * Called when the plugin is fully initialized and all known external references
- * are resolved. This is only called once in the lifetime of the plugin, and is
- * paired with OnPluginEnd().
- *
- * If any run-time error is thrown during this callback, the plugin will be marked
- * as failed.
- */
 public void OnPluginStart()
 {
-	g_cvarEnable		   = CreateConVar("sm_cvt_enable", "1", "Enable plugin", FCVAR_NOTIFY, true, 0.0, true, 1.0);
-	g_cvarLogMode		   = CallVoteEnsureLogModeConVar();
-	g_cvarDebugMask		   = CreateConVar("sm_cvt_debug_mask", "0", "Debug mask for callvote_testing. Core=1 SQL=2 Cache=4 Commands=8 Identity=16 Forwards=32 Session=64 Localization=128 All=255.", FCVAR_NONE, true, 0.0, true, 255.0);
-	g_Log				   = new CallVoteLogger(CVT_LOG_TAG, CVT_LOG_FILE, g_cvarLogMode, g_cvarDebugMask);
-	g_cvarForwardManager   = CreateConVar("sm_cvt_forwardmanager", "1", "Enable manager forwards", FCVAR_NONE, true, 0.0, true, 1.0);
+	g_cvEnabled = CreateConVar("sm_cvt_enable", "1", "Enable vote diagnostics", FCVAR_NONE, true, 0.0, true, 1.0);
+	g_cvLogMode = CreateConVar("sm_cvt_log_mode", "2", "Tester file logging, independent of sm_cv_log_mode: 0=off, 1=normal, 2=debug (mask applies)", FCVAR_NONE, true, 0.0, true, 2.0);
+	g_cvDebugMask = CreateConVar("sm_cvt_debug_mask", "1", "Diagnostic mask: Core=1 (vote trace)", FCVAR_NONE, true, 0.0, true, 255.0);
+	g_cvChat = CreateConVar("sm_cvt_chat", "0", "Also display traces in chat (deferred, for private tests)", FCVAR_NONE, true, 0.0, true, 1.0);
+	g_cvBallot = CreateConVar("sm_cvt_forwardballot", "1", "Observe CallVote_BallotCast", FCVAR_NONE, true, 0.0, true, 1.0);
+	g_cvController = CreateConVar("sm_cvt_controller", "1", "Capture vote_controller immediately and after voting signals", FCVAR_NONE, true, 0.0, true, 1.0);
+	g_cvConVars = CreateConVar("sm_cvt_convars", "1", "Capture voting ConVars on requests, starts, failures and manual snapshots", FCVAR_NONE, true, 0.0, true, 1.0);
+	BuildCallVoteDebugLogPath(CVT_LOG_FILE, g_LogPath, sizeof(g_LogPath));
+	if (EnsureCallVoteParentFolderForFile(g_LogPath))
+	{
+		File file = OpenFile(g_LogPath, "a");
+		g_bLogReady = file != null;
+		delete file;
+	}
+	if (!g_bLogReady)
+		LogError("[CVT] log_init_failed path=%s; console capture remains available", g_LogPath);
 
-	g_cvarVoteStarted	   = CreateConVar("sm_cvt_votestarted", "1", "Enable vote_started event", FCVAR_NONE, true, 0.0, true, 1.0);
-	g_cvarVoteEnded		   = CreateConVar("sm_cvt_voteended", "1", "Enable vote_ended event", FCVAR_NONE, true, 0.0, true, 1.0);
-	g_cvarVoteChanged	   = CreateConVar("sm_cvt_votechanged", "1", "Enable vote_changed event", FCVAR_NONE, true, 0.0, true, 1.0);
-	g_cvarVotePassed	   = CreateConVar("sm_cvt_votepassed", "1", "Enable vote_passed event", FCVAR_NONE, true, 0.0, true, 1.0);
-	g_cvarVoteFailed	   = CreateConVar("sm_cvt_votefailed", "1", "Enable vote_failed event", FCVAR_NONE, true, 0.0, true, 1.0);
-	g_cvarVoteCastYes	   = CreateConVar("sm_cvt_votecastyes", "1", "Enable vote_cast_yes event", FCVAR_NONE, true, 0.0, true, 1.0);
-	g_cvarVoteCastNo	   = CreateConVar("sm_cvt_votecastno", "1", "Enable vote_cast_no event", FCVAR_NONE, true, 0.0, true, 1.0);
-
-	g_cvarVoteStart		   = CreateConVar("sm_cvt_votestart", "1", "Enable VoteStart message", FCVAR_NONE, true, 0.0, true, 1.0);
-	g_cvarVotePass		   = CreateConVar("sm_cvt_votepass", "1", "Enable VotePass message", FCVAR_NONE, true, 0.0, true, 1.0);
-	g_cvarVoteFail		   = CreateConVar("sm_cvt_votefail", "1", "Enable VoteFail message", FCVAR_NONE, true, 0.0, true, 1.0);
-	g_cvarVoteRegistered   = CreateConVar("sm_cvt_voteregistered", "1", "Enable VoteRegistered message", FCVAR_NONE, true, 0.0, true, 1.0);
-	g_cvarCallVoteFailed   = CreateConVar("sm_cvt_callvotefailed", "1", "Enable CallVoteFailed message", FCVAR_NONE, true, 0.0, true, 1.0);
-
-	g_cvarListenerVote	   = CreateConVar("sm_cvt_listenervote", "0", "Enable Vote listener", FCVAR_NONE, true, 0.0, true, 1.0);
-	g_cvarListenerCallVote = CreateConVar("sm_cvt_listenercallvote", "0", "Enable CallVote listener", FCVAR_NONE, true, 0.0, true, 1.0);
-
-	g_cvarForwardPreStart  = CreateConVar("sm_cvt_forwardprestart", "1", "Enable CallVote_PreStart forward", FCVAR_NONE, true, 0.0, true, 1.0);
-	g_cvarForwardBlocked   = CreateConVar("sm_cvt_forwardblocked", "1", "Enable CallVote_Blocked forward", FCVAR_NONE, true, 0.0, true, 1.0);
-	g_cvarForwardPreExecute = CreateConVar("sm_cvt_forwardpreexecute", "1", "Enable CallVote_PreExecute forward", FCVAR_NONE, true, 0.0, true, 1.0);
-	
-	HookEvent("vote_started", Event_VoteStarted);
-	HookEvent("vote_ended", Event_VoteEnded);
-	HookEvent("vote_changed", Event_VoteChanged);
-	HookEvent("vote_passed", Event_VotePassed);
-	HookEvent("vote_failed", Event_VoteFailed);
-	HookEvent("vote_cast_yes", Event_VoteCastYes);
-	HookEvent("vote_cast_no", Event_VoteCastNo);
-
-	HookUserMessage(GetUserMessageId("VoteStart"), Message_VoteStart);
-	HookUserMessage(GetUserMessageId("VotePass"), Message_VotePass);
-	HookUserMessage(GetUserMessageId("VoteFail"), Message_VoteFail);
-	HookUserMessage(GetUserMessageId("VoteRegistered"), Message_VoteRegistered);
-	HookUserMessage(GetUserMessageId("CallVoteFailed"), Message_CallVoteFailed);
-
+	for (int i = 0; i < sizeof(g_EventNames); i++)
+	{
+		g_cvEvents[i] = CreateConVar(g_EventConVars[i], "1", "Observe voting event", FCVAR_NONE, true, 0.0, true, 1.0);
+		if (!HookEventEx(g_EventNames[i], Event_VoteSignal, EventHookMode_Post))
+			LogError("[CVT] event_unavailable name=%s", g_EventNames[i]);
+	}
+	for (int i = 0; i < sizeof(g_MessageNames); i++)
+	{
+		g_cvMessages[i] = CreateConVar(g_MessageConVars[i], "1", "Observe voting usermessage", FCVAR_NONE, true, 0.0, true, 1.0);
+		UserMsg id = GetUserMessageId(g_MessageNames[i]);
+		if (id == INVALID_MESSAGE_ID)
+			LogError("[CVT] message_unavailable name=%s", g_MessageNames[i]);
+		else
+			HookUserMessage(id, Message_VoteSignal);
+	}
+	g_cvListenerVote = CreateConVar("sm_cvt_listenervote", "1", "Observe Vote command attempts", FCVAR_NONE, true, 0.0, true, 1.0);
+	g_cvListenerCallVote = CreateConVar("sm_cvt_listenercallvote", "1", "Observe callvote command attempts", FCVAR_NONE, true, 0.0, true, 1.0);
+	g_cvForwardStart = CreateConVar("sm_cvt_forwardmanager", "1", "Observe CallVote_Start", FCVAR_NONE, true, 0.0, true, 1.0);
+	g_cvForwardPreStart = CreateConVar("sm_cvt_forwardprestart", "1", "Observe CallVote_PreStart", FCVAR_NONE, true, 0.0, true, 1.0);
+	g_cvForwardPreExecute = CreateConVar("sm_cvt_forwardpreexecute", "1", "Observe CallVote_PreExecute", FCVAR_NONE, true, 0.0, true, 1.0);
+	g_cvForwardBlocked = CreateConVar("sm_cvt_forwardblocked", "1", "Observe CallVote_Blocked", FCVAR_NONE, true, 0.0, true, 1.0);
+	g_cvForwardEnd = CreateConVar("sm_cvt_forwardend", "1", "Observe CallVote_End", FCVAR_NONE, true, 0.0, true, 1.0);
 	AddCommandListener(Listener_Vote, "Vote");
 	AddCommandListener(Listener_CallVote, "callvote");
-
-	RegConsoleCmd("sm_cvt_connected", Cmd_Connected, "Check if the database is connected");
-
+	RegAdminCmd("sm_cvt_status", Command_Status, ADMFLAG_ROOT, "Show diagnostic configuration and trace path");
+	RegAdminCmd("sm_cvt_snapshot", Command_Snapshot, ADMFLAG_ROOT, "Read voting ConVars and vote_controller without starting a vote");
 }
 
-Action Cmd_Connected(int iClient, int iArgs)
+// Only the tester stores this ordering counter; no vote history is added to the core.
+void Trace(const char[] source, const char[] format, any ...)
 {
-	if (!g_bSQLConnected)
+	if (!g_cvEnabled.BoolValue)
+		return;
+	char payload[768], line[1024], map[128];
+	VFormat(payload, sizeof(payload), format, 3);
+	ReplaceString(payload, sizeof(payload), "\n", "\\n");
+	ReplaceString(payload, sizeof(payload), "\r", "\\r");
+	GetCurrentMap(map, sizeof(map));
+	FormatEx(line, sizeof(line), "seq=%d tick=%d engine=%.6f unix=%d session=%d map=%s source=%s %s", ++g_Sequence, GetGameTickCount(), GetEngineTime(), GetTime(), StrEqual(source, "OnPluginEnd") ? -1 : CallVoteCore_GetCurrentSession(), map, source, payload);
+	PrintToServer("[CVT] %s", line);
+	// Test capture must not stop when a game-mode config changes the suite log mode.
+	if (g_bLogReady && (g_cvLogMode.IntValue == 1 || CallVoteDebugMaskEnabled(g_cvLogMode, g_cvDebugMask, CVLogMask_Core)))
+		LogToFileEx(g_LogPath, "[CVT][Core] %s", line);
+	if (g_cvChat.BoolValue && !StrEqual(source, "vote_controller") && !StrEqual(source, "vote_roster") && !StrEqual(source, "vote_convar"))
 	{
-		CReplyToCommand(iClient, "%s {red}Could not{default} connect to database.", TAG);
-		return Plugin_Handled;
+		DataPack pack;
+		CreateDataTimer(0.0, Timer_ChatTrace, pack, TIMER_FLAG_NO_MAPCHANGE);
+		pack.WriteString(line);
+	}
+}
+
+public Action Timer_ChatTrace(Handle timer, DataPack pack)
+{
+	if (!g_cvEnabled.BoolValue || !g_cvChat.BoolValue)
+		return Plugin_Stop;
+	char line[1024];
+	pack.Reset();
+	pack.ReadString(line, sizeof(line));
+	PrintToChatAll("[CVT] %s", line);
+	return Plugin_Stop;
+}
+
+// Snapshots belong to the tester. They never write to the controller or ConVars.
+void AppendControllerInt(int entity, const char[] key, char[] buffer, int maxlen)
+{
+	PropType type = Prop_Send;
+	bool found = HasEntProp(entity, type, key);
+	if (!found)
+	{
+		type = Prop_Data;
+		found = HasEntProp(entity, type, key);
+	}
+	if (!found)
+	{
+		Format(buffer, maxlen, "%s %s=<absent>", buffer, key);
+		return;
+	}
+	int value = GetEntProp(entity, type, key);
+	Format(buffer, maxlen, "%s %s=%d(%s)", buffer, key, value, type == Prop_Send ? "send" : "data");
+	if (StrEqual(key, "m_onlyTeamToVote"))
+		Format(buffer, maxlen, "%s team_normalized=%d", buffer, value == 255 ? -1 : value);
+}
+
+void SnapshotController(const char[] signal, const char[] phase, int originSeq, int originTick, int originSession)
+{
+	if (!g_cvEnabled.BoolValue || !g_cvController.BoolValue)
+		return;
+	int entity = -1, controllers;
+	static const char properties[][] = {
+		"m_activeIssueIndex", "m_votesYes", "m_votesNo", "m_potentialVotes", "m_onlyTeamToVote"
+	};
+	while ((entity = FindEntityByClassname(entity, "vote_controller")) != -1)
+	{
+		char fields[512];
+		for (int i = 0; i < sizeof(properties); i++)
+			AppendControllerInt(entity, properties[i], fields, sizeof(fields));
+		Trace("vote_controller", "signal=%s phase=%s origin_seq=%d origin_tick=%d origin_session=%d entity=%d%s", signal, phase, originSeq, originTick, originSession, entity, fields);
+		controllers++;
+	}
+	if (!controllers)
+		Trace("vote_controller", "signal=%s phase=%s origin_seq=%d origin_tick=%d origin_session=%d entity=<absent>", signal, phase, originSeq, originTick, originSession);
+
+	int humans, spectators, survivors, infected, other, bots, sourceTV;
+	for (int client = 1; client <= MaxClients; client++)
+	{
+		if (!IsClientInGame(client))
+			continue;
+		if (IsClientSourceTV(client))
+			sourceTV++;
+		else if (IsFakeClient(client))
+			bots++;
+		else
+		{
+			humans++;
+			switch (GetClientTeam(client))
+			{
+				case 1: spectators++;
+				case 2: survivors++;
+				case 3: infected++;
+				default: other++;
+			}
+		}
+	}
+	Trace("vote_roster", "signal=%s phase=%s origin_seq=%d origin_tick=%d origin_session=%d humans=%d spectators=%d survivors=%d infected=%d other=%d bots=%d sourcetv=%d electorate_not_inferred=1", signal, phase, originSeq, originTick, originSession, humans, spectators, survivors, infected, other, bots, sourceTV);
+}
+
+void ObserveController(const char[] signal)
+{
+	if (!g_cvEnabled.BoolValue || !g_cvController.BoolValue)
+		return;
+	int originSeq = g_Sequence, originTick = GetGameTickCount(), originSession = CallVoteCore_GetCurrentSession();
+	SnapshotController(signal, "immediate", originSeq, originTick, originSession);
+	// One-shot samples only; the engine or another plugin may update the entity later.
+	for (int i = 0; i < 2; i++)
+	{
+		DataPack pack;
+		CreateDataTimer(i == 0 ? 0.0 : 0.1, Timer_ControllerSnapshot, pack, TIMER_FLAG_NO_MAPCHANGE);
+		pack.WriteString(signal);
+		pack.WriteString(i == 0 ? "deferred" : "after_100ms");
+		pack.WriteCell(originSeq);
+		pack.WriteCell(originTick);
+		pack.WriteCell(originSession);
+	}
+}
+
+public Action Timer_ControllerSnapshot(Handle timer, DataPack pack)
+{
+	char signal[64], phase[32];
+	pack.Reset();
+	pack.ReadString(signal, sizeof(signal));
+	pack.ReadString(phase, sizeof(phase));
+	int originSeq = pack.ReadCell(), originTick = pack.ReadCell(), originSession = pack.ReadCell();
+	SnapshotController(signal, phase, originSeq, originTick, originSession);
+	return Plugin_Stop;
+}
+
+void SnapshotConVars(const char[] signal)
+{
+	if (!g_cvEnabled.BoolValue || !g_cvConVars.BoolValue)
+		return;
+	// These ConVars are owned by the L4D2 engine and are present in this game.
+	// Read them directly; only plugin-owned entries below can be absent.
+	static const char engineNames[][] = {
+		"sv_allow_votes", "sv_vote_command_delay", "sv_vote_creation_timer", "sv_vote_failure_timer",
+		"sv_vote_issue_change_difficulty_allowed", "sv_vote_issue_change_map_later_allowed",
+		"sv_vote_issue_change_map_now_allowed", "sv_vote_issue_change_mission_allowed",
+		"sv_vote_issue_kick_allowed", "sv_vote_issue_restart_game_allowed", "sv_vote_kick_ban_duration",
+		"sv_vote_plr_map_limit", "sv_vote_show_caller", "sv_vote_timer_duration",
+		"sv_pz_endgame_vote_period", "sv_pz_endgame_vote_post_period", "versus_level_restart_delay",
+		"mp_gamemode", "sv_alltalk"
+	};
+	static const char pluginNames[][] = {
+		"sm_cvc_enable", "sm_cvm_enable", "sm_cvm_all_talk",
+		"sm_cvm_builtin_vote", "sm_cvkl_enable", "sm_cvkl_kicklimit", "l4d_votepoll_fix_version"
+	};
+	for (int i = 0; i < sizeof(engineNames); i++)
+		TraceConVar(signal, engineNames[i], false);
+	for (int i = 0; i < sizeof(pluginNames); i++)
+		TraceConVar(signal, pluginNames[i], true);
+}
+
+void TraceConVar(const char[] signal, const char[] name, bool optional)
+{
+	ConVar variable = FindConVar(name);
+	if (optional && variable == null)
+	{
+		Trace("vote_convar", "signal=%s name=%s value=<absent>", signal, name);
+		return;
+	}
+	char value[128];
+	variable.GetString(value, sizeof(value));
+	Trace("vote_convar", "signal=%s name=%s value=\"%s\"", signal, name, value);
+}
+
+void DescribeClient(int client, char[] buffer, int maxlen)
+{
+	if (client < 1 || client > MaxClients || !IsClientConnected(client))
+	{
+		FormatEx(buffer, maxlen, "client=%d connected=0", client);
+		return;
+	}
+	char steam64[32];
+	if (!GetClientAuthId(client, AuthId_SteamID64, steam64, sizeof(steam64)))
+		strcopy(steam64, sizeof(steam64), "<unavailable>");
+	bool inGame = IsClientInGame(client);
+	int team = inGame ? GetClientTeam(client) : -1;
+	FormatEx(buffer, maxlen, "client=%d userid=%d accountid=%d steamid64=%s ingame=%d fake=%d team=%d", client, GetClientUserId(client), GetSteamAccountID(client), steam64, inGame, IsFakeClient(client), team);
+}
+
+void AppendEventInt(Event event, const char[] key, char[] buffer, int maxlen)
+{
+	int value = event.GetInt(key, CVT_MISSING_INT);
+	if (value == CVT_MISSING_INT)
+		Format(buffer, maxlen, "%s %s=<absent>", buffer, key);
+	else
+		Format(buffer, maxlen, "%s %s=%d", buffer, key, value);
+}
+
+void AppendEventString(Event event, const char[] key, char[] buffer, int maxlen)
+{
+	char value[256];
+	event.GetString(key, value, sizeof(value), "<absent>");
+	Format(buffer, maxlen, "%s %s=\"%s\"", buffer, key, value);
+}
+
+public void Event_VoteSignal(Event event, const char[] name, bool dontBroadcast)
+{
+	for (int i = 0; i < sizeof(g_EventNames); i++)
+	{
+		if (StrEqual(name, g_EventNames[i]) && !g_cvEvents[i].BoolValue)
+			return;
+	}
+	if (!g_cvEnabled.BoolValue)
+		return;
+	char fields[512], clientInfo[256];
+	FormatEx(fields, sizeof(fields), "dont_broadcast=%d", dontBroadcast);
+	// Probe known and previously assumed fields, marking absence instead of treating it as zero.
+	static const char intKeys[][] = { "team", "initiator", "entityid", "yesVotes", "noVotes", "potentialVotes", "success" };
+	static const char stringKeys[][] = { "issue", "param1", "param2", "votedata", "vote_type", "details" };
+	for (int i = 0; i < sizeof(intKeys); i++)
+		AppendEventInt(event, intKeys[i], fields, sizeof(fields));
+	Trace(name, "%s", fields);
+	for (int i = 0; i < sizeof(stringKeys); i++)
+	{
+		fields[0] = '\0';
+		AppendEventString(event, stringKeys[i], fields, sizeof(fields));
+		Trace(name, "%s", fields);
+	}
+	int client = event.GetInt("entityid", event.GetInt("initiator", 0));
+	DescribeClient(client, clientInfo, sizeof(clientInfo));
+	Trace(name, "subject={%s}", clientInfo);
+	ObserveController(name);
+}
+
+public Action Message_VoteSignal(UserMsg id, BfRead reader, const int[] recipients, int count, bool reliable, bool init)
+{
+	char name[64];
+	GetUserMessageName(id, name, sizeof(name));
+	for (int i = 0; i < sizeof(g_MessageNames); i++)
+	{
+		if (StrEqual(name, g_MessageNames[i]) && !g_cvMessages[i].BoolValue)
+			return Plugin_Continue;
+	}
+	if (!g_cvEnabled.BoolValue)
+		return Plugin_Continue;
+	int bytes = reader.BytesLeft;
+	Trace(name, "bytes=%d recipients=%d reliable=%d init=%d", bytes, count, reliable, init);
+	ObserveController(name);
+	if (StrEqual(name, "VoteStart") || StrEqual(name, "CallVoteFailed"))
+		SnapshotConVars(name);
+	// Preserve recipient identity at observation time, before any deferred chat output.
+	for (int i = 0; i < count; i++)
+	{
+		char clientInfo[256];
+		DescribeClient(recipients[i], clientInfo, sizeof(clientInfo));
+		Trace(name, "recipient_index=%d {%s}", i, clientInfo);
+	}
+	if (bytes < 1)
+	{
+		Trace(name, "malformed=1 missing=first_byte");
+		return Plugin_Continue;
+	}
+	int first = reader.ReadByte();
+	if (StrEqual(name, "VoteRegistered"))
+		Trace(name, "vote_raw=%d decision=%s bytes_left=%d", first, first == 1 ? "yes" : (first == 0 ? "no" : "unknown"), reader.BytesLeft);
+	else if (StrEqual(name, "CallVoteFailed"))
+	{
+		if (reader.BytesLeft >= 2)
+		{
+			int time = reader.ReadShort();
+			Trace(name, "reason=%d time_raw=%d bytes_left=%d", first, time, reader.BytesLeft);
+		}
+		else
+			Trace(name, "reason=%d time_raw=<absent> bytes_left=%d", first, reader.BytesLeft);
 	}
 	else
-		CReplyToCommand(iClient, "%s Database connected {green}successfully{default}.", TAG);
-
-	CReplyToCommand(iClient, "%s Driver SQL: %s", TAG, g_SQLDriver == SQL_MySQL ? "MySQL" : "SQLite");
-
-	char sTableLog[] = "callvote_log";
-
-	if (isTableExists(sTableLog))
-		CReplyToCommand(iClient, "%s Table %s exists.", TAG, sTableLog);
-	else
-		CReplyToCommand(iClient, "%s Table %s does not exist.", TAG, sTableLog);
-
-	char sTableBans[] = "callvote_bans";
-
-	if (isTableExists(sTableBans))
-		CReplyToCommand(iClient, "%s Table %s exists.", TAG, sTableBans);
-	else
-		CReplyToCommand(iClient, "%s Table %s does not exist.", TAG, sTableBans);
-
-	char sTableKick[] = "callvote_kicklimit";
-
-	if (isTableExists(sTableKick))
-		CReplyToCommand(iClient, "%s Table %s exists.", TAG, sTableKick);
-	else
-		CReplyToCommand(iClient, "%s Table %s does not exist.", TAG, sTableKick);
-
-	return Plugin_Handled;
+	{
+		Trace(name, "team_raw=%d team_normalized=%d", first, first == 255 ? -1 : first);
+		if (StrEqual(name, "VoteStart"))
+		{
+			if (reader.BytesLeft < 1)
+			{
+				Trace(name, "malformed=1 missing=initiator");
+				return Plugin_Continue;
+			}
+			int initiator = reader.ReadByte();
+			Trace(name, "initiator_raw=%d", initiator);
+			TraceMessageString(reader, name, "issue");
+			TraceMessageString(reader, name, "param1");
+			TraceMessageString(reader, name, "initiatorName");
+		}
+		else if (StrEqual(name, "VotePass"))
+		{
+			TraceMessageString(reader, name, "details");
+			TraceMessageString(reader, name, "param1");
+		}
+		// VoteFail has only the team byte; do not read invented strings.
+		Trace(name, "bytes_left=%d", reader.BytesLeft);
+	}
+	TraceRemainingBytes(reader, name);
+	return Plugin_Continue;
 }
 
-public void OnConfigsExecuted()
+void TraceRemainingBytes(BfRead reader, const char[] source)
 {
-	EnsureCallVoteDebugLogFolderForMode(g_cvarLogMode);
-
-	if (!g_cvarEnable.BoolValue)
+	int remaining = reader.BytesLeft;
+	if (remaining < 1)
 		return;
+	char hex[196];
+	int limit = remaining > 64 ? 64 : remaining;
+	for (int i = 0; i < limit; i++)
+		Format(hex, sizeof(hex), "%s%02X ", hex, reader.ReadByte());
+	Trace(source, "extra_bytes=%d hex=\"%s\" omitted_bytes=%d", remaining, hex, remaining - limit);
+}
 
-	if (g_db != null)
+void TraceMessageString(BfRead reader, const char[] source, const char[] key)
+{
+	if (reader.BytesLeft < 1)
+	{
+		Trace(source, "%s=<absent>", key);
 		return;
+	}
+	char value[256];
+	int read = reader.ReadString(value, sizeof(value));
+	Trace(source, "%s=\"%s\" read=%d malformed=%d at_buffer_limit=%d bytes_left=%d", key, value, read, read < 0, strlen(value) == sizeof(value) - 1, reader.BytesLeft);
+}
 
-	ConnectDB("callvote");
+public Action Listener_Vote(int client, const char[] command, int argc)
+{
+	if (g_cvListenerVote.BoolValue)
+		TraceCommand(client, command, argc);
+	return Plugin_Continue;
+}
+
+public Action Listener_CallVote(int client, const char[] command, int argc)
+{
+	if (g_cvListenerCallVote.BoolValue)
+		TraceCommand(client, command, argc);
+	return Plugin_Continue;
+}
+
+// -1 means unavailable, 0 idle, 1 an active engine issue. Do not infer it from
+// a core session: another plugin may have initiated an engine vote.
+int GetEngineVoteActivity()
+{
+	int entity = -1;
+	bool found;
+	while ((entity = FindEntityByClassname(entity, "vote_controller")) != -1)
+	{
+		if (!HasEntProp(entity, Prop_Send, "m_activeIssueIndex"))
+			continue;
+		found = true;
+		if (GetEntProp(entity, Prop_Send, "m_activeIssueIndex") >= 0)
+			return 1;
+	}
+	return found ? 0 : -1;
+}
+
+void TraceCommand(int client, const char[] command, int argc)
+{
+	if (!g_cvEnabled.BoolValue)
+		return;
+	char arguments[256], clientInfo[256];
+	GetCmdArgString(arguments, sizeof(arguments));
+	DescribeClient(client, clientInfo, sizeof(clientInfo));
+	int activity = GetEngineVoteActivity();
+	Trace(command, "argc=%d args=\"%s\" {%s} attempt_only=1 engine_vote_active=%d", argc, arguments, clientInfo, activity);
+	// Idle F1/F2 is a command attempt, not a ballot; no deferred snapshots.
+	if (StrEqual(command, "Vote", false) && activity == 0)
+		return;
+	ObserveController(command);
+	if (StrEqual(command, "callvote", false))
+		SnapshotConVars(command);
+}
+
+void TraceSessionState(const char[] source, int sessionId)
+{
+	CallVoteSessionStatus status;
+	VoteRestrictionType restriction;
+	if (CallVoteCore_GetSessionState(sessionId, status, restriction))
+		Trace(source, "forward_session=%d state=%d restriction=%d", sessionId, status, restriction);
+}
+
+void TraceForwardContext(const char[] source, int sessionId, int client, int accountId, TypeVotes type, int target, int targetAccountId, const char[] argument)
+{
+	char callerInfo[256], targetInfo[256];
+	DescribeClient(client, callerInfo, sizeof(callerInfo));
+	DescribeClient(target, targetInfo, sizeof(targetInfo));
+	Trace(source, "forward_session=%d type=%d caller_accountid=%d target_accountid=%d arg=\"%s\" caller={%s} target={%s}", sessionId, type, accountId, targetAccountId, argument, callerInfo, targetInfo);
+}
+
+public Action CallVote_PreStart(int sessionId, int client, int accountId, TypeVotes type, int target, int targetAccountId, const char[] argument)
+{
+	if (g_cvForwardPreStart.BoolValue)
+		TraceForwardContext("CallVote_PreStart", sessionId, client, accountId, type, target, targetAccountId, argument);
+	return Plugin_Continue;
+}
+
+public Action CallVote_PreExecute(int sessionId, int client, int accountId, TypeVotes type, int target, int targetAccountId, const char[] argument)
+{
+	if (g_cvForwardPreExecute.BoolValue)
+		TraceForwardContext("CallVote_PreExecute", sessionId, client, accountId, type, target, targetAccountId, argument);
+	return Plugin_Continue;
+}
+
+public void CallVote_Blocked(int sessionId, int client, int accountId, TypeVotes type, VoteRestrictionType restriction, int target, int targetAccountId, const char[] argument)
+{
+	if (!g_cvForwardBlocked.BoolValue)
+		return;
+	TraceForwardContext("CallVote_Blocked", sessionId, client, accountId, type, target, targetAccountId, argument);
+	Trace("CallVote_Blocked", "forward_session=%d restriction=%d", sessionId, restriction);
+	TraceSessionState("CallVote_Blocked", sessionId);
 }
 
 public void CallVote_Start(int sessionId)
 {
-	if (!g_cvarForwardManager.BoolValue)
-		return;
-
-	int iClient;
-	int iCallerAccountId;
-	TypeVotes votes;
-	int iTarget;
-	int iTargetAccountId;
-	char sArgument[64];
-	if (!CallVoteCore_GetSessionInfo(sessionId, iClient, iCallerAccountId, votes, iTarget, iTargetAccountId, sArgument, sizeof(sArgument)))
-		return;
-
-	char sSteamID[MAX_STEAM_ID_LENGTH];
-	CallVoteCore_GetClientSteamID2(iClient, sSteamID, sizeof(sSteamID));
-
-	char
-		sMessage[255];
-
-	if (votes == Kick)
+	if (g_cvForwardStart.BoolValue)
 	{
-		Format(sMessage, sizeof(sMessage), "%s [CallVote_Start] session=%d {green}%s{default}: {blue}%N{default} ({blue}%s{default}) ({blue}%N{default}) called the vote.", TAG, sessionId, sTypeVotes[votes], iClient, sSteamID, iTarget);
-		CPrintToChatAll(sMessage);
-		CRemoveTags(sMessage, sizeof(sMessage));
-		log(false, sMessage);
+		Trace("CallVote_Start", "forward_session=%d", sessionId);
+		TraceSessionState("CallVote_Start", sessionId);
+		ObserveController("CallVote_Start");
 	}
+}
+
+public void CallVote_BallotCast(int sessionId, int client, int accountId, bool votedYes, int team)
+{
+	if (!g_cvBallot.BoolValue)
+		return;
+	char identity[256];
+	if (client > 0 && client <= MaxClients && IsClientConnected(client) && GetSteamAccountID(client) == accountId)
+		DescribeClient(client, identity, sizeof(identity));
 	else
+		FormatEx(identity, sizeof(identity), "client=%d live_identity_unavailable_or_changed=1", client);
+	Trace("CallVote_BallotCast", "forward_session=%d voter_accountid=%d yes=%d team=%d voter={%s}", sessionId, accountId, votedYes, team, identity);
+}
+
+public void CallVote_End(int sessionId, CallVoteEndReason result, int yesCount, int noCount, int potentialVotes)
+{
+	if (g_cvForwardEnd.BoolValue)
 	{
-		Format(sMessage, sizeof(sMessage), "%s [CallVote_Start] session=%d {green}%s{default}: {blue}%N{default} ({blue}%s{default}) called the vote.", TAG, sessionId, sTypeVotes[votes], iClient, sSteamID);
-		CPrintToChatAll(sMessage);
-		CRemoveTags(sMessage, sizeof(sMessage));
-		log(false, sMessage);
+		Trace("CallVote_End", "forward_session=%d core_result=%d yes=%d no=%d potential=%d", sessionId, result, yesCount, noCount, potentialVotes);
+		TraceSessionState("CallVote_End", sessionId);
+		ObserveController("CallVote_End");
 	}
 }
 
-/*
- * vote_started
- *
- *	"team"			"byte"		// ID del equipo (normalmente 0 = global)
- *	"initiator"		"long"		// entity id del cliente que inició la votación
- *	"issue"			"string"	// tipo de votación, ej. "Kick", "ChangeMission"
- *	"param1"		"string"	// parámetro adicional (ej. mapa, nombre del jugador)
- *	"param2"		"string"	// parámetro opcional, a veces vacío
- *
- */
-public void Event_VoteStarted(Event hEvent, const char[] sEventName, bool bDontBroadcast)
+public void OnMapStart()
 {
-	if (!g_cvarVoteStarted.BoolValue)
-		return;
-
-	char sIssue[128];
-	char sParam1[128];
-	char sParam2[128];
-
-	hEvent.GetString("issue", sIssue, sizeof(sIssue));
-	hEvent.GetString("param1", sParam1, sizeof(sParam1));
-	hEvent.GetString("param2", sParam2, sizeof(sParam2));
-	int iTeam	   = hEvent.GetInt("team");
-	int iInitiator = hEvent.GetInt("initiator");
-	
-	log(false, "[Event_VoteStarted] team: %d, initiator: %d, issue: %s, param1: %s, param2: %s", iTeam, iInitiator, sIssue, sParam1, sParam2);
-	CPrintToChatAll("%s [Event_VoteStarted] team: %d, initiator: %d, issue: %s, param1: %s, param2: %s", TAG, iTeam, iInitiator, sIssue, sParam1, sParam2);
+	Trace("OnMapStart", "boundary=1");
 }
 
-/*
- * vote_ended
- * 
- * Evento más importante - siempre se dispara cuando la votación termina
- *
- *	"team"			"byte"		// equipo que realizó la votación
- *	"success"		"byte/bool"	// 1 si la votación pasó, 0 si fracasó
- *	"vote_type"		"string"	// tipo de votación, ej. "Kick", "ChangeMission"
- *	"param1"		"string"	// parámetro (ej. mapa, nombre, id usuario)
- *	"param2"		"string"	// parámetro opcional, a menudo vacío
- *
- */
-public void Event_VoteEnded(Event hEvent, const char[] sEventName, bool bDontBroadcast)
+public void OnMapEnd()
 {
-	if (!g_cvarVoteEnded.BoolValue)
-		return;
-
-	char sVoteType[128];
-	char sParam1[128];
-	char sParam2[128];
-
-	hEvent.GetString("vote_type", sVoteType, sizeof(sVoteType));
-	hEvent.GetString("param1", sParam1, sizeof(sParam1));
-	hEvent.GetString("param2", sParam2, sizeof(sParam2));
-	int iTeam = hEvent.GetInt("team");
-	int iSuccess = hEvent.GetInt("success");
-	
-	log(false, "[Event_VoteEnded] team: %d, success: %d, vote_type: %s, param1: %s, param2: %s", iTeam, iSuccess, sVoteType, sParam1, sParam2);
-	CPrintToChatAll("%s [Event_VoteEnded] team: %d, success: %d (%s), vote_type: %s, param1: %s, param2: %s", TAG, iTeam, iSuccess, iSuccess ? "PASSED" : "FAILED", sVoteType, sParam1, sParam2);
+	Trace("OnMapEnd", "boundary=1");
 }
 
-/*
- * vote_changed"
- *
- *	"yesVotes"		"byte"
- *	"noVotes"		"byte"
- *	"potentialVotes"	"byte"
- *
- */
-public void Event_VoteChanged(Event hEvent, const char[] sEventName, bool bDontBroadcast)
+public Action Command_Status(int client, int args)
 {
-	if (!g_cvarVoteChanged.BoolValue)
-		return;
-
-	int iYesVotes		= hEvent.GetInt("yesVotes");
-	int iNoVotes		= hEvent.GetInt("noVotes");
-	int iPotentialVotes = hEvent.GetInt("potentialVotes");
-	log(false, "[Event_VoteChanged] yesVotes: %d, noVotes: %d, potentialVotes: %d", iYesVotes, iNoVotes, iPotentialVotes);
-	CPrintToChatAll("%s [Event_VoteChanged] yesVotes: %d, noVotes: %d, potentialVotes: %d", TAG, iYesVotes, iNoVotes, iPotentialVotes);
+	char path[PLATFORM_MAX_PATH];
+	BuildCallVoteDebugLogPath(CVT_LOG_FILE, path, sizeof(path));
+	ReplyToCommand(client, "[CVT] enabled=%d tester_log_mode=%d mask=%d chat=%d file_ready=%d file=%s", g_cvEnabled.BoolValue, g_cvLogMode.IntValue, g_cvDebugMask.IntValue, g_cvChat.BoolValue, g_bLogReady, path);
+	Trace("sm_cvt_status", "tester_log_mode=%d file_ready=%d controller=%d convars=%d", g_cvLogMode.IntValue, g_bLogReady, g_cvController.BoolValue, g_cvConVars.BoolValue);
+	return Plugin_Handled;
 }
 
-/*
- * vote_passed
- * 
- * Se dispara después de vote_ended cuando la votación fue exitosa
- *
- *	"details"		"string"	// descripción breve del voto aprobado
- *	"param1"		"string"	// parámetro adicional (opcional)
- *	"team"			"byte"		// equipo (opcional)
- *
- */
-public void Event_VotePassed(Event hEvent, const char[] sEventName, bool bDontBroadcast)
+public Action Command_Snapshot(int client, int args)
 {
-	if (!g_cvarVotePassed.BoolValue)
-		return;
-
-	char sDetails[128];
-	char sParam1[128];
-
-	hEvent.GetString("details", sDetails, sizeof(sDetails));
-	hEvent.GetString("param1", sParam1, sizeof(sParam1));
-	int iTeam = hEvent.GetInt("team");
-	
-	log(false, "[Event_VotePassed] details: %s, param1: %s, team: %d", sDetails, sParam1, iTeam);
-	CPrintToChatAll("%s [Event_VotePassed] details: %s, param1: %s, team: %d", TAG, sDetails, sParam1, iTeam);
-}
-
-/*
- * vote_failed
- * 
- * Se dispara después de vote_ended cuando la votación fracasó
- *
- *	"details"		"string"	// breve motivo o tipo de voto (a veces está vacío)
- *	"team"			"byte"		// equipo (opcional)
- *
- */
-public void Event_VoteFailed(Event hEvent, const char[] sEventName, bool bDontBroadcast)
-{
-	if (!g_cvarVoteFailed.BoolValue)
-		return;
-
-	char sDetails[128];
-	hEvent.GetString("details", sDetails, sizeof(sDetails));
-	int iTeam = hEvent.GetInt("team");
-	
-	log(false, "[Event_VoteFailed] details: %s, team: %d", sDetails, iTeam);
-	CPrintToChatAll("%s [Event_VoteFailed] details: %s, team: %d", TAG, sDetails, iTeam);
-}
-
-/*
- * vote_cast_yes
- * 
- * Cuando un jugador vota sí (F1)
- *
- *	"team"			"byte"		// equipo del jugador
- *	"entityid"		"long"		// entity id del jugador que votó sí
- *
- */
-public void Event_VoteCastYes(Event hEvent, const char[] sEventName, bool bDontBroadcast)
-{
-	if (!g_cvarVoteCastYes.BoolValue)
-		return;
-
-	int iEntityid = hEvent.GetInt("entityid");
-	int iTeam	  = hEvent.GetInt("team");
-
-	if (!IsValidClientIndex(iEntityid))
-		return;
-
-	log(false, "[Event_VoteCastYes] team: %d, entityid: %d (%N)", iTeam, iEntityid, iEntityid);
-	CPrintToChatAll("%s [Event_VoteCastYes] team: %d, entityid: %d (%N)", TAG, iTeam, iEntityid, iEntityid);
-}
-
-/*
- * vote_cast_no
- * 
- * Cuando un jugador vota no (F2)
- *
- *	"team"			"byte"		// equipo del jugador
- *	"entityid"		"long"		// entity id del jugador que votó no
- *
- */
-public void Event_VoteCastNo(Event hEvent, const char[] sEventName, bool bDontBroadcast)
-{
-	if (!g_cvarVoteCastNo.BoolValue)
-		return;
-
-	int iEntityid = hEvent.GetInt("entityid");
-	int iTeam	  = hEvent.GetInt("team");
-
-	if (!IsValidClientIndex(iEntityid))
-		return;
-
-	log(false, "[Event_VoteCastNo] team: %d, entityid: %d (%N)", iTeam, iEntityid, iEntityid);
-	CPrintToChatAll("%s [Event_VoteCastNo] team: %d, entityid: %d (%N)", TAG, iTeam, iEntityid, iEntityid);
-}
-
-/*
- * VoteStart Structure
- *	- Byte      Team index voting
- *	- Byte      Unknown, always 1 for Yes/No, always 99 for Multiple Choice
- *	- String    Vote issue id
- *	- String    Vote issue text
- *	- Bool      false for Yes/No, true for Multiple choice
- */
-public Action Message_VoteStart(UserMsg hMsg_id, BfRead hBf, const int[] iPlayers, int iPlayersNum, bool bReliable, bool bInit)
-{
-	if (!g_cvarVoteStart.BoolValue)
-		return Plugin_Continue;
-
-	char sIssue[128];
-	char sParam1[128];
-	char sInitiatorName[128];
-
-	int	 iTeam		= BfReadByte(hBf);
-	int	 iInitiator = BfReadByte(hBf);
-	hBf.ReadString(sIssue, 128);
-	hBf.ReadString(sParam1, 128);
-	hBf.ReadString(sInitiatorName, 128);
-
-	DataPack hdataPack;
-	CreateDataTimer(0.1, Timer_CallVote_Start, hdataPack, TIMER_FLAG_NO_MAPCHANGE);
-	hdataPack.WriteCell(iPlayersNum);
-	hdataPack.WriteCell(iTeam);
-	hdataPack.WriteCell(iInitiator);
-	hdataPack.WriteString(sIssue);
-	hdataPack.WriteString(sParam1);
-	hdataPack.WriteString(sInitiatorName);
-
-	log(false, "[Message_VoteStart] Sent to %d users: team: %d, initiator: %d, issue: %s, param1: %s, initiatorName: %s", iPlayersNum, iTeam, iInitiator, sIssue, sParam1, sInitiatorName);
-	return Plugin_Continue;
-}
-
-Action Timer_CallVote_Start(Handle timer, DataPack datapack)
-{
-	datapack.Reset();
-	int
-		iPlayersNum = datapack.ReadCell(),
-		iTeam		= datapack.ReadCell(),
-		iInitiator	= datapack.ReadCell();
-	char
-		sIssue[128],
-		sParam1[128],
-		sInitiatorName[128];
-
-	datapack.ReadString(sIssue, 128);
-	datapack.ReadString(sParam1, 128);
-	datapack.ReadString(sInitiatorName, 128);
-
-	CPrintToChatAll("%s VoteStart(sent to %d users): team: %d, initiator: %d, issue: %s, param1: %s, initiatorName: %s", TAG, iPlayersNum, iTeam, iInitiator, sIssue, sParam1, sInitiatorName);
-	return Plugin_Stop;
-}
-
-/*
- *	VotePass
- *	Note: Sent to all players after a vote passes.
- *
- *	Structure:
- *			byte	team	Team index or 255 for all
- *			string	details	Vote success translation string
- *			string	param1	Vote winner
- */
-public Action Message_VotePass(UserMsg hMsg_id, BfRead hBf, const int[] iPlayers, int iPlayersNum, bool bReliable, bool bInit)
-{
-	if (!g_cvarVotePass.BoolValue)
-		return Plugin_Continue;
-
-	char sIssue[128];
-	char sParam1[128];
-	int	 iTeam = hBf.ReadByte();
-	hBf.ReadString(sIssue, 128);
-	hBf.ReadString(sParam1, 128);
-
-	DataPack hdataPack;
-	CreateDataTimer(0.1, Timer_CallVote_Pass, hdataPack, TIMER_FLAG_NO_MAPCHANGE);
-	hdataPack.WriteCell(iPlayersNum);
-	hdataPack.WriteCell(iTeam);
-	hdataPack.WriteString(sIssue);
-	hdataPack.WriteString(sParam1);
-
-	log(false, "[Message_VotePass] Sent to %d users: team: %d, issue: %s, param1: %s", iPlayersNum, iTeam, sIssue, sParam1);
-	return Plugin_Continue;
-}
-
-Action Timer_CallVote_Pass(Handle timer, DataPack datapack)
-{
-	datapack.Reset();
-	int
-		iPlayersNum = datapack.ReadCell(),
-		iTeam		= datapack.ReadCell();
-	char
-		sIssue[128],
-		sParam1[128];
-
-	datapack.ReadString(sIssue, 128);
-	datapack.ReadString(sParam1, 128);
-
-	CPrintToChatAll("%s VotePass(sent to %d users): team: %d, issue: %s, param1: %s", TAG, iPlayersNum, iTeam, sIssue, sParam1);
-	return Plugin_Stop;
-}
-/*
- *	VoteFail
- *	Note: Sent to all players after a vote fails.
- *
- *	Structure:
- *			byte	team	Team index or 255 for all
- */
-public Action Message_VoteFail(UserMsg hMsg_id, BfRead hBf, const int[] iPlayers, int iPlayersNum, bool bReliable, bool bInit)
-{
-	if (!g_cvarVoteFail.BoolValue)
-		return Plugin_Continue;
-
-	char sIssue[128];
-	char sParam1[128];
-	int	 iTeam = hBf.ReadByte();
-	hBf.ReadString(sIssue, 128);
-	hBf.ReadString(sParam1, 128);
-
-	DataPack hdataPack;
-	CreateDataTimer(0.1, Timer_CallVote_Fail, hdataPack, TIMER_FLAG_NO_MAPCHANGE);
-	hdataPack.WriteCell(iPlayersNum);
-	hdataPack.WriteCell(iTeam);
-	hdataPack.WriteString(sIssue);
-	hdataPack.WriteString(sParam1);
-
-	log(false, "[Message_VoteFail] Sent to %d users: team: %d, issue: %s, param1: %s", iPlayersNum, iTeam, sIssue, sParam1);
-	return Plugin_Continue;
-}
-
-Action Timer_CallVote_Fail(Handle timer, DataPack datapack)
-{
-	datapack.Reset();
-	int
-		iPlayersNum = datapack.ReadCell(),
-		iTeam		= datapack.ReadCell();
-	char
-		sIssue[128],
-		sParam1[128];
-
-	datapack.ReadString(sIssue, 128);
-	datapack.ReadString(sParam1, 128);
-
-	CPrintToChatAll("%s VoteFail(sent to %d users): team: %d, issue: %s, param1: %s", TAG, iPlayersNum, iTeam, sIssue, sParam1);
-	return Plugin_Stop;
-}
-
-/*
- * CallVoteFailed
- *    - Byte		Team index voting
- *   - Short		Failure reason
- */
-public Action Message_CallVoteFailed(UserMsg hMsg_id, BfRead hBf, const int[] iPlayers, int iPlayersNum, bool bReliable, bool bInit)
-{
-	if (!g_cvarCallVoteFailed.BoolValue)
-		return Plugin_Continue;
-
-	int		 iReason	= BfReadByte(hBf);
-	int		 iTime		= BfReadShort(hBf);
-	int		 iBytesLeft = BfReadByte(hBf);
-
-	DataPack hdataPack;
-	CreateDataTimer(0.1, Timer_CallVoteFailed, hdataPack, TIMER_FLAG_NO_MAPCHANGE);
-	hdataPack.WriteCell(iPlayersNum);
-	hdataPack.WriteCell(iReason);
-	hdataPack.WriteCell(iTime);
-	hdataPack.WriteCell(iBytesLeft);
-
-	log(false, "[Message_CallVoteFailed] Sent to %d users: reason: %d, time: %d, bytes: %d", iPlayersNum, iReason, iTime, iBytesLeft);
-	return Plugin_Continue;
-}
-
-Action Timer_CallVoteFailed(Handle timer, DataPack datapack)
-{
-	datapack.Reset();
-	int
-		iPlayersNum = datapack.ReadCell(),
-		iReason		= datapack.ReadCell(),
-		iTime		= datapack.ReadCell(),
-		iBytesLeft	= datapack.ReadCell();
-
-	CPrintToChatAll("%s CallVoteFailed(sent to %d users): reason: %d, time: %d, bytes: %d", TAG, iPlayersNum, iReason, iTime, iBytesLeft);
-	return Plugin_Stop;
-}
-
-/*
- * VoteRegistered
- *    - Byte		Item selected
- */
-public Action Message_VoteRegistered(UserMsg hMsg_id, BfRead hBf, const int[] iPlayers, int iPlayersNum, bool bReliable, bool bInit)
-{
-	if (!g_cvarVoteRegistered.BoolValue)
-		return Plugin_Continue;
-
-	int		 iItem = BfReadByte(hBf);
-
-	DataPack hdataPack;
-	CreateDataTimer(0.1, Timer_VoteRegistered, hdataPack, TIMER_FLAG_NO_MAPCHANGE);
-	hdataPack.WriteCell(iPlayersNum);
-	hdataPack.WriteCell(iItem);
-
-	log(false, "[Message_VoteRegistered] Sent to %d users: item: %d", iPlayersNum, iItem);
-	return Plugin_Continue;
-}
-
-Action Timer_VoteRegistered(Handle timer, DataPack datapack)
-{
-	datapack.Reset();
-	int
-		iPlayersNum = datapack.ReadCell(),
-		iItem		= datapack.ReadCell();
-
-	CPrintToChatAll("%s VoteRegistered(sent to %d users): item: %d", TAG, iPlayersNum, iItem);
-	return Plugin_Stop;
-}
-
-/**
- * Listener_Vote - Called when a vote is casted by a player.
- *
- * @param iClient The client index of the player who casted the vote.
- * @param sCommand The command string that triggered the vote.
- * @param iArgc The number of arguments passed with the vote command.
- *
- * @return Plugin_Continue to allow other plugins to process the vote, Plugin_Handled to stop other plugins from processing the vote.
- */
-public Action Listener_Vote(int iClient, const char[] sCommand, int iArgc)
-{
-	if (!g_cvarListenerVote.BoolValue)
-		return Plugin_Continue;
-
-	char sVote[255];
-	GetCmdArg(1, sVote, 255);
-
-	log(false, "[Listener_Vote] client: %N, vote: %s", iClient, sVote);
-	CPrintToChatAll("%s [Listener_Vote] client: %N, vote: %s", TAG, iClient, sVote);
-	return Plugin_Continue;
-}
-
-/**
- * Listener_CallVote - Called when a player calls a vote.
- *
- * @param iClient The client index of the player who called the vote.
- * @param sCommand The command string that was used to call the vote.
- * @param iArgc The number of arguments passed with the command.
- *
- * @return Plugin_Continue to allow other plugins to process the vote, or Plugin_Handled to stop processing.
- */
-public Action Listener_CallVote(int iClient, const char[] sCommand, int iArgc)
-{
-	if (!g_cvarListenerCallVote.BoolValue)
-		return Plugin_Continue;
-
-	char sVoteType[32];
-	char sVoteArgument[32];
-
-	GetCmdArg(1, sVoteType, sizeof(sVoteType));
-	GetCmdArg(2, sVoteArgument, sizeof(sVoteArgument));
-
-
-	log(false, "[Listener_CallVote] client: %N, votetype: %s, sVoteArgument: %s", iClient, sVoteType, sVoteArgument);
-	CPrintToChatAll("%s [Listener_CallVote] client: %N, votetype: %s, sVoteArgument: %s", TAG, iClient, sVoteType, sVoteArgument);
-	return Plugin_Continue;
-}
-
-/**
- * Forward para CallVote_PreStart - permite bloquear votos antes de la validación
- */
-public Action CallVote_PreStart(int sessionId, int iClient, int iCallerAccountId, TypeVotes voteType, int iTarget, int iTargetAccountId, const char[] sArgument)
-{
-	if (!g_cvarForwardPreStart.BoolValue)
-		return Plugin_Continue;
-
-	char sSteamID[MAX_STEAM_ID_LENGTH];
-	CallVoteCore_GetClientSteamID2(iClient, sSteamID, sizeof(sSteamID));
-
-	char sMessage[255];
-	if (voteType == Kick)
-	{
-		Format(sMessage, sizeof(sMessage), "%s [CallVote_PreStart] session=%d {green}%s{default}: {blue}%N{default} ({blue}%s{default}) targeting {blue}%N{default}", TAG, sessionId, sTypeVotes[voteType], iClient, sSteamID, iTarget);
-	}
-	else
-	{
-		Format(sMessage, sizeof(sMessage), "%s [CallVote_PreStart] session=%d {green}%s{default}: {blue}%N{default} ({blue}%s{default}) arg={olive}%s{default}", TAG, sessionId, sTypeVotes[voteType], iClient, sSteamID, sArgument);
-	}
-	
-	CPrintToChatAll(sMessage);
-	CRemoveTags(sMessage, sizeof(sMessage));
-	log(false, sMessage);
-	
-	// Retornar Plugin_Continue para permitir el voto, Plugin_Handled para bloquearlo
-	return Plugin_Continue;
-}
-
-/**
- * Forward para CallVote_PreExecute - última oportunidad para bloquear antes de la ejecución
- */
-public Action CallVote_PreExecute(int sessionId, int iClient, int iCallerAccountId, TypeVotes voteType, int iTarget, int iTargetAccountId, const char[] sArgument)
-{
-	if (!g_cvarForwardPreExecute.BoolValue)
-		return Plugin_Continue;
-
-	char sSteamID[MAX_STEAM_ID_LENGTH];
-	CallVoteCore_GetClientSteamID2(iClient, sSteamID, sizeof(sSteamID));
-
-	char sMessage[255];
-	if (voteType == Kick)
-	{
-		Format(sMessage, sizeof(sMessage), "%s [CallVote_PreExecute] session=%d {green}%s{default}: {blue}%N{default} ({blue}%s{default}) targeting {blue}%N{default}", TAG, sessionId, sTypeVotes[voteType], iClient, sSteamID, iTarget);
-	}
-	else
-	{
-		Format(sMessage, sizeof(sMessage), "%s [CallVote_PreExecute] session=%d {green}%s{default}: {blue}%N{default} ({blue}%s{default}) arg={olive}%s{default}", TAG, sessionId, sTypeVotes[voteType], iClient, sSteamID, sArgument);
-	}
-	
-	CPrintToChatAll(sMessage);
-	CRemoveTags(sMessage, sizeof(sMessage));
-	log(false, sMessage);
-	
-	return Plugin_Continue;
-}
-
-/**
- * Forward para CallVote_Blocked - información sobre votos bloqueados
- */
-public void CallVote_Blocked(int sessionId, int iClient, int iCallerAccountId, TypeVotes voteType, VoteRestrictionType restriction, int iTarget, int iTargetAccountId, const char[] sArgument)
-{
-	if (!g_cvarForwardBlocked.BoolValue)
-		return;
-
-	char sSteamID[MAX_STEAM_ID_LENGTH];
-	CallVoteCore_GetClientSteamID2(iClient, sSteamID, sizeof(sSteamID));
-
-	char sRestriction[64];
-	GetRestrictionName(restriction, sRestriction, sizeof(sRestriction));
-
-	char sMessage[255];
-	if (voteType == Kick)
-	{
-		Format(sMessage, sizeof(sMessage), "%s [CallVote_Blocked] session=%d {green}%s{default}: {blue}%N{default} ({blue}%s{default}) targeting {blue}%N{default} - Restriction: {red}%s{default}", TAG, sessionId, sTypeVotes[voteType], iClient, sSteamID, iTarget, sRestriction);
-	}
-	else
-	{
-		Format(sMessage, sizeof(sMessage), "%s [CallVote_Blocked] session=%d {green}%s{default}: {blue}%N{default} ({blue}%s{default}) - Restriction: {red}%s{default}", TAG, sessionId, sTypeVotes[voteType], iClient, sSteamID, sRestriction);
-	}
-	
-	CPrintToChatAll(sMessage);
-	CRemoveTags(sMessage, sizeof(sMessage));
-	log(false, sMessage);
-}
-
-/*****************************************************************
-			F U N C I O N E S   A U X I L I A R E S
-*****************************************************************/
-
-/**
- * Convierte el tipo de restricción a una cadena legible
- */
-void GetRestrictionName(VoteRestrictionType restriction, char[] buffer, int maxlen)
-{
-	switch (restriction)
-	{
-		case VoteRestriction_None: strcopy(buffer, maxlen, "None");
-		case VoteRestriction_InvalidCaller: strcopy(buffer, maxlen, "InvalidCaller");
-		case VoteRestriction_ClientState: strcopy(buffer, maxlen, "ClientState");
-		case VoteRestriction_Cooldown: strcopy(buffer, maxlen, "Cooldown");
-		case VoteRestriction_ConVar: strcopy(buffer, maxlen, "ConVar");
-		case VoteRestriction_GameMode: strcopy(buffer, maxlen, "GameMode");
-		case VoteRestriction_SameState: strcopy(buffer, maxlen, "SameState");
-		case VoteRestriction_Immunity: strcopy(buffer, maxlen, "Immunity");
-		case VoteRestriction_Team: strcopy(buffer, maxlen, "Team");
-		case VoteRestriction_Target: strcopy(buffer, maxlen, "Target");
-		default: strcopy(buffer, maxlen, "Unknown");
-	}
-}
-
-/**
- * Función de logging simplificada
- */
-void log(bool error, const char[] format, any ...)
-{
-	if (g_Log == null)
-		return;
-	
-	char message[512];
-	VFormat(message, sizeof(message), format, 3);
-	
-	if (error)
-		LogError("%s", message);
-	
-	g_Log.Debug(CVLogMask_Core, "Core", "%s", message);
-	
-}
-
-/**
- * Verificar si una tabla existe en la base de datos
- */
-bool isTableExists(const char[] tableName)
-{
-	// Implementación simplificada para testing
-	// En una implementación real se haría una consulta SQL
-	log(false, "[isTableExists] Checking table: %s", tableName);
-	return g_bSQLConnected;
-}
-
-/**
- * Conectar a la base de datos (stub para testing)
- */
-void ConnectDB(const char[] name)
-{
-	log(false, "[ConnectDB] Connecting to database: %s", name);
-	g_bSQLConnected = true;
-	g_SQLDriver = SQL_SQLite;
+	Trace("sm_cvt_snapshot", "manual=1");
+	ObserveController("sm_cvt_snapshot");
+	SnapshotConVars("sm_cvt_snapshot");
+	ReplyToCommand(client, "[CVT] Read-only snapshot requested; check the trace log.");
+	return Plugin_Handled;
 }
 
 public void OnPluginEnd()
 {
-	if (g_db != null)
-	{
-		delete g_db;
-		g_db = null;
-	}
-
-	g_bSQLConnected = false;
-
-	if (g_Log != null)
-		delete g_Log;
+	Trace("OnPluginEnd", "boundary=1");
 }

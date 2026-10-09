@@ -8,6 +8,7 @@ static const int CVB_ACTIVE_UNTIL_PERMANENT = 2147483647;
 enum struct CVBAddRestrictionContext
 {
 	int AdminUserId;
+	int AdminAccountId;
 	ReplySource ReplySource;
 	int TargetAccountId;
 	int RequestedTargetClient;
@@ -28,6 +29,7 @@ enum struct CVBRemoveBanContext
 
 static DataPack CVB_CreateAddBanContextPack(
 	int adminUserId,
+	int adminAccountId,
 	ReplySource replySource,
 	int targetAccountId,
 	int requestedTargetClient,
@@ -39,6 +41,7 @@ static DataPack CVB_CreateAddBanContextPack(
 {
 	DataPack pack = new DataPack();
 	pack.WriteCell(adminUserId);
+	pack.WriteCell(adminAccountId);
 	pack.WriteCell(view_as<int>(replySource));
 	pack.WriteCell(targetAccountId);
 	pack.WriteCell(requestedTargetClient);
@@ -53,6 +56,7 @@ static void CVB_ReadAddBanContext(DataPack pack, CVBAddRestrictionContext contex
 {
 	pack.Reset();
 	context.AdminUserId = pack.ReadCell();
+	context.AdminAccountId = pack.ReadCell();
 	context.ReplySource = view_as<ReplySource>(pack.ReadCell());
 	context.TargetAccountId = pack.ReadCell();
 	context.RequestedTargetClient = pack.ReadCell();
@@ -237,6 +241,7 @@ static bool CVB_ExecuteSQLiteRemoveBan(int targetAccountId, int &affectedRows)
 
 static void CVB_FinalizeQueuedBanSuccess(
 	int adminUserId,
+	int adminAccountId,
 	ReplySource replySource,
 	int targetAccountId,
 	int requestedTargetClient,
@@ -249,9 +254,11 @@ static void CVB_FinalizeQueuedBanSuccess(
 	int admin;
 	bool canReply = CVB_TryResolveCommandIssuer(adminUserId, admin);
 
-	int adminAccountId;
 	char adminSteamId2[MAX_AUTHID_LENGTH];
-	GetAdminInfo(admin, adminAccountId, adminSteamId2, sizeof(adminSteamId2));
+	if (adminAccountId > 0)
+		AccountIDToSteamID2(adminAccountId, adminSteamId2, sizeof(adminSteamId2));
+	else
+		strcopy(adminSteamId2, sizeof(adminSteamId2), "CONSOLE");
 
 	int liveTarget;
 	bool targetOnline = CVB_TryResolveLiveTarget(requestedTargetClient, targetAccountId, liveTarget);
@@ -451,7 +458,7 @@ bool CVB_QueueAddBan(int admin, int targetAccountId, int requestedTargetClient, 
 			return false;
 		}
 
-		CVB_FinalizeQueuedBanSuccess(CVB_GetCommandIssuerUserId(admin), replySource, targetAccountId, requestedTargetClient, banType, durationMinutes, targetDisplay, normalizedReason);
+		CVB_FinalizeQueuedBanSuccess(CVB_GetCommandIssuerUserId(admin), adminAccountId, replySource, targetAccountId, requestedTargetClient, banType, durationMinutes, targetDisplay, normalizedReason);
 		return true;
 	}
 
@@ -533,6 +540,7 @@ bool CVB_QueueAddBan(int admin, int targetAccountId, int requestedTargetClient, 
 
 	DataPack context = CVB_CreateAddBanContextPack(
 		CVB_GetCommandIssuerUserId(admin),
+		adminAccountId,
 		replySource,
 		targetAccountId,
 		requestedTargetClient,
@@ -621,6 +629,7 @@ public void CVB_OnAddBanTxnSuccess(Database db, any data, int numQueries, DBResu
 
 	CVB_FinalizeQueuedBanSuccess(
 		addContext.AdminUserId,
+		addContext.AdminAccountId,
 		addContext.ReplySource,
 		addContext.TargetAccountId,
 		addContext.RequestedTargetClient,

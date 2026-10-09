@@ -54,18 +54,10 @@ static bool CVB_TryLoadActiveRestrictionInfoForClient(int client, PlayerRestrict
 {
 	restrictionInfo.Reset(GetClientAccountID(client));
 
-	if (CVB_GetMemoryCache(restrictionInfo) && restrictionInfo.IsBanned())
-		return true;
-
-	if (CVB_CheckActiveRestriction(restrictionInfo) == CVBLookup_Found && restrictionInfo.IsBanned())
-	{
-		CVB_UpdateMemoryCache(restrictionInfo);
-		return true;
-	}
-
-	restrictionInfo.Clear();
-	CVB_UpdateMemoryCache(restrictionInfo);
-	return false;
+	CVBLookupStatus status = CVB_LoadRestrictionInfo(restrictionInfo, false);
+	SetClientLoadState(client, restrictionInfo.AccountId,
+		status == CVBLookup_Error ? ClientBanLoad_Uninitialized : ClientBanLoad_Ready);
+	return status == CVBLookup_Found && restrictionInfo.IsBanned();
 }
 
 public int Native_HasActiveRestriction(Handle plugin, int numParams)
@@ -78,6 +70,7 @@ public int Native_HasActiveRestriction(Handle plugin, int numParams)
 	}
 
 	PlayerRestrictionInfo restrictionInfo;
+	restrictionInfo.Reset(GetClientAccountID(client));
 	return HasActiveRestriction(client, restrictionInfo);
 }
 

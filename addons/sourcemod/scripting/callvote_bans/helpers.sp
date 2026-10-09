@@ -461,43 +461,24 @@ bool GetAdminInfo(int client, int &adminAccountId, char[] adminSteamId2, int max
 	return GetClientAuthId(client, AuthId_Steam2, adminSteamId2, maxlen);
 }
 
-bool CVB_HasAnyIdentityProviderAvailable()
-{
-	if (!g_bSteamIDToolsLibrary)
-		return false;
-
-	for (int i = 0; i < sizeof(g_eCVBIdentityProviders); i++)
-	{
-		if (SteamIDTools_IsProviderAvailable(g_eCVBIdentityProviders[i]))
-			return true;
-	}
-
-	return false;
-}
-
 bool QueueSteamID64ToAccountIDRequest(int client, const char[] steamid64, AsyncContext context)
 {
-	if (!g_bSteamIDToolsLibrary || !SteamIDTools_IsLibraryAvailable())
+	if (!g_bSteamIDToolsLibrary)
 	{
 		CReplyToCommand(client, "%t %t", "Tag", "SteamIDToolsRequired");
 		CReplyToCommand(client, "%t %t", "Tag", "PleaseUseOtherFormats");
 		return false;
 	}
 
-	if (!CVB_HasAnyIdentityProviderAvailable())
-	{
-		CReplyToCommand(client, "%t %t", "Tag", "SteamIDToolsProviderUnavailable");
-		CReplyToCommand(client, "%t %t", "Tag", "PleaseUseOtherFormats");
-		return false;
-	}
-
 	int requestId = 0;
+	bool providerAvailable = false;
 	for (int i = 0; i < sizeof(g_eCVBIdentityProviders); i++)
 	{
 		SteamIDToolsProvider provider = g_eCVBIdentityProviders[i];
 		if (!SteamIDTools_IsProviderAvailable(provider))
 			continue;
 
+		providerAvailable = true;
 		requestId = SteamIDTools_RequestConversion(provider, API_SID64toAID, steamid64, "cvb");
 		if (requestId > 0)
 			break;
@@ -505,7 +486,10 @@ bool QueueSteamID64ToAccountIDRequest(int client, const char[] steamid64, AsyncC
 
 	if (requestId <= 0)
 	{
-		CReplyToCommand(client, "%t %t", "Tag", "SteamIDToolsRequestFailed", "request queue failed");
+		if (providerAvailable)
+			CReplyToCommand(client, "%t %t", "Tag", "SteamIDToolsRequestFailed", "request queue failed");
+		else
+			CReplyToCommand(client, "%t %t", "Tag", "SteamIDToolsProviderUnavailable");
 		CReplyToCommand(client, "%t %t", "Tag", "PleaseUseOtherFormats");
 		return false;
 	}

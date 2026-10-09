@@ -49,18 +49,24 @@
 		"es"		"Acción del panel cancelada"
 	}
 
-	"CVBAdminMenuRestrictionApplied"
+	"CVBAdminMenuRestrictionRequested"
 	{
 		"#format"	"{1:s}"
-		"en"		"Restriction applied to {1}"
-		"es"		"Restricción aplicada a {1}"
+		"en"		"Restriction request accepted for {1}; persistence determines the result"
+		"es"		"Solicitud de restricción aceptada para {1}; la persistencia determina el resultado"
 	}
 
-	"CVBAdminMenuRestrictionRemoved"
+	"CVBAdminMenuRemovalRequested"
 	{
 		"#format"	"{1:s}"
-		"en"		"Restriction removed from {1}"
-		"es"		"Restricción removida de {1}"
+		"en"		"Removal request accepted for {1}; persistence determines the result"
+		"es"		"Solicitud de eliminación aceptada para {1}; la persistencia determina el resultado"
+	}
+
+	"CVBAdminMenuAccessDenied"
+	{
+		"en"        "You no longer have permission for this action"
+		"es"        "Ya no tienes permiso para esta acción"
 	}
 
 	"CVBAdminMenuActionFailed"

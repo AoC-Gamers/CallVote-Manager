@@ -17,7 +17,15 @@ static Action BlockInvalidCallerVote(TypeVotes voteType, int target = SERVER_IND
 
 Action Listener_CallVote(int iClient, const char[] sCommand, int iArgs)
 {
+	if (g_ForwardDispatchDepth > 0)
+		return Plugin_Handled;
+
 	if (!g_cvarEnable.BoolValue)
+		return Plugin_Continue;
+
+	// A second request must not replace an engine vote that is still running.
+	// Let the engine reject it; this attempt has no separate accepted session.
+	if (g_bCurrentVoteSessionValid && g_CurrentVoteSession.status == CallVoteSession_Started)
 		return Plugin_Continue;
 
 	char sFullArgs[128];
@@ -64,7 +72,7 @@ Action Listener_CallVote(int iClient, const char[] sCommand, int iArgs)
 				return BlockInvalidCallerVote(RestartGame);
 
 			Action result = ProcessVoteCommon(iClient, RestartGame);
-			CVLog.Forwards("[Listener_CallVote] RestartGame result=%d for client=%d accountId=%d", view_as<int>(result), iClient, GetClientAccountID(iClient));
+			CVLog.Forwards("[Listener_CallVote] RestartGame result=%d for client=%d accountId=%d", view_as<int>(result), iClient, GetVoteClientAccountId(iClient));
 			if (result == Plugin_Handled)
 				return Plugin_Handled;
 		}
@@ -79,7 +87,7 @@ Action Listener_CallVote(int iClient, const char[] sCommand, int iArgs)
 				return BlockInvalidCallerVote(Kick, iTarget);
 
 			Action result = ProcessVoteCommon(iClient, Kick, iTarget);
-			CVLog.Forwards("[Listener_CallVote] Kick result=%d for client=%d accountId=%d target=%d targetAccountId=%d", view_as<int>(result), iClient, GetClientAccountID(iClient), iTarget, IsValidClient(iTarget) ? GetClientAccountID(iTarget) : 0);
+			CVLog.Forwards("[Listener_CallVote] Kick result=%d for client=%d accountId=%d target=%d targetAccountId=%d", view_as<int>(result), iClient, GetVoteClientAccountId(iClient), iTarget, IsValidClient(iTarget) ? GetVoteClientAccountId(iTarget) : 0);
 			if (result == Plugin_Handled)
 				return Plugin_Handled;
 		}
@@ -92,7 +100,7 @@ Action Listener_CallVote(int iClient, const char[] sCommand, int iArgs)
 				return BlockInvalidCallerVote(ChangeMission, SERVER_INDEX, sVoteArgument);
 
 			Action result = ProcessVoteCommon(iClient, ChangeMission, SERVER_INDEX, sVoteArgument);
-			CVLog.Forwards("[Listener_CallVote] ChangeMission result=%d for client=%d accountId=%d argument='%s'", view_as<int>(result), iClient, GetClientAccountID(iClient), sVoteArgument);
+			CVLog.Forwards("[Listener_CallVote] ChangeMission result=%d for client=%d accountId=%d argument='%s'", view_as<int>(result), iClient, GetVoteClientAccountId(iClient), sVoteArgument);
 			if (result == Plugin_Handled)
 				return Plugin_Handled;
 		}
@@ -105,7 +113,7 @@ Action Listener_CallVote(int iClient, const char[] sCommand, int iArgs)
 				return BlockInvalidCallerVote(ReturnToLobby);
 
 			Action result = ProcessVoteCommon(iClient, ReturnToLobby);
-			CVLog.Forwards("[Listener_CallVote] ReturnToLobby result=%d for client=%d accountId=%d", view_as<int>(result), iClient, GetClientAccountID(iClient));
+			CVLog.Forwards("[Listener_CallVote] ReturnToLobby result=%d for client=%d accountId=%d", view_as<int>(result), iClient, GetVoteClientAccountId(iClient));
 			if (result == Plugin_Handled)
 				return Plugin_Handled;
 		}
@@ -118,7 +126,7 @@ Action Listener_CallVote(int iClient, const char[] sCommand, int iArgs)
 				return BlockInvalidCallerVote(ChangeChapter, SERVER_INDEX, sVoteArgument);
 
 			Action result = ProcessVoteCommon(iClient, ChangeChapter, SERVER_INDEX, sVoteArgument);
-			CVLog.Forwards("[Listener_CallVote] ChangeChapter result=%d for client=%d accountId=%d argument='%s'", view_as<int>(result), iClient, GetClientAccountID(iClient), sVoteArgument);
+			CVLog.Forwards("[Listener_CallVote] ChangeChapter result=%d for client=%d accountId=%d argument='%s'", view_as<int>(result), iClient, GetVoteClientAccountId(iClient), sVoteArgument);
 			if (result == Plugin_Handled)
 				return Plugin_Handled;
 		}
@@ -131,7 +139,7 @@ Action Listener_CallVote(int iClient, const char[] sCommand, int iArgs)
 				return BlockInvalidCallerVote(ChangeAllTalk);
 
 			Action result = ProcessVoteCommon(iClient, ChangeAllTalk);
-			CVLog.Forwards("[Listener_CallVote] ChangeAllTalk result=%d for client=%d accountId=%d", view_as<int>(result), iClient, GetClientAccountID(iClient));
+			CVLog.Forwards("[Listener_CallVote] ChangeAllTalk result=%d for client=%d accountId=%d", view_as<int>(result), iClient, GetVoteClientAccountId(iClient));
 			if (result == Plugin_Handled)
 				return Plugin_Handled;
 		}

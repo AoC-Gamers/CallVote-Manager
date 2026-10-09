@@ -1,0 +1,5808 @@
+{
+  "source": "Left 4 Dead 2_Scripting_Game Events - Valve Developer Community.html",
+  "count": 301,
+  "events": [
+    {
+      "id": 1,
+      "name": "player_death",
+      "description": "a game event, name may be 32 characters long; this extends the original player_death by a new field",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "user ID who died"
+        },
+        {
+          "type": "entityid",
+          "name": "long",
+          "description": "entity ID who died, userid should be used first, to get the dead Player. Otherwise, it is not a player, so use this."
+        },
+        {
+          "type": "attacker",
+          "name": "short",
+          "description": "user ID who killed"
+        },
+        {
+          "type": "attackername",
+          "name": "string",
+          "description": "What type of zombie, so we don't have zombie names"
+        },
+        {
+          "type": "attackerentid",
+          "name": "long",
+          "description": "if the killer is not a player, the entindex of who killed. Again, use the attacker first"
+        },
+        {
+          "type": "weapon",
+          "name": "string",
+          "description": "weapon name killer used"
+        },
+        {
+          "type": "headshot",
+          "name": "bool",
+          "description": "signals a headshot"
+        },
+        {
+          "type": "attackerisbot",
+          "name": "bool",
+          "description": "is the attacker a bot"
+        },
+        {
+          "type": "victimname",
+          "name": "string",
+          "description": "What type of zombie, so we don't have zombie names"
+        },
+        {
+          "type": "victimisbot",
+          "name": "bool",
+          "description": "is the victim a bot"
+        },
+        {
+          "type": "abort",
+          "name": "bool",
+          "description": "did the victim abort"
+        },
+        {
+          "type": "type",
+          "name": "long",
+          "description": "damage type"
+        },
+        {
+          "type": "victim_x",
+          "name": "float",
+          "description": "victim's position in the x-axis"
+        },
+        {
+          "type": "victim_y",
+          "name": "float",
+          "description": "victim's position in the y-axis"
+        },
+        {
+          "type": "victim_z",
+          "name": "float",
+          "description": "victim's position in the z-axis"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "name": "player_hurt",
+      "description": "Registers all playable classes (Hunter, Smoker, Boomer, Tank, Survivors). See infected_hurt for Witch and Common Infected",
+      "notes": [
+        "Fires when a player entity takes damage.",
+        "Does not fire when a survivor takes enough damage to become incapacitated."
+      ],
+      "arguments": [
+        {
+          "type": "local",
+          "name": "1",
+          "description": "Not networked"
+        },
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "user ID who was hurt"
+        },
+        {
+          "type": "attacker",
+          "name": "short",
+          "description": "user id who attacked"
+        },
+        {
+          "type": "attackerentid",
+          "name": "long",
+          "description": "entity id who attacked, if attacker not a player, and userid therefore invalid"
+        },
+        {
+          "type": "health",
+          "name": "short",
+          "description": "remaining health points"
+        },
+        {
+          "type": "armor",
+          "name": "byte",
+          "description": "remaining armor points"
+        },
+        {
+          "type": "weapon",
+          "name": "string",
+          "description": "weapon name attacker used, if not the world"
+        },
+        {
+          "type": "dmg_health",
+          "name": "short",
+          "description": "damage done to health"
+        },
+        {
+          "type": "dmg_armor",
+          "name": "byte",
+          "description": "damage done to armor"
+        },
+        {
+          "type": "hitgroup",
+          "name": "byte",
+          "description": "hitgroup that was damaged"
+        },
+        {
+          "type": "type",
+          "name": "long",
+          "description": "damage type"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "name": "player_activate",
+      "description": "The earliest game event that generates when a CTerrorPlayer entity is being spawned",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "user ID on server"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "name": "player_team",
+      "description": "",
+      "notes": [
+        "Fires when a player switches team."
+      ],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "user ID on server"
+        },
+        {
+          "type": "team",
+          "name": "byte",
+          "description": "team id"
+        },
+        {
+          "type": "oldteam",
+          "name": "byte",
+          "description": "old team id"
+        },
+        {
+          "type": "disconnect",
+          "name": "bool",
+          "description": "team change because player disconnects"
+        },
+        {
+          "type": "name",
+          "name": "string",
+          "description": ""
+        },
+        {
+          "type": "isbot",
+          "name": "bool",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "name": "player_bot_replace",
+      "description": "",
+      "notes": [
+        "Fires when a bot replaces a player. Related Events: Fires alongside player_first_spawn in order to spawn the bot; this event fires afterwards."
+      ],
+      "arguments": [
+        {
+          "type": "player",
+          "name": "short",
+          "description": "user ID of the player"
+        },
+        {
+          "type": "bot",
+          "name": "short",
+          "description": "user ID of the bot"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "name": "bot_player_replace",
+      "description": "",
+      "notes": [
+        "Fires when a player replaces a bot.",
+        "Imagine using the slot operator when reading the name of these events bot <- player to remember whether the bot is being replaced or a player"
+      ],
+      "arguments": [
+        {
+          "type": "bot",
+          "name": "short",
+          "description": "user ID of the bot"
+        },
+        {
+          "type": "player",
+          "name": "short",
+          "description": "user ID of the player"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "name": "player_afk",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "player",
+          "name": "short",
+          "description": "user ID of the player"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "name": "weapon_fire",
+      "description": "For example: interrupting a Molotov throw by switching right before it's about to be thrown.",
+      "notes": [
+        "It fires before firing the weapon, even if it's being interrupted. For example: interrupting a Molotov throw by switching right before it's about to be thrown."
+      ],
+      "arguments": [
+        {
+          "type": "local",
+          "name": "1",
+          "description": "don't network this, its way too spammy"
+        },
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "user ID of the player who fires their weapon"
+        },
+        {
+          "type": "weapon",
+          "name": "string",
+          "description": "used weapon name"
+        },
+        {
+          "type": "weaponid",
+          "name": "short",
+          "description": "used weapon ID"
+        },
+        {
+          "type": "count",
+          "name": "short",
+          "description": "number of bullets"
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "name": "weapon_fire_on_empty",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "local",
+          "name": "1",
+          "description": "don't network this, its way too spammy"
+        },
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "user ID of the player who fires their weapon"
+        },
+        {
+          "type": "weapon",
+          "name": "string",
+          "description": "weapon name used"
+        },
+        {
+          "type": "count",
+          "name": "short",
+          "description": "number of bullets"
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "name": "weapon_reload",
+      "description": "",
+      "notes": [
+        "Fires when a survivor reloads their weapon."
+      ],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "user ID of the player who reloads"
+        },
+        {
+          "type": "manual",
+          "name": "bool",
+          "description": "player manually started the reload"
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "name": "weapon_zoom",
+      "description": "",
+      "notes": [
+        "Fires when a survivor uses the zoom feature on snipers.",
+        "It fires when pressing the zoom button while holding a sniper, instead of zooming the weapon."
+      ],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "user ID of the survivor who zooms their weapon"
+        }
+      ]
+    },
+    {
+      "id": 12,
+      "name": "ability_use",
+      "description": "",
+      "notes": [
+        "Fires when an infected uses their ability Issues: Doesn't fire for jockey"
+      ],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "user ID of the player who uses their ability"
+        },
+        {
+          "type": "ability",
+          "name": "string",
+          "description": "Classname of ability. Possible values: 'ability_tongue', 'ability_vomit', 'ability_lunge', 'ability_spit', 'ability_charge', 'ability_throw' for the Smoker, Boomer, Hunter, Spitter, Charger and Tank, respectively."
+        },
+        {
+          "type": "context",
+          "name": "short",
+          "description": "enum of the way it was used (different for each ability)"
+        }
+      ]
+    },
+    {
+      "id": 13,
+      "name": "ammo_pickup",
+      "description": "",
+      "notes": [
+        "Fires when a survivor fills their primary weapon's ammo by using weapon_ammo_spawn entity."
+      ],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "The player who got some ammo from a weapon_ammo_spawner"
+        }
+      ]
+    },
+    {
+      "id": 14,
+      "name": "item_pickup",
+      "description": "",
+      "notes": [
+        "Fires when a survivor picks up a weapon.",
+        "It does not fire when picking up primary weapons and pistols on non weapon_*_spawn entities, excluding the give command."
+      ],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": ""
+        },
+        {
+          "type": "item",
+          "name": "string",
+          "description": "either a weapon such as 'tmp' or 'hegrenade', or an item such as 'nvgs'"
+        }
+      ]
+    },
+    {
+      "id": 15,
+      "name": "golden_crowbar_pickup",
+      "description": "",
+      "notes": [
+        "Fires when a survivor picks up a golden crowbar."
+      ],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "The player who picked up the crowbar"
+        }
+      ]
+    },
+    {
+      "id": 16,
+      "name": "grenade_bounce",
+      "description": "",
+      "notes": [
+        "Fires when a grenade launcher projectile lands, or a thrown pipe bomb/molotov/bile jar bounces."
+      ],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "user ID of the projectile's owner"
+        },
+        {
+          "type": "x",
+          "name": "float",
+          "description": "the projectile's position in the x-axis"
+        },
+        {
+          "type": "y",
+          "name": "float",
+          "description": "the projectile's position in the y-axis"
+        },
+        {
+          "type": "z",
+          "name": "float",
+          "description": "the projectile's position in the z-axis"
+        }
+      ]
+    },
+    {
+      "id": 17,
+      "name": "hegrenade_detonate",
+      "description": "",
+      "notes": [
+        "Fires when molotov projectiles, pipe bomb projectiles, propane tanks or oxygen tanks detonate."
+      ],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "user ID of the detonated entities' owner"
+        },
+        {
+          "type": "x",
+          "name": "float",
+          "description": "detonated entity's position in the x-axis"
+        },
+        {
+          "type": "y",
+          "name": "float",
+          "description": "detonated entity's position in the y-axis"
+        },
+        {
+          "type": "z",
+          "name": "float",
+          "description": "detonated entity's position in the z-axis"
+        }
+      ]
+    },
+    {
+      "id": 18,
+      "name": "bullet_impact",
+      "description": "",
+      "notes": [
+        "Fires on bullet impact."
+      ],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": ""
+        },
+        {
+          "type": "x",
+          "name": "float",
+          "description": "bullet's position in the x-axis"
+        },
+        {
+          "type": "y",
+          "name": "float",
+          "description": "bullet's position in the y-axis"
+        },
+        {
+          "type": "z",
+          "name": "float",
+          "description": "bullet's position in the z-axis"
+        }
+      ]
+    },
+    {
+      "id": 19,
+      "name": "player_footstep",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": 20,
+      "name": "player_jump",
+      "description": "",
+      "notes": [
+        "Fires when a player jumps."
+      ],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "user ID of the player who jumps"
+        }
+      ]
+    },
+    {
+      "id": 21,
+      "name": "player_blind",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": 22,
+      "name": "player_falldamage",
+      "description": "",
+      "notes": [
+        "Fires when a player takes fall damage."
+      ],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "Who got hurt"
+        },
+        {
+          "type": "damage",
+          "name": "float",
+          "description": "for how much"
+        },
+        {
+          "type": "causer",
+          "name": "short",
+          "description": "Who caused them to do so (if anyone)"
+        }
+      ]
+    },
+    {
+      "id": 23,
+      "name": "player_ledge_grab",
+      "description": "",
+      "notes": [
+        "Fires when a survivor hangs from a ledge."
+      ],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "Who grabbed the ledge"
+        },
+        {
+          "type": "causer",
+          "name": "short",
+          "description": "Who caused them to do so (if anyone)"
+        }
+      ]
+    },
+    {
+      "id": 24,
+      "name": "player_ledge_release",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "person who released from the ledge"
+        }
+      ]
+    },
+    {
+      "id": 25,
+      "name": "door_moving",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "entindex",
+          "name": "long",
+          "description": ""
+        },
+        {
+          "type": "userid",
+          "name": "short",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": 26,
+      "name": "door_open",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "Who opened the door"
+        },
+        {
+          "type": "checkpoint",
+          "name": "bool",
+          "description": "Is the door a checkpoint door"
+        },
+        {
+          "type": "closed",
+          "name": "bool",
+          "description": "Was the door closed when it started opening?"
+        }
+      ]
+    },
+    {
+      "id": 27,
+      "name": "door_close",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "Who closed the door"
+        },
+        {
+          "type": "checkpoint",
+          "name": "bool",
+          "description": "Is the door a checkpoint door"
+        }
+      ]
+    },
+    {
+      "id": 28,
+      "name": "door_unlocked",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "Who opened the door"
+        },
+        {
+          "type": "checkpoint",
+          "name": "bool",
+          "description": "Is the door a checkpoint door"
+        }
+      ]
+    },
+    {
+      "id": 29,
+      "name": "rescue_door_open",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "Who opened the door"
+        },
+        {
+          "type": "entindex",
+          "name": "long",
+          "description": "door that opened"
+        }
+      ]
+    },
+    {
+      "id": 30,
+      "name": "waiting_checkpoint_door_used",
+      "description": "Someone tried to open a checkpoint door that is locked till everyone loads in",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "player who tried to open it"
+        },
+        {
+          "type": "entindex",
+          "name": "long",
+          "description": "door that was used"
+        }
+      ]
+    },
+    {
+      "id": 31,
+      "name": "waiting_door_used_versus",
+      "description": "Someone tried to open a checkpoint door that is locked till everyone loads in",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "player who tried to open it"
+        },
+        {
+          "type": "entindex",
+          "name": "long",
+          "description": "door that was used"
+        }
+      ]
+    },
+    {
+      "id": 32,
+      "name": "waiting_checkpoint_button_used",
+      "description": "Someone tried to push a button that's locked until everyone is gathered",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "player who tried to open it"
+        }
+      ]
+    },
+    {
+      "id": 33,
+      "name": "success_checkpoint_button_used",
+      "description": "Someone pushed a button that's locked until everyone is gathered",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "player who openned it"
+        }
+      ]
+    },
+    {
+      "id": 34,
+      "name": "round_freeze_end",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "None",
+          "name": "None",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": 35,
+      "name": "round_start",
+      "description": "",
+      "notes": [
+        "Related Events: Fires alongside round_start_pre_entity and round_start_post_nav. Event order: round_start_pre_entity, round_start_post_nav, round_start."
+      ],
+      "arguments": [
+        {
+          "type": "timelimit",
+          "name": "long",
+          "description": "round time limit in seconds"
+        },
+        {
+          "type": "fraglimit",
+          "name": "long",
+          "description": "frag limit in seconds"
+        },
+        {
+          "type": "objective",
+          "name": "string",
+          "description": "round objective"
+        }
+      ]
+    },
+    {
+      "id": 36,
+      "name": "round_start_pre_entity",
+      "description": "",
+      "notes": [
+        "Related Events: Fires alongside round_start_post_nav and round_start. Event order: round_start_pre_entity, round_start_post_nav, round_start."
+      ],
+      "arguments": [
+        {
+          "type": "None",
+          "name": "None",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": 37,
+      "name": "round_start_post_nav",
+      "description": "",
+      "notes": [
+        "Related Events: Fires alongside round_start_pre_entity and round_start. Event order: round_start_pre_entity, round_start_post_nav, round_start."
+      ],
+      "arguments": [
+        {
+          "type": "None",
+          "name": "None",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": 38,
+      "name": "nav_blocked",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "area",
+          "name": "long",
+          "description": ""
+        },
+        {
+          "type": "blocked",
+          "name": "bool",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": 39,
+      "name": "nav_generate",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "None",
+          "name": "None",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": 40,
+      "name": "round_end_message",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "winner",
+          "name": "byte",
+          "description": "winner team/user i"
+        },
+        {
+          "type": "reason",
+          "name": "byte",
+          "description": "reson why team won"
+        },
+        {
+          "type": "message",
+          "name": "string",
+          "description": "end round message"
+        }
+      ]
+    },
+    {
+      "id": 41,
+      "name": "round_end",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "winner",
+          "name": "byte",
+          "description": "winner team/user i"
+        },
+        {
+          "type": "reason",
+          "name": "byte",
+          "description": "reson why team won"
+        },
+        {
+          "type": "message",
+          "name": "string",
+          "description": "end round message"
+        },
+        {
+          "type": "time",
+          "name": "float",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": 42,
+      "name": "vote_ended",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "None",
+          "name": "None",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": 43,
+      "name": "vote_started",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "issue",
+          "name": "string",
+          "description": ""
+        },
+        {
+          "type": "param1",
+          "name": "string",
+          "description": ""
+        },
+        {
+          "type": "votedata",
+          "name": "string",
+          "description": ""
+        },
+        {
+          "type": "team",
+          "name": "byte",
+          "description": ""
+        },
+        {
+          "type": "initiator",
+          "name": "long",
+          "description": "entity id of the player who initiated the vote"
+        },
+        {
+          "type": "reliable",
+          "name": "1",
+          "description": "this event is reliable"
+        }
+      ]
+    },
+    {
+      "id": 44,
+      "name": "vote_changed",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "yesVotes",
+          "name": "byte",
+          "description": ""
+        },
+        {
+          "type": "noVotes",
+          "name": "byte",
+          "description": ""
+        },
+        {
+          "type": "potentialVotes",
+          "name": "byte",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": 45,
+      "name": "vote_passed",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "details",
+          "name": "string",
+          "description": ""
+        },
+        {
+          "type": "param1",
+          "name": "string",
+          "description": ""
+        },
+        {
+          "type": "team",
+          "name": "byte",
+          "description": ""
+        },
+        {
+          "type": "reliable",
+          "name": "1",
+          "description": "this event is reliable"
+        }
+      ]
+    },
+    {
+      "id": 46,
+      "name": "vote_failed",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "team",
+          "name": "byte",
+          "description": ""
+        },
+        {
+          "type": "reliable",
+          "name": "1",
+          "description": "this event is reliable"
+        }
+      ]
+    },
+    {
+      "id": 47,
+      "name": "vote_cast_yes",
+      "description": "",
+      "notes": [
+        "Fires when a player votes yes on an ongoing vote."
+      ],
+      "arguments": [
+        {
+          "type": "team",
+          "name": "byte",
+          "description": ""
+        },
+        {
+          "type": "entityid",
+          "name": "long",
+          "description": "entity id of the voter"
+        }
+      ]
+    },
+    {
+      "id": 48,
+      "name": "vote_cast_no",
+      "description": "",
+      "notes": [
+        "Fires when a player votes no on an ongoing vote."
+      ],
+      "arguments": [
+        {
+          "type": "team",
+          "name": "byte",
+          "description": ""
+        },
+        {
+          "type": "entityid",
+          "name": "long",
+          "description": "entity id of the voter"
+        }
+      ]
+    },
+    {
+      "id": 49,
+      "name": "infected_hurt",
+      "description": "",
+      "notes": [
+        "Fires when an infected takes damage. Registers for non-playable classes (Common Infected, Witch). See player_hurt for other playable classes"
+      ],
+      "arguments": [
+        {
+          "type": "local",
+          "name": "1",
+          "description": "don't network this, its way too spammy"
+        },
+        {
+          "type": "attacker",
+          "name": "short",
+          "description": "player userid who attacked"
+        },
+        {
+          "type": "entityid",
+          "name": "long",
+          "description": "entity id of infected"
+        },
+        {
+          "type": "hitgroup",
+          "name": "byte",
+          "description": "hitgroup that was damaged"
+        },
+        {
+          "type": "amount",
+          "name": "short",
+          "description": "how much damage was done"
+        },
+        {
+          "type": "type",
+          "name": "long",
+          "description": "damage type"
+        }
+      ]
+    },
+    {
+      "id": 50,
+      "name": "infected_death",
+      "description": "",
+      "notes": [
+        "Fires when an infected dies."
+      ],
+      "arguments": [
+        {
+          "type": "attacker",
+          "name": "short",
+          "description": "user ID who killed"
+        },
+        {
+          "type": "infected_id",
+          "name": "short",
+          "description": "ID of the infected that died"
+        },
+        {
+          "type": "gender",
+          "name": "short",
+          "description": "gender (type) of the infected"
+        },
+        {
+          "type": "weapon_id",
+          "name": "short",
+          "description": "ID of the weapon used"
+        },
+        {
+          "type": "headshot",
+          "name": "bool",
+          "description": "signals a headshot"
+        },
+        {
+          "type": "minigun",
+          "name": "bool",
+          "description": "signals a minigun kill"
+        },
+        {
+          "type": "blast",
+          "name": "bool",
+          "description": "signals a death from blast damage"
+        },
+        {
+          "type": "submerged",
+          "name": "bool",
+          "description": "indicates the infected was submerged"
+        }
+      ]
+    },
+    {
+      "id": 51,
+      "name": "hostname_changed",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "hostname",
+          "name": "string",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": 52,
+      "name": "difficulty_changed",
+      "description": "It appears that strDifficulty is z_difficulty value",
+      "notes": [
+        "Fires when the difficulty is changed ingame.",
+        "Alongside a successful vote, it also fires when the difficulty is manually changed via z_difficulty convar."
+      ],
+      "arguments": [
+        {
+          "type": "newDifficulty",
+          "name": "short",
+          "description": ""
+        },
+        {
+          "type": "oldDifficulty",
+          "name": "short",
+          "description": ""
+        },
+        {
+          "type": "strDifficulty",
+          "name": "string",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": 53,
+      "name": "finale_start",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "rushes",
+          "name": "short",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": 54,
+      "name": "finale_rush",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "None",
+          "name": "None",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": 55,
+      "name": "finale_escape_start",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "None",
+          "name": "None",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": 56,
+      "name": "finale_vehicle_incoming",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "campaign",
+          "name": "string",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": 57,
+      "name": "finale_vehicle_ready",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "campaign",
+          "name": "string",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": 58,
+      "name": "finale_vehicle_leaving",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "survivorcount",
+          "name": "short",
+          "description": "number of survivors that made it out"
+        }
+      ]
+    },
+    {
+      "id": 59,
+      "name": "finale_win",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "map_name",
+          "name": "string",
+          "description": ""
+        },
+        {
+          "type": "difficulty",
+          "name": "short",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": 60,
+      "name": "mission_lost",
+      "description": "As in, the survivor team failed. Opposite of finale_win, but not necessarily during the finale.",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "None",
+          "name": "None",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": 61,
+      "name": "finale_radio_start",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "health",
+          "name": "short",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": 62,
+      "name": "finale_radio_damaged",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "health",
+          "name": "short",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": 63,
+      "name": "final_reportscreen",
+      "description": "Right before the final report screen comes up, let the awards possibly fire",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "None",
+          "name": "None",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": 64,
+      "name": "map_transition",
+      "description": "When campaign cinematics start",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "None",
+          "name": "None",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": 65,
+      "name": "player_transitioned",
+      "description": "",
+      "notes": [
+        "Fires when a player has transitioned to a new chapter from the previous chapter in a campaign. While in coop or realism and the map is not a first session (!Director.IsSessionStartMap()), fires after a map reset because of mission loss. Fires alongside player_spawn, if the survivor has died from the previous chapter, this event fires first, and vice versa. This event never fires on versus; the game treats every versus game as the first session. Fires when switching campaigns via voting, even though Director.IsSessionStartMap() returns true, it is not the same as using the changelevel convar, players transition as they are dead from the previous."
+      ],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "the person that just finished transitioning"
+        }
+      ]
+    },
+    {
+      "id": 66,
+      "name": "heal_begin",
+      "description": "",
+      "notes": [
+        "Fires when a survivor starts using a medkit."
+      ],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "person doing the healing"
+        },
+        {
+          "type": "subject",
+          "name": "short",
+          "description": "person being healed"
+        }
+      ]
+    },
+    {
+      "id": 67,
+      "name": "heal_success",
+      "description": "",
+      "notes": [
+        "Fires when a survivor successfully uses a medkit."
+      ],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "person doing the healing"
+        },
+        {
+          "type": "subject",
+          "name": "short",
+          "description": "person being healed"
+        },
+        {
+          "type": "health_restored",
+          "name": "short",
+          "description": "amount of health restored"
+        }
+      ]
+    },
+    {
+      "id": 68,
+      "name": "heal_end",
+      "description": "Issues: subject is broken for this event, it always appears to be the player doing the healing",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "person doing the healing"
+        },
+        {
+          "type": "subject",
+          "name": "short",
+          "description": "person being healed"
+        }
+      ]
+    },
+    {
+      "id": 69,
+      "name": "heal_interrupted",
+      "description": "",
+      "notes": [
+        "Fires when a survivor's healing process from a medkit is interrupted."
+      ],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "person who was being healed, but moved."
+        },
+        {
+          "type": "subject",
+          "name": "short",
+          "description": "person being healed"
+        }
+      ]
+    },
+    {
+      "id": 70,
+      "name": "ammo_pack_used",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "person giving the ammo"
+        },
+        {
+          "type": "subject",
+          "name": "short",
+          "description": "person receiving ammo"
+        }
+      ]
+    },
+    {
+      "id": 71,
+      "name": "give_weapon",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "The giver of the weapon"
+        },
+        {
+          "type": "recipient",
+          "name": "short",
+          "description": "The recipient of the weapon"
+        },
+        {
+          "type": "weapon",
+          "name": "short",
+          "description": "The ID of the weapon given"
+        }
+      ]
+    },
+    {
+      "id": 72,
+      "name": "pills_used",
+      "description": "",
+      "notes": [
+        "Fires when a survivor successfully uses pain pills."
+      ],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "person who had the pills"
+        },
+        {
+          "type": "subject",
+          "name": "short",
+          "description": "person swallowing the pills"
+        }
+      ]
+    },
+    {
+      "id": 73,
+      "name": "pills_used_fail",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "person who tried to use the pills"
+        }
+      ]
+    },
+    {
+      "id": 74,
+      "name": "ammo_pack_used_fail_no_weapon",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "person who tried to use the ammo pack"
+        },
+        {
+          "type": "subject",
+          "name": "short",
+          "description": "person it failed to help"
+        }
+      ]
+    },
+    {
+      "id": 75,
+      "name": "ammo_pack_used_fail_full",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "person who tried to use the ammo pack"
+        },
+        {
+          "type": "subject",
+          "name": "short",
+          "description": "person it failed to help"
+        }
+      ]
+    },
+    {
+      "id": 76,
+      "name": "ammo_pack_used_fail_doesnt_use_ammo",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "person who tried to use the ammo pack"
+        },
+        {
+          "type": "subject",
+          "name": "short",
+          "description": "person it failed to help"
+        }
+      ]
+    },
+    {
+      "id": 77,
+      "name": "ammo_pile_weapon_cant_use_ammo",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "person who tried to use an ammo pile with a grenade launcher"
+        }
+      ]
+    },
+    {
+      "id": 78,
+      "name": "defibrillator_begin",
+      "description": "",
+      "notes": [
+        "Fires when a survivor starts using a defibrillator."
+      ],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "person who is defibrillating."
+        },
+        {
+          "type": "subject",
+          "name": "short",
+          "description": "person being revived"
+        }
+      ]
+    },
+    {
+      "id": 79,
+      "name": "defibrillator_used",
+      "description": "",
+      "notes": [
+        "Fires when a survivor successfully uses a defibrillator."
+      ],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "person who used the defibrillator"
+        },
+        {
+          "type": "subject",
+          "name": "short",
+          "description": "person it helped"
+        }
+      ]
+    },
+    {
+      "id": 80,
+      "name": "defibrillator_used_fail",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "person who tried to use the defibrillator"
+        },
+        {
+          "type": "subject",
+          "name": "short",
+          "description": "person it failed to help"
+        }
+      ]
+    },
+    {
+      "id": 81,
+      "name": "defibrillator_interrupted",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "person who was defibrillating, but moved."
+        },
+        {
+          "type": "subject",
+          "name": "short",
+          "description": "person being revived"
+        }
+      ]
+    },
+    {
+      "id": 82,
+      "name": "upgrade_pack_begin",
+      "description": "",
+      "notes": [
+        "Fires when a survivor starts deploying an upgrade pack."
+      ],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "person who is deploying the pack"
+        }
+      ]
+    },
+    {
+      "id": 83,
+      "name": "upgrade_pack_used",
+      "description": "",
+      "notes": [
+        "Fires when a survivor successfully deploys an upgrade pack."
+      ],
+      "arguments": [
+        {
+          "type": "upgradeid",
+          "name": "short",
+          "description": "entity index of the deployed upgrade pack (either upgrade_ammo_explosive or upgrade_ammo_incendiary )"
+        },
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "person who is deploying the pack"
+        }
+      ]
+    },
+    {
+      "id": 84,
+      "name": "upgrade_item_already_used",
+      "description": "",
+      "notes": [
+        "Fires when a survivor tries to use an already used upgrade pack."
+      ],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "person who tried to use an ammo upgrade twice"
+        },
+        {
+          "type": "upgradeclass",
+          "name": "string",
+          "description": "classname of the upgrade we tried to use"
+        }
+      ]
+    },
+    {
+      "id": 85,
+      "name": "upgrade_failed_no_primary",
+      "description": "",
+      "notes": [
+        "Fires when a survivor tries to use an unused upgrade pack with no primary weapon.",
+        "If the upgrade pack has been used and the survivor has no primary weapon, upgrade_item_already_used fires instead of this event."
+      ],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "person who tried to use an upgrade without having a primary weapon"
+        },
+        {
+          "type": "upgrade",
+          "name": "string",
+          "description": "name of the upgrade we tried to use, eg \"INCENDIARY_AMMO\""
+        }
+      ]
+    },
+    {
+      "id": 86,
+      "name": "dead_survivor_visible",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "The player who sees the entity"
+        },
+        {
+          "type": "subject",
+          "name": "long",
+          "description": "Entindex of the entity they see"
+        },
+        {
+          "type": "deadplayer",
+          "name": "short",
+          "description": "user id of the dead player represented"
+        }
+      ]
+    },
+    {
+      "id": 87,
+      "name": "adrenaline_used",
+      "description": "",
+      "notes": [
+        "Fires when a survivor successfully uses an adrenaline."
+      ],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "person who had and used the adrenaline"
+        }
+      ]
+    },
+    {
+      "id": 88,
+      "name": "revive_begin",
+      "description": "",
+      "notes": [
+        "Fires when a survivor starts reviving an incapacitated survivor."
+      ],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "person doing the reviving"
+        },
+        {
+          "type": "subject",
+          "name": "short",
+          "description": "person being revived"
+        }
+      ]
+    },
+    {
+      "id": 89,
+      "name": "revive_success",
+      "description": "",
+      "notes": [
+        "Fires when a survivor successfully revives an incapacitated survivor."
+      ],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "person doing the reviving"
+        },
+        {
+          "type": "subject",
+          "name": "short",
+          "description": "person who was revived"
+        },
+        {
+          "type": "lastlife",
+          "name": "bool",
+          "description": "person revived dies if they fall again"
+        },
+        {
+          "type": "ledge_hang",
+          "name": "bool",
+          "description": "1 if person revived was ledge hanging"
+        }
+      ]
+    },
+    {
+      "id": 90,
+      "name": "revive_end",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "person doing the reviving"
+        },
+        {
+          "type": "subject",
+          "name": "short",
+          "description": "person being revived"
+        },
+        {
+          "type": "ledge_hang",
+          "name": "bool",
+          "description": "person is ledge hanging"
+        }
+      ]
+    },
+    {
+      "id": 91,
+      "name": "drag_begin",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "person doing the dragging"
+        },
+        {
+          "type": "subject",
+          "name": "short",
+          "description": "person being dragged"
+        }
+      ]
+    },
+    {
+      "id": 92,
+      "name": "drag_end",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "person doing the dragging"
+        },
+        {
+          "type": "subject",
+          "name": "short",
+          "description": "person being dragged"
+        }
+      ]
+    },
+    {
+      "id": 93,
+      "name": "player_incapacitated",
+      "description": "",
+      "notes": [
+        "Fires when a survivor becomes incapacitated, or a tank is killed."
+      ],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "person who became incapacitated"
+        },
+        {
+          "type": "attacker",
+          "name": "short",
+          "description": "user ID who made us incapacitated"
+        },
+        {
+          "type": "attackerentid",
+          "name": "long",
+          "description": "if attacker not player, entindex of who made us incapacitated"
+        },
+        {
+          "type": "weapon",
+          "name": "string",
+          "description": "weapon name attacker used"
+        },
+        {
+          "type": "type",
+          "name": "long",
+          "description": "damage type"
+        }
+      ]
+    },
+    {
+      "id": 94,
+      "name": "player_incapacitated_start",
+      "description": "",
+      "notes": [
+        "Fires when a survivor is about to become incapacitated.",
+        "Use this event to check a survivor's state before becoming incapacitated."
+      ],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "person who became incapacitated"
+        },
+        {
+          "type": "attacker",
+          "name": "short",
+          "description": "user ID who made us incapacitated"
+        },
+        {
+          "type": "attackerentid",
+          "name": "long",
+          "description": "if attacker not player, entindex of who made us incapacitated"
+        },
+        {
+          "type": "weapon",
+          "name": "string",
+          "description": "weapon name attacker used"
+        },
+        {
+          "type": "type",
+          "name": "long",
+          "description": "damage type"
+        }
+      ]
+    },
+    {
+      "id": 95,
+      "name": "player_entered_start_area",
+      "description": "When a player spawns into the player start area",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "person who entered"
+        }
+      ]
+    },
+    {
+      "id": 96,
+      "name": "player_first_spawn",
+      "description": "",
+      "notes": [
+        "Fires when a player entity is spawned for the first time.",
+        "When a player idles, a survivor bot is spawned, firing this event."
+      ],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "person who spawned"
+        },
+        {
+          "type": "map_name",
+          "name": "string",
+          "description": ""
+        },
+        {
+          "type": "isbot",
+          "name": "bool",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": 97,
+      "name": "player_left_start_area",
+      "description": "When a player leaves the player start area",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "person who left"
+        }
+      ]
+    },
+    {
+      "id": 98,
+      "name": "player_left_safe_area",
+      "description": "When a player leaves the safe area",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "person who left"
+        },
+        {
+          "type": "playercount",
+          "name": "byte",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": 99,
+      "name": "player_entered_checkpoint",
+      "description": "",
+      "notes": [
+        "Fires when a player entity enters a checkpoint area."
+      ],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "player who entered"
+        },
+        {
+          "type": "entityid",
+          "name": "long",
+          "description": "If not a player, the entity index of the one entering"
+        },
+        {
+          "type": "door",
+          "name": "long",
+          "description": "Entity index of the checkpoint door the player entered to get here."
+        },
+        {
+          "type": "area",
+          "name": "long",
+          "description": ""
+        },
+        {
+          "type": "doorname",
+          "name": "string",
+          "description": "name of the entity they see"
+        }
+      ]
+    },
+    {
+      "id": 100,
+      "name": "player_left_checkpoint",
+      "description": "",
+      "notes": [
+        "Fires when a player entity leavess a checkpoint area."
+      ],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "player who left"
+        },
+        {
+          "type": "entityid",
+          "name": "long",
+          "description": "If not a player, the entity index of the one exiting"
+        },
+        {
+          "type": "area",
+          "name": "long",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": 101,
+      "name": "player_shoved",
+      "description": "",
+      "notes": [
+        "Fires when a survivor shoves another survivor. Issues: Does not fire when shoving a survivor that is currently in combat."
+      ],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "player index who was shoved"
+        },
+        {
+          "type": "attacker",
+          "name": "short",
+          "description": "player index who attacked them"
+        }
+      ]
+    },
+    {
+      "id": 102,
+      "name": "entity_shoved",
+      "description": "",
+      "notes": [
+        "Fires when a survivor shoves a non-point entity, except survivors."
+      ],
+      "arguments": [
+        {
+          "type": "entityid",
+          "name": "short",
+          "description": "the entity index of the one who was shoved"
+        },
+        {
+          "type": "attacker",
+          "name": "short",
+          "description": "player index who attacked them"
+        }
+      ]
+    },
+    {
+      "id": 103,
+      "name": "player_jump_apex",
+      "description": "",
+      "notes": [
+        "Fires when a player reaches the highest point of their jump. In other words, their upward velocity becomes 0, right before the player starts falling.",
+        "Using noclip fires this event constantly."
+      ],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "player who jumped"
+        }
+      ]
+    },
+    {
+      "id": 104,
+      "name": "player_blocked",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "player index who was trying to move"
+        },
+        {
+          "type": "blocker",
+          "name": "short",
+          "description": "player index who kept them from moving"
+        }
+      ]
+    },
+    {
+      "id": 105,
+      "name": "player_now_it",
+      "description": "",
+      "notes": [
+        "Fires when a player entity is covered in bile."
+      ],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "Player who is now it"
+        },
+        {
+          "type": "attacker",
+          "name": "short",
+          "description": "player that did the it-ing"
+        },
+        {
+          "type": "exploded",
+          "name": "bool",
+          "description": "whether it was vomit or explosion"
+        },
+        {
+          "type": "infected",
+          "name": "bool",
+          "description": "is the vomit infectious"
+        },
+        {
+          "type": "by_boomer",
+          "name": "bool",
+          "description": "came from a boomer"
+        }
+      ]
+    },
+    {
+      "id": 106,
+      "name": "player_no_longer_it",
+      "description": "",
+      "notes": [
+        "Fires when a player entity's bile effect wears off."
+      ],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "Player who is now no longer it"
+        }
+      ]
+    },
+    {
+      "id": 107,
+      "name": "witch_harasser_set",
+      "description": "",
+      "notes": [
+        "Fires when a witch is startled.",
+        "Using CommandABot on the witch also fires this event."
+      ],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "Player who woke up the witch"
+        },
+        {
+          "type": "witchid",
+          "name": "long",
+          "description": "Entindex of witch woken up"
+        },
+        {
+          "type": "first",
+          "name": "bool",
+          "description": "First time the witch set a harasser"
+        }
+      ]
+    },
+    {
+      "id": 108,
+      "name": "witch_spawn",
+      "description": "",
+      "notes": [
+        "Fires when a witch is spawned."
+      ],
+      "arguments": [
+        {
+          "type": "witchid",
+          "name": "long",
+          "description": "Entindex of witch spawning right now."
+        }
+      ]
+    },
+    {
+      "id": 109,
+      "name": "witch_killed",
+      "description": "",
+      "notes": [
+        "Fires when a witch dies."
+      ],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "Player who killed the witch"
+        },
+        {
+          "type": "witchid",
+          "name": "long",
+          "description": "Entindex of witch that was killed."
+        },
+        {
+          "type": "oneshot",
+          "name": "bool",
+          "description": "TRUE if the Witch was killed with one shot"
+        },
+        {
+          "type": "melee_only",
+          "name": "bool",
+          "description": "TRUE if the witch was only killed by melee attacks (no blast, burn, or bullet damage)"
+        },
+        {
+          "type": "bride",
+          "name": "bool",
+          "description": "bride variant?"
+        }
+      ]
+    },
+    {
+      "id": 110,
+      "name": "tank_spawn",
+      "description": "",
+      "notes": [
+        "Fires when a witch spawns."
+      ],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "User ID of the tank spawning now"
+        },
+        {
+          "type": "tankid",
+          "name": "long",
+          "description": "Entindex of tank spawning right now."
+        }
+      ]
+    },
+    {
+      "id": 111,
+      "name": "melee_kill",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "Player who bashed the infected"
+        },
+        {
+          "type": "entityid",
+          "name": "long",
+          "description": "Entindex of infected what got killed"
+        },
+        {
+          "type": "ambush",
+          "name": "bool",
+          "description": "Infected was unaware when killed"
+        }
+      ]
+    },
+    {
+      "id": 112,
+      "name": "area_cleared",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "person who cleared the area"
+        },
+        {
+          "type": "area",
+          "name": "long",
+          "description": "id of the cleared area"
+        }
+      ]
+    },
+    {
+      "id": 113,
+      "name": "award_earned",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "player who earned the award"
+        },
+        {
+          "type": "entityid",
+          "name": "long",
+          "description": "client likes ent id"
+        },
+        {
+          "type": "subjectentid",
+          "name": "long",
+          "description": "entity id of other party in the award, if any"
+        },
+        {
+          "type": "award",
+          "name": "short",
+          "description": "id of award earned"
+        }
+      ]
+    },
+    {
+      "id": 114,
+      "name": "tongue_grab",
+      "description": "",
+      "notes": [
+        "Fires when a smoker starts grabbing a survivor."
+      ],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "player who did the grabbing"
+        },
+        {
+          "type": "victim",
+          "name": "short",
+          "description": "player that got grabbed"
+        }
+      ]
+    },
+    {
+      "id": 115,
+      "name": "tongue_broke_bent",
+      "description": "",
+      "notes": [
+        "Fires when a smoker's tongue breaks due to world geometry bend."
+      ],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "Tongue owner"
+        }
+      ]
+    },
+    {
+      "id": 116,
+      "name": "tongue_broke_victim_died",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "Tongue owner"
+        }
+      ]
+    },
+    {
+      "id": 117,
+      "name": "tongue_release",
+      "description": "",
+      "notes": [
+        "Fires when a smoker releases a survivor, whether choked or not, etc.",
+        "Fires twice in all release cases, except tongue_broke_bent where it only fires once. Second iteration returns distance and victim arguments as 0."
+      ],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "The tongue owner"
+        },
+        {
+          "type": "victim",
+          "name": "short",
+          "description": "The (now released) victim"
+        },
+        {
+          "type": "distance",
+          "name": "long",
+          "description": "Distance the victim was dragged."
+        }
+      ]
+    },
+    {
+      "id": 118,
+      "name": "choke_start",
+      "description": "",
+      "notes": [
+        "Fires when a smoker starts choking a survivor."
+      ],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "The choker"
+        },
+        {
+          "type": "victim",
+          "name": "short",
+          "description": "The person being choked"
+        }
+      ]
+    },
+    {
+      "id": 119,
+      "name": "choke_end",
+      "description": "",
+      "notes": [
+        "Fires when a smoker stops choking a survivor, regardless of the situation."
+      ],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "The choker"
+        },
+        {
+          "type": "victim",
+          "name": "short",
+          "description": "The person being choked"
+        }
+      ]
+    },
+    {
+      "id": 120,
+      "name": "choke_stopped",
+      "description": "Issues: While the event does not fire while staggering the smoker with the methods above, it fires when it is killed using only the grenade launcher and explosive ammo.",
+      "notes": [
+        "Fires when a smoker tongue is cleared on a choked player, fires alongside choke_end (choke_stopped fires first).",
+        "Does not fire when (choke_end still fires): The smoker is staggered with a propane/oxygen tank, pipe bomb, explosive ammo, grenade launcher, boomer explosion, and charger impact. Another special takes over the pinned survivor or kills the smoker. The smoker is killed by a gas can, a firework box, a Molotov, and incendiary ammo. The smoker ledge-hanged the survivor. Using Stagger() on either the smoker or the survivor."
+      ],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "Who stopped it"
+        },
+        {
+          "type": "victim",
+          "name": "short",
+          "description": "And who was being choked"
+        },
+        {
+          "type": "smoker",
+          "name": "short",
+          "description": "The tongue owner"
+        },
+        {
+          "type": "release_type",
+          "name": "short",
+          "description": "How did it break?"
+        }
+      ]
+    },
+    {
+      "id": 121,
+      "name": "tongue_pull_stopped",
+      "description": "Issues: While the event does not fire while staggering the smoker with the methods above, it fires when it is killed using only the grenade launcher and explosive ammo.",
+      "notes": [
+        "Fires when a smoker tongue is cleared on a dragging player. Includes cuts.",
+        "Does not fire when: The smoker is staggered with a propane/oxygen tank, pipe bomb, explosive ammo, grenade launcher, boomer explosion, and charger impact. Another special takes over the pinned survivor or kills the smoker. The smoker is killed by a gas can, a firework box, a Molotov, and incendiary ammo. The smoker ledge-hanged the survivor. Using Stagger() on either the smoker or the survivor."
+      ],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "Who stopped it"
+        },
+        {
+          "type": "victim",
+          "name": "short",
+          "description": "And who was being pulled"
+        },
+        {
+          "type": "smoker",
+          "name": "short",
+          "description": "The tongue owner"
+        },
+        {
+          "type": "release_type",
+          "name": "short",
+          "description": "How did it break?"
+        },
+        {
+          "type": "damage_type",
+          "name": "long",
+          "description": "bullet, slash, chainsaw"
+        }
+      ]
+    },
+    {
+      "id": 122,
+      "name": "lunge_shove",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "player who did the lunging"
+        },
+        {
+          "type": "victim",
+          "name": "short",
+          "description": "player that got lunged"
+        }
+      ]
+    },
+    {
+      "id": 123,
+      "name": "lunge_pounce",
+      "description": "",
+      "notes": [
+        "Fires when a hunter successfully pounces a survivor."
+      ],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "player who did the lunging"
+        },
+        {
+          "type": "victim",
+          "name": "short",
+          "description": "player that got lunged"
+        },
+        {
+          "type": "distance",
+          "name": "long",
+          "description": "Distance from pounce start to contact"
+        },
+        {
+          "type": "damage",
+          "name": "short",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": 124,
+      "name": "pounce_end",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "Player who did the pouncing"
+        },
+        {
+          "type": "victim",
+          "name": "short",
+          "description": "And who was being pounced"
+        }
+      ]
+    },
+    {
+      "id": 125,
+      "name": "pounce_stopped",
+      "description": "Issues: Shoving a hunter right after it pounces a survivor does not release the survivor, but the event still fires.",
+      "notes": [
+        "Fires whenever a player clears a hunter dominating a survivor, fires alongside pounce_end (pounce_stopped is fired first).",
+        "Does not fire if staggered by pipe bomb, propane/oxygen tank, explosive ammo, grenade launcher, boomer explosion, charger impact, and Stagger(). (pounce_end still fires) Fires if the hunter is killed by any method above, except boomer explosion and charger impact. A special that kills the hunter returns userid as the special's userid. Killing the hunter by shoving fires this event before player_hurt. However, killing it by any other means fires the event after player_hurt."
+      ],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "Who stopped it"
+        },
+        {
+          "type": "victim",
+          "name": "short",
+          "description": "And who was being pounced"
+        }
+      ]
+    },
+    {
+      "id": 126,
+      "name": "pounce_attempt_stopped",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "Who stopped it"
+        },
+        {
+          "type": "weaponid",
+          "name": "short",
+          "description": "used weapon ID"
+        }
+      ]
+    },
+    {
+      "id": 127,
+      "name": "fatal_vomit",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "Who vomited"
+        },
+        {
+          "type": "victim",
+          "name": "short",
+          "description": "And who was killed or incapped"
+        }
+      ]
+    },
+    {
+      "id": 128,
+      "name": "survivor_call_for_help",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "The actual player entity who is awaiting rescue."
+        },
+        {
+          "type": "subject",
+          "name": "long",
+          "description": "SurvivorRescue entity representing the player who needs to be rescued from the closet (used for position)"
+        }
+      ]
+    },
+    {
+      "id": 129,
+      "name": "survivor_rescued",
+      "description": "",
+      "notes": [
+        "Fires when a survivor is successfully rescued from a rescue closet."
+      ],
+      "arguments": [
+        {
+          "type": "rescuer",
+          "name": "short",
+          "description": "player that did the rescuing"
+        },
+        {
+          "type": "victim",
+          "name": "short",
+          "description": "the survivor being rescued"
+        },
+        {
+          "type": "dooridx",
+          "name": "long",
+          "description": "ent index of the rescue door"
+        }
+      ]
+    },
+    {
+      "id": 130,
+      "name": "survivor_rescue_abandoned",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "None",
+          "name": "None",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": 131,
+      "name": "relocated",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "player who was relocated"
+        }
+      ]
+    },
+    {
+      "id": 132,
+      "name": "respawning",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "player who started respawning"
+        }
+      ]
+    },
+    {
+      "id": 133,
+      "name": "tank_frustrated",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "player who was culled"
+        }
+      ]
+    },
+    {
+      "id": 134,
+      "name": "weapon_given",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "player who got the weapon"
+        },
+        {
+          "type": "giver",
+          "name": "short",
+          "description": "player that did the giving"
+        },
+        {
+          "type": "weapon",
+          "name": "short",
+          "description": "weapon id given"
+        },
+        {
+          "type": "weaponentid",
+          "name": "short",
+          "description": "weapon entity id"
+        }
+      ]
+    },
+    {
+      "id": 135,
+      "name": "weapon_drop",
+      "description": "",
+      "notes": [
+        "Fires When an item is removed from a survivor's inventory. Related Events: Called before heal_success, defibrillator_used, upgrade_pack_used, but called after pills_used and adrenaline_used."
+      ],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "player who dropped the weapon"
+        },
+        {
+          "type": "item",
+          "name": "string",
+          "description": "either a weapon such as 'tmp' or 'hegrenade', or an item such as 'nvgs'"
+        },
+        {
+          "type": "propid",
+          "name": "short",
+          "description": "entindex of the dropped weapon"
+        }
+      ]
+    },
+    {
+      "id": 136,
+      "name": "weapon_drop_to_prop",
+      "description": "",
+      "notes": [
+        "Fires when a player drops an item that turns into a prop, such as a gas can, a firework box, a propane tank, an oxygen tank, cola bottles, a gnome, etc."
+      ],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "player who dropped the weapon"
+        },
+        {
+          "type": "item",
+          "name": "string",
+          "description": "weapon string \"weapon_*\""
+        },
+        {
+          "type": "propid",
+          "name": "short",
+          "description": "entindex of the dropped weapon"
+        }
+      ]
+    },
+    {
+      "id": 137,
+      "name": "break_breakable",
+      "description": "Override from gameevents.res",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "userid of breaker"
+        },
+        {
+          "type": "entindex",
+          "name": "long",
+          "description": "entindex of thing breaking"
+        },
+        {
+          "type": "material",
+          "name": "byte",
+          "description": "BREAK_GLASS, BREAK_WOOD, etc"
+        },
+        {
+          "type": "hulkonly",
+          "name": "bool",
+          "description": "SF_BREAK_HULK_ONLY"
+        },
+        {
+          "type": "achievement",
+          "name": "short",
+          "description": "tag to identify achievement on the client"
+        }
+      ]
+    },
+    {
+      "id": 138,
+      "name": "achievement_earned",
+      "description": "",
+      "notes": [
+        "Fires when a player earns an achievement."
+      ],
+      "arguments": [
+        {
+          "type": "player",
+          "name": "byte",
+          "description": "entindex of the player"
+        },
+        {
+          "type": "achievement",
+          "name": "short",
+          "description": "achievement ID"
+        }
+      ]
+    },
+    {
+      "id": 139,
+      "name": "spec_target_updated",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "None",
+          "name": "None",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": 140,
+      "name": "spawner_give_item",
+      "description": "",
+      "notes": [
+        "Fires when a player picks up an item from weapon_*_spawn entities."
+      ],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "Item recipient"
+        },
+        {
+          "type": "item",
+          "name": "string",
+          "description": "Name of item given"
+        },
+        {
+          "type": "spawner",
+          "name": "long",
+          "description": "entindex of the spawner entity"
+        }
+      ]
+    },
+    {
+      "id": 141,
+      "name": "create_panic_event",
+      "description": "A panic event has been created, though not necessarily started",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "player who was started the panic"
+        }
+      ]
+    },
+    {
+      "id": 142,
+      "name": "explain_pills",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "subject",
+          "name": "long",
+          "description": "The weapon_pain_pills spawner that is indicated"
+        }
+      ]
+    },
+    {
+      "id": 143,
+      "name": "explain_weapons",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "subject",
+          "name": "long",
+          "description": "The weapon_pain_pills spawner that is indicated"
+        }
+      ]
+    },
+    {
+      "id": 144,
+      "name": "entity_visible",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "The player who sees the entity"
+        },
+        {
+          "type": "subject",
+          "name": "long",
+          "description": "Entindex of the entity they see"
+        },
+        {
+          "type": "classname",
+          "name": "string",
+          "description": "Classname of the entity they see"
+        },
+        {
+          "type": "entityname",
+          "name": "string",
+          "description": "name of the entity they see"
+        }
+      ]
+    },
+    {
+      "id": 145,
+      "name": "weapon_spawn_visible",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "The player who sees the entity"
+        },
+        {
+          "type": "subject",
+          "name": "long",
+          "description": "Entindex of the entity they see"
+        },
+        {
+          "type": "weaponname",
+          "name": "string",
+          "description": "weapon name, or \"melee\""
+        },
+        {
+          "type": "subtype",
+          "name": "string",
+          "description": "melee weapon name"
+        }
+      ]
+    },
+    {
+      "id": 146,
+      "name": "boomer_near",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "The boomer"
+        },
+        {
+          "type": "victim",
+          "name": "short",
+          "description": "The survivor whom the boomer has gotten very close to"
+        }
+      ]
+    },
+    {
+      "id": 147,
+      "name": "explain_pre_radio",
+      "description": "explain the rescue radio reminds you to get ready for the finale",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": ""
+        },
+        {
+          "type": "subject",
+          "name": "long",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": 148,
+      "name": "started_pre_radio",
+      "description": "explain the rescue radio reminds you to get ready for the finale",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": ""
+        },
+        {
+          "type": "subject",
+          "name": "long",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": 149,
+      "name": "explain_radio",
+      "description": "explain the rescue radio to start the finale",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": ""
+        },
+        {
+          "type": "subject",
+          "name": "long",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": 150,
+      "name": "explain_gas_truck",
+      "description": "explain how pulling the lever on the gas truck starts the finale",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": ""
+        },
+        {
+          "type": "subject",
+          "name": "long",
+          "description": "The lever"
+        }
+      ]
+    },
+    {
+      "id": 151,
+      "name": "explain_panic_button",
+      "description": "explain that pressing this button starts a panic event.",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": ""
+        },
+        {
+          "type": "subject",
+          "name": "long",
+          "description": "The panic button"
+        }
+      ]
+    },
+    {
+      "id": 152,
+      "name": "explain_elevator_button",
+      "description": "explain how to operate the hospital elevator button.",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": ""
+        },
+        {
+          "type": "subject",
+          "name": "long",
+          "description": "The button"
+        }
+      ]
+    },
+    {
+      "id": 153,
+      "name": "explain_lift_button",
+      "description": "explain how to operate the lift button.",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": ""
+        },
+        {
+          "type": "subject",
+          "name": "long",
+          "description": "The lift button"
+        }
+      ]
+    },
+    {
+      "id": 154,
+      "name": "explain_church_door",
+      "description": "explain how to provoke the crazy church guy.",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": ""
+        },
+        {
+          "type": "subject",
+          "name": "long",
+          "description": "The saferoom door"
+        }
+      ]
+    },
+    {
+      "id": 155,
+      "name": "explain_emergency_door",
+      "description": "explain how to open the emergency door.",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": ""
+        },
+        {
+          "type": "subject",
+          "name": "long",
+          "description": "The door"
+        }
+      ]
+    },
+    {
+      "id": 156,
+      "name": "explain_crane",
+      "description": "explain how to lower the box on the crane.",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": ""
+        },
+        {
+          "type": "subject",
+          "name": "long",
+          "description": "The lever/button"
+        }
+      ]
+    },
+    {
+      "id": 157,
+      "name": "explain_bridge",
+      "description": "explain how to close the gates to make a bridge.",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": ""
+        },
+        {
+          "type": "subject",
+          "name": "long",
+          "description": "The button"
+        }
+      ]
+    },
+    {
+      "id": 158,
+      "name": "explain_gas_can_panic",
+      "description": "explain how to shoot the gas can.",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": ""
+        },
+        {
+          "type": "subject",
+          "name": "long",
+          "description": "The gas can"
+        }
+      ]
+    },
+    {
+      "id": 159,
+      "name": "explain_van_panic",
+      "description": "explain how to start the van.",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": ""
+        },
+        {
+          "type": "subject",
+          "name": "long",
+          "description": "The van"
+        }
+      ]
+    },
+    {
+      "id": 160,
+      "name": "explain_mainstreet",
+      "description": "explain how to lower the forklift",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": ""
+        },
+        {
+          "type": "subject",
+          "name": "long",
+          "description": "The forklift"
+        }
+      ]
+    },
+    {
+      "id": 161,
+      "name": "explain_train_lever",
+      "description": "explain how to operate the train lever.",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": ""
+        },
+        {
+          "type": "subject",
+          "name": "long",
+          "description": "The lever on box car"
+        }
+      ]
+    },
+    {
+      "id": 162,
+      "name": "explain_disturbance",
+      "description": "explain that disturbances (car alarm) attract the infected horde",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": ""
+        },
+        {
+          "type": "subject",
+          "name": "long",
+          "description": "The source of disturbance"
+        }
+      ]
+    },
+    {
+      "id": 163,
+      "name": "explain_scavenge_goal",
+      "description": "explain where to put the scavenge mode items",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": ""
+        },
+        {
+          "type": "subject",
+          "name": "long",
+          "description": "The collection device"
+        }
+      ]
+    },
+    {
+      "id": 164,
+      "name": "explain_scavenge_leave_area",
+      "description": "explain that leaving the area, starts round",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": ""
+        },
+        {
+          "type": "subject",
+          "name": "long",
+          "description": "The entity"
+        }
+      ]
+    },
+    {
+      "id": 165,
+      "name": "begin_scavenge_overtime",
+      "description": "Enter overtime in a scavenge round",
+      "notes": [],
+      "arguments": []
+    },
+    {
+      "id": 166,
+      "name": "scavenge_round_start",
+      "description": "a scavenge round has begun",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "round",
+          "name": "byte",
+          "description": "round number, 1 based"
+        },
+        {
+          "type": "firsthalf",
+          "name": "bool",
+          "description": "start of the first half of the round"
+        }
+      ]
+    },
+    {
+      "id": 167,
+      "name": "scavenge_round_halftime",
+      "description": "a scavenge round is in halftime",
+      "notes": [],
+      "arguments": []
+    },
+    {
+      "id": 168,
+      "name": "scavenge_round_finished",
+      "description": "a scavenge round has ended",
+      "notes": [],
+      "arguments": []
+    },
+    {
+      "id": 169,
+      "name": "scavenge_score_tied",
+      "description": "a team just tied the score",
+      "notes": [],
+      "arguments": []
+    },
+    {
+      "id": 170,
+      "name": "versus_round_start",
+      "description": "a versus round has begun",
+      "notes": [],
+      "arguments": []
+    },
+    {
+      "id": 171,
+      "name": "gascan_pour_blocked",
+      "description": "can't pour the gas, someone else already is",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": 172,
+      "name": "gascan_pour_completed",
+      "description": "player finished pouring a can",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": 173,
+      "name": "gascan_dropped",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": 174,
+      "name": "gascan_pour_interrupted",
+      "description": "we got interrupted pouring the gas can",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "person who interuppted us"
+        }
+      ]
+    },
+    {
+      "id": 175,
+      "name": "scavenge_match_finished",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "winners",
+          "name": "byte",
+          "description": "winner team"
+        }
+      ]
+    },
+    {
+      "id": 176,
+      "name": "versus_match_finished",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "winners",
+          "name": "byte",
+          "description": "winner team"
+        }
+      ]
+    },
+    {
+      "id": 177,
+      "name": "use_target",
+      "description": "A new use target has been found",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "targetid",
+          "name": "long",
+          "description": "Entindex of the use target"
+        },
+        {
+          "type": "classname",
+          "name": "string",
+          "description": "classname of the use target"
+        },
+        {
+          "type": "isprop",
+          "name": "bool",
+          "description": "is this a prop that can be carried"
+        }
+      ]
+    },
+    {
+      "id": 178,
+      "name": "player_use",
+      "description": "",
+      "notes": [
+        "Fires when a Survivor presses +USE on a useable entity. i.e. Weapons, items, doors. Related Events: If targetid is an item, item_pickup is called prior to player_use",
+        "It does not fire when using a mounted gun. It does not fire when the Use input is fired on a survivor."
+      ],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "userid of user"
+        },
+        {
+          "type": "targetid",
+          "name": "long",
+          "description": "Entindex of the used entity"
+        }
+      ]
+    },
+    {
+      "id": 179,
+      "name": "friendly_fire",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "attacker",
+          "name": "short",
+          "description": "player who fired the weapon"
+        },
+        {
+          "type": "victim",
+          "name": "short",
+          "description": "player who got shot"
+        },
+        {
+          "type": "guilty",
+          "name": "short",
+          "description": "player who was at fault"
+        },
+        {
+          "type": "type",
+          "name": "long",
+          "description": "damage type"
+        }
+      ]
+    },
+    {
+      "id": 180,
+      "name": "gameinstructor_draw",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "None",
+          "name": "None",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": 181,
+      "name": "gameinstructor_nodraw",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "None",
+          "name": "None",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": 182,
+      "name": "request_weapon_stats",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "userid of user requesting their stats"
+        }
+      ]
+    },
+    {
+      "id": 183,
+      "name": "player_talking_state",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "player",
+          "name": "byte",
+          "description": ""
+        },
+        {
+          "type": "istalking",
+          "name": "bool",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": 184,
+      "name": "weapon_pickup",
+      "description": "client event for player has picked up a weapon. If that does not work, try using the \"item_pickup\" event.",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "context",
+          "name": "byte",
+          "description": "split screen message context"
+        },
+        {
+          "type": "weaponid",
+          "name": "byte",
+          "description": ""
+        },
+        {
+          "type": "weaponslot",
+          "name": "byte",
+          "description": ""
+        },
+        {
+          "type": "dropped_by_infected",
+          "name": "byte",
+          "description": "gender of the Infected that dropped the weapon"
+        }
+      ]
+    },
+    {
+      "id": 185,
+      "name": "hunter_punched",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "player who caused ignition"
+        },
+        {
+          "type": "hunteruserid",
+          "name": "long",
+          "description": "user ID of Hunter"
+        },
+        {
+          "type": "islunging",
+          "name": "bool",
+          "description": "TRUE if the Hunter was in the act of lunging"
+        }
+      ]
+    },
+    {
+      "id": 186,
+      "name": "hunter_headshot",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "player who made the headshot"
+        },
+        {
+          "type": "hunteruserid",
+          "name": "long",
+          "description": "user ID of Hunter"
+        },
+        {
+          "type": "islunging",
+          "name": "bool",
+          "description": "TRUE if the Hunter was in the act of lunging"
+        }
+      ]
+    },
+    {
+      "id": 187,
+      "name": "zombie_ignited",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "player who caused ignition"
+        },
+        {
+          "type": "gender",
+          "name": "short",
+          "description": "gender (type) of the infected"
+        },
+        {
+          "type": "entityid",
+          "name": "long",
+          "description": "entity ID of Tank"
+        },
+        {
+          "type": "victimname",
+          "name": "string",
+          "description": "\"Witch\", \"Tank\", \"Hunter\", \"Smoker\", or \"Infected\""
+        },
+        {
+          "type": "fire_ammo",
+          "name": "bool",
+          "description": "true if incendiary ammo was used"
+        }
+      ]
+    },
+    {
+      "id": 188,
+      "name": "boomer_exploded",
+      "description": "",
+      "notes": [
+        "Fires when a boomer explodes. Related Events: Fires after player_death"
+      ],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "Boomer that exploded"
+        },
+        {
+          "type": "attacker",
+          "name": "short",
+          "description": "player who caused the explosion"
+        },
+        {
+          "type": "splashedbile",
+          "name": "bool",
+          "description": "Exploding boomer splashed bile on Survivors"
+        }
+      ]
+    },
+    {
+      "id": 189,
+      "name": "non_pistol_fired",
+      "description": "",
+      "notes": [
+        "Fires when a survivor attacks with a non-pistol weapon.",
+        "Only fires once for each survivor; subsequent non-pistol weapons being shot do not fire this event. Most likely used to detect if a survivor has used a melee weapon or not for melee-only achievements. It continues firing again after a map transition, reset and team swap."
+      ],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "User that fired a non-pistol weapon"
+        }
+      ]
+    },
+    {
+      "id": 190,
+      "name": "weapon_fire_at_40",
+      "description": "This is networked, special event for game instructor",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": ""
+        },
+        {
+          "type": "weapon",
+          "name": "string",
+          "description": "used weapon name"
+        },
+        {
+          "type": "weaponid",
+          "name": "short",
+          "description": "used weapon ID"
+        },
+        {
+          "type": "count",
+          "name": "short",
+          "description": "number of bullets"
+        }
+      ]
+    },
+    {
+      "id": 191,
+      "name": "total_ammo_below_40",
+      "description": "sent for any ammo type, except those with max ammo 1, or infinite ammo, like pistols",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": 192,
+      "name": "player_hurt_concise",
+      "description": "Abbreviated version of 'player_hurt' that is networked",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "user ID who was hurt"
+        },
+        {
+          "type": "attackerentid",
+          "name": "long",
+          "description": "entity id who attacked, if attacker not a player, and userid therefore invalid"
+        },
+        {
+          "type": "type",
+          "name": "long",
+          "description": "damage type"
+        },
+        {
+          "type": "dmg_health",
+          "name": "short",
+          "description": "damage done to health"
+        }
+      ]
+    },
+    {
+      "id": 193,
+      "name": "tank_killed",
+      "description": "",
+      "notes": [
+        "Fires when a tank dies. Issues: It does not fire if the tank is not a bot."
+      ],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "user ID of dead tank"
+        },
+        {
+          "type": "attacker",
+          "name": "short",
+          "description": "user id of killer"
+        },
+        {
+          "type": "solo",
+          "name": "bool",
+          "description": "TRUE if a player single-handedly killed the Tank"
+        },
+        {
+          "type": "melee_only",
+          "name": "bool",
+          "description": "TRUE if the tank was only killed by melee attacks (no blast, burn, or bullet damage)"
+        },
+        {
+          "type": "l4d1_only",
+          "name": "bool",
+          "description": "TRUE if l4d1 survivors inflicted damage and the l4d2 survivors did not)"
+        }
+      ]
+    },
+    {
+      "id": 194,
+      "name": "tank_rock_killed",
+      "description": "",
+      "notes": [
+        "Fires when a survivor destroys a tank rock."
+      ],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "user id of killer"
+        }
+      ]
+    },
+    {
+      "id": 195,
+      "name": "achievement_write_failed",
+      "description": "Used for a notification message when an achievement fails to write",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "None",
+          "name": "None",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": 196,
+      "name": "ghost_spawn_time",
+      "description": "Used for clients to know how long until they become a ghost (and can spawn)",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "user ID of the player that is becoming a ghost"
+        },
+        {
+          "type": "spawntime",
+          "name": "short",
+          "description": "How long of a wait until player is a ghost"
+        }
+      ]
+    },
+    {
+      "id": 197,
+      "name": "survival_at_30min",
+      "description": "",
+      "notes": [
+        "Fires when the survivors survive 30 minutes on a survival map. Used to know when we elapse 30 minutes on a survival map"
+      ],
+      "arguments": []
+    },
+    {
+      "id": 198,
+      "name": "survival_at_10min",
+      "description": "",
+      "notes": [
+        "Fires when the survivors survive 10 minutes on a survival map. Used to know when we elapse 10 minutes on a survival map"
+      ],
+      "arguments": []
+    },
+    {
+      "id": 199,
+      "name": "explain_pre_drawbridge",
+      "description": "Point out the button that starts the gauntlet finale.",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": ""
+        },
+        {
+          "type": "subject",
+          "name": "long",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": 200,
+      "name": "explain_drawbridge",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": ""
+        },
+        {
+          "type": "subject",
+          "name": "long",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": 201,
+      "name": "explain_perimeter",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": ""
+        },
+        {
+          "type": "subject",
+          "name": "long",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": 202,
+      "name": "explain_deactivate_alarm",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": ""
+        },
+        {
+          "type": "subject",
+          "name": "long",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": 203,
+      "name": "explain_impound_lot",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": ""
+        },
+        {
+          "type": "subject",
+          "name": "long",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": 204,
+      "name": "explain_decon",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": ""
+        },
+        {
+          "type": "subject",
+          "name": "long",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": 205,
+      "name": "explain_mall_window",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": ""
+        },
+        {
+          "type": "subject",
+          "name": "long",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": 206,
+      "name": "explain_mall_alarm",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": ""
+        },
+        {
+          "type": "subject",
+          "name": "long",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": 207,
+      "name": "explain_coaster",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": ""
+        },
+        {
+          "type": "subject",
+          "name": "long",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": 208,
+      "name": "explain_coaster_stop",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": ""
+        },
+        {
+          "type": "subject",
+          "name": "long",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": 209,
+      "name": "explain_decon_wait",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": ""
+        },
+        {
+          "type": "subject",
+          "name": "long",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": 210,
+      "name": "gauntlet_finale_start",
+      "description": "",
+      "notes": [],
+      "arguments": []
+    },
+    {
+      "id": 211,
+      "name": "explain_float",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": ""
+        },
+        {
+          "type": "subject",
+          "name": "long",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": 212,
+      "name": "explain_ferry_button",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": ""
+        },
+        {
+          "type": "subject",
+          "name": "long",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": 213,
+      "name": "explain_hatch_button",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": ""
+        },
+        {
+          "type": "subject",
+          "name": "long",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": 214,
+      "name": "explain_shack_button",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": ""
+        },
+        {
+          "type": "subject",
+          "name": "long",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": 215,
+      "name": "upgrade_incendiary_ammo",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": 216,
+      "name": "upgrade_explosive_ammo",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": 217,
+      "name": "receive_upgrade",
+      "description": "",
+      "notes": [
+        "Fires when a survivor successfully receives an incendiary, explosive, or laser sight upgrades."
+      ],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": ""
+        },
+        {
+          "type": "upgrade",
+          "name": "string",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": 218,
+      "name": "explain_vehicle_arrival",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "subject",
+          "name": "long",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": 219,
+      "name": "mounted_gun_start",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": ""
+        },
+        {
+          "type": "subject",
+          "name": "long",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": 220,
+      "name": "mounted_gun_overheated",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": 221,
+      "name": "explain_burger_sign",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": ""
+        },
+        {
+          "type": "subject",
+          "name": "long",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": 222,
+      "name": "explain_carousel_button",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": ""
+        },
+        {
+          "type": "subject",
+          "name": "long",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": 223,
+      "name": "explain_carousel_destination",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": ""
+        },
+        {
+          "type": "subject",
+          "name": "long",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": 224,
+      "name": "explain_stage_lighting",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": ""
+        },
+        {
+          "type": "subject",
+          "name": "long",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": 225,
+      "name": "explain_stage_finale_start",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": ""
+        },
+        {
+          "type": "subject",
+          "name": "long",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": 226,
+      "name": "explain_stage_survival_start",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": ""
+        },
+        {
+          "type": "subject",
+          "name": "long",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": 227,
+      "name": "ability_out_of_range",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": ""
+        },
+        {
+          "type": "ability",
+          "name": "string",
+          "description": "ability classname"
+        }
+      ]
+    },
+    {
+      "id": 228,
+      "name": "explain_stage_pyrotechnics",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": ""
+        },
+        {
+          "type": "subject",
+          "name": "long",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": 229,
+      "name": "explain_c3m4_radio1",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": ""
+        },
+        {
+          "type": "subject",
+          "name": "long",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": 230,
+      "name": "explain_c3m4_radio2",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": ""
+        },
+        {
+          "type": "subject",
+          "name": "long",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": 231,
+      "name": "explain_gates_are_open",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": ""
+        },
+        {
+          "type": "subject",
+          "name": "long",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": 232,
+      "name": "explain_c2m4_ticketbooth",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": ""
+        },
+        {
+          "type": "subject",
+          "name": "long",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": 233,
+      "name": "explain_c3m4_rescue",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": ""
+        },
+        {
+          "type": "subject",
+          "name": "long",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": 234,
+      "name": "explain_hotel_elevator_doors",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": ""
+        },
+        {
+          "type": "subject",
+          "name": "long",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": 235,
+      "name": "explain_gun_shop_tanker",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": ""
+        },
+        {
+          "type": "subject",
+          "name": "long",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": 236,
+      "name": "explain_gun_shop",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": ""
+        },
+        {
+          "type": "subject",
+          "name": "long",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": 237,
+      "name": "explain_store_alarm",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": ""
+        },
+        {
+          "type": "subject",
+          "name": "long",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": 238,
+      "name": "explain_store_item",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": ""
+        },
+        {
+          "type": "subject",
+          "name": "long",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": 239,
+      "name": "explain_store_item_stop",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": ""
+        },
+        {
+          "type": "subject",
+          "name": "long",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": 240,
+      "name": "explain_survival_generic",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": ""
+        },
+        {
+          "type": "subject",
+          "name": "long",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": 241,
+      "name": "explain_survival_alarm",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": ""
+        },
+        {
+          "type": "subject",
+          "name": "long",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": 242,
+      "name": "explain_survival_radio",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": ""
+        },
+        {
+          "type": "subject",
+          "name": "long",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": 243,
+      "name": "explain_survival_carousel",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": ""
+        },
+        {
+          "type": "subject",
+          "name": "long",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": 244,
+      "name": "explain_return_item",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": ""
+        },
+        {
+          "type": "subject",
+          "name": "long",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": 245,
+      "name": "explain_save_items",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": ""
+        },
+        {
+          "type": "subject",
+          "name": "long",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": 246,
+      "name": "spit_burst",
+      "description": "",
+      "notes": [
+        "Fires when a spitter's spit hits the ground.",
+        "Spitter's spit on death also fires this event."
+      ],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": ""
+        },
+        {
+          "type": "subject",
+          "name": "long",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": 247,
+      "name": "entered_spit",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": ""
+        },
+        {
+          "type": "subject",
+          "name": "long",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": 248,
+      "name": "temp_c4m1_getgas",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": ""
+        },
+        {
+          "type": "subject",
+          "name": "long",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": 249,
+      "name": "temp_c4m3_return_to_boat",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": ""
+        },
+        {
+          "type": "subject",
+          "name": "long",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": 250,
+      "name": "explain_c1m4_finale",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": ""
+        },
+        {
+          "type": "subject",
+          "name": "long",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": 251,
+      "name": "c1m4_scavenge_instructions",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": ""
+        },
+        {
+          "type": "subject",
+          "name": "long",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": 252,
+      "name": "punched_clown",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "player who punched the clown"
+        }
+      ]
+    },
+    {
+      "id": 253,
+      "name": "charger_killed",
+      "description": "",
+      "notes": [
+        "Fires on a charger's death."
+      ],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "user ID of dead charger"
+        },
+        {
+          "type": "attacker",
+          "name": "short",
+          "description": "user id of killer"
+        },
+        {
+          "type": "melee",
+          "name": "bool",
+          "description": "TRUE if a player killed the charger with a melee weapon"
+        },
+        {
+          "type": "charging",
+          "name": "bool",
+          "description": "TRUE if the charger was charging when it died"
+        }
+      ]
+    },
+    {
+      "id": 254,
+      "name": "spitter_killed",
+      "description": "",
+      "notes": [
+        "Fires on a spitter's death."
+      ],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "user ID of dead spitter"
+        },
+        {
+          "type": "attacker",
+          "name": "short",
+          "description": "user id of killer"
+        },
+        {
+          "type": "has_spit",
+          "name": "bool",
+          "description": "TRUE if the spitter spit at some point"
+        }
+      ]
+    },
+    {
+      "id": 255,
+      "name": "jockey_ride",
+      "description": "",
+      "notes": [
+        "Fires when a jockey successfully rides a survivor."
+      ],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "player who did the lunging"
+        },
+        {
+          "type": "victim",
+          "name": "short",
+          "description": "player that got lunged"
+        }
+      ]
+    },
+    {
+      "id": 256,
+      "name": "jockey_ride_end",
+      "description": "",
+      "notes": [
+        "Fires when a jockey releases a survivor.",
+        "rescuer return 0 when: The jockey is being cleared by shoving. Another special takes over the jockeyed survivor. The commons kill the biled jockey. The jockey incapacitates the survivor, including ledge-hangs. The jockey is killed or stumbled by a charger's impact.",
+        "A jockey stumbled by a boomer explosion returns rescuer argument as the boomer's userid. Using Stagger() on the jockey returns rescuer argument as the jockey's userid. Using Stagger() on the survivor returns rescuer argument as the survivor's userid."
+      ],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "player who did the lunging"
+        },
+        {
+          "type": "victim",
+          "name": "short",
+          "description": "player that got lunged"
+        },
+        {
+          "type": "rescuer",
+          "name": "short",
+          "description": "Who stopped it"
+        },
+        {
+          "type": "ride_length",
+          "name": "float",
+          "description": "Duration of our ride"
+        }
+      ]
+    },
+    {
+      "id": 257,
+      "name": "jockey_punched",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "user ID of player that shoved the jockey"
+        },
+        {
+          "type": "jockeyuserid",
+          "name": "long",
+          "description": "user ID of Jockey"
+        },
+        {
+          "type": "islunging",
+          "name": "bool",
+          "description": "TRUE if Jockey was in the act of lunging"
+        }
+      ]
+    },
+    {
+      "id": 258,
+      "name": "jockey_headshot",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "user ID of player that landed a headshot on the Jockey"
+        },
+        {
+          "type": "jockeyuserid",
+          "name": "long",
+          "description": "user ID of Jockey"
+        },
+        {
+          "type": "islunging",
+          "name": "bool",
+          "description": "TRUE if Jockey was in the act of lunging"
+        }
+      ]
+    },
+    {
+      "id": 259,
+      "name": "jockey_killed",
+      "description": "",
+      "notes": [
+        "Fires on a jockey's death."
+      ],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "user ID of dead jockey"
+        },
+        {
+          "type": "attacker",
+          "name": "short",
+          "description": "user id of killer"
+        },
+        {
+          "type": "weapon",
+          "name": "string",
+          "description": "weapon name"
+        }
+      ]
+    },
+    {
+      "id": 260,
+      "name": "non_melee_fired",
+      "description": "",
+      "notes": [
+        "Fires when a survivor attacks with a non-melee weapon.",
+        "Only fires once for each survivor; subsequent non-melee weapons being fired do not fire this event. Most likely used to detect if a survivor has used a non-melee weapon or not for non-melee achievements. It continues firing again after a map transition, reset and team swap."
+      ],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "User that fired a non-melee weapon"
+        }
+      ]
+    },
+    {
+      "id": 261,
+      "name": "infected_decapitated",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "userid of the player who did the decapitation"
+        },
+        {
+          "type": "weapon",
+          "name": "string",
+          "description": "melee weapon name"
+        }
+      ]
+    },
+    {
+      "id": 262,
+      "name": "upgrade_pack_added",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "upgradeid",
+          "name": "short",
+          "description": ""
+        },
+        {
+          "type": "userid",
+          "name": "short",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": 263,
+      "name": "vomit_bomb_tank",
+      "description": "",
+      "notes": [
+        "Fires when a survivor biled a tank using a vomit jar.",
+        "Does not fire when biled using HitWithVomit() script function."
+      ],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "userid of the player who biled the tank"
+        }
+      ]
+    },
+    {
+      "id": 264,
+      "name": "triggered_car_alarm",
+      "description": "",
+      "notes": [
+        "Fires when a survivor triggers a car alarm."
+      ],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "user ID of player who activated car alarm"
+        }
+      ]
+    },
+    {
+      "id": 265,
+      "name": "panic_event_finished",
+      "description": "",
+      "notes": [],
+      "arguments": []
+    },
+    {
+      "id": 266,
+      "name": "charger_charge_start",
+      "description": "",
+      "notes": [
+        "Fires when a charger starts charging. Issues: Called more than once per ability use. For consistency, check ability_use Issues: Can be called after charger_charge_end. Use ability_use for an alternative start-to-end relationship."
+      ],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "user ID of the charger"
+        }
+      ]
+    },
+    {
+      "id": 267,
+      "name": "charger_charge_end",
+      "description": "",
+      "notes": [
+        "Fires when a charger stops charging."
+      ],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "user ID of the charger"
+        }
+      ]
+    },
+    {
+      "id": 268,
+      "name": "charger_carry_start",
+      "description": "",
+      "notes": [
+        "Fires when a charger starts carrying a survivor while charging."
+      ],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "user ID of the charger"
+        },
+        {
+          "type": "victim",
+          "name": "short",
+          "description": "user ID of the player who was charged"
+        }
+      ]
+    },
+    {
+      "id": 269,
+      "name": "charger_carry_end",
+      "description": "",
+      "notes": [
+        "Fires when a charger stops charging while carrying a survivor."
+      ],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "user ID of the charger"
+        },
+        {
+          "type": "victim",
+          "name": "short",
+          "description": "user ID of the player who was charged"
+        }
+      ]
+    },
+    {
+      "id": 270,
+      "name": "charger_carry_kill",
+      "description": "",
+      "notes": [
+        "Fires when a survivor dies while being carried by a charger.",
+        "Only works on competitive gamemodes, like versus."
+      ],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "user ID of the charger"
+        },
+        {
+          "type": "victim",
+          "name": "short",
+          "description": "user ID of the victim"
+        }
+      ]
+    },
+    {
+      "id": 271,
+      "name": "charger_impact",
+      "description": "",
+      "notes": [
+        "Fires when a survivor is sent flying by a charger’s charge impact."
+      ],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "user ID of the charger"
+        },
+        {
+          "type": "victim",
+          "name": "short",
+          "description": "user ID of the player who was impacted"
+        }
+      ]
+    },
+    {
+      "id": 272,
+      "name": "charger_pummel_start",
+      "description": "",
+      "notes": [
+        "Fires when a charger starts pummeling a survivor."
+      ],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "user ID of the charger"
+        },
+        {
+          "type": "victim",
+          "name": "short",
+          "description": "user ID of the player who was charged"
+        }
+      ]
+    },
+    {
+      "id": 273,
+      "name": "charger_pummel_end",
+      "description": "",
+      "notes": [
+        "Fires when a charger stops pummeling a survivor.",
+        "Killing the charger or survivor being pummeled to death returns rescuer as 0. It only returns rescuer as the survivor's userid when the charger is staggered by a pipe bomb, explosive ammo, propane/oxygen tank. Using Stagger() on the survivor returns rescuer argument as 0. Using Stagger() on the charger returns rescuer argument as the charger's userid."
+      ],
+      "arguments": []
+    },
+    {
+      "id": 274,
+      "name": "strongman_bell_knocked_off",
+      "description": "The arcade bell on c2m4_barns",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": ""
+        },
+        {
+          "type": "subject",
+          "name": "short",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": 275,
+      "name": "molotov_thrown",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": 276,
+      "name": "gas_can_forced_drop",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "player that forced the drop"
+        },
+        {
+          "type": "victim",
+          "name": "short",
+          "description": "player that dropped it"
+        }
+      ]
+    },
+    {
+      "id": 277,
+      "name": "explain_need_gnome_to_continue",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "none",
+          "name": "none",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": 278,
+      "name": "explain_survivor_glows_disabled",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "The player we're explaining to"
+        }
+      ]
+    },
+    {
+      "id": 279,
+      "name": "explain_item_glows_disabled",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "The player we're explaining to"
+        }
+      ]
+    },
+    {
+      "id": 280,
+      "name": "explain_rescue_disabled",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "The player we're explaining to"
+        }
+      ]
+    },
+    {
+      "id": 281,
+      "name": "explain_bodyshots_reduced",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "The player we're explaining to"
+        }
+      ]
+    },
+    {
+      "id": 282,
+      "name": "explain_witch_instant_kill",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "The player we're explaining to"
+        }
+      ]
+    },
+    {
+      "id": 283,
+      "name": "set_instructor_group_enabled",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "group",
+          "name": "string",
+          "description": ""
+        },
+        {
+          "type": "enabled",
+          "name": "short",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": 284,
+      "name": "versus_marker_reached",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": ""
+        },
+        {
+          "type": "marker",
+          "name": "short",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": 285,
+      "name": "start_score_animation",
+      "description": "",
+      "notes": [],
+      "arguments": []
+    },
+    {
+      "id": 286,
+      "name": "survival_round_start",
+      "description": "",
+      "notes": [
+        "Fires when a survivor round starts."
+      ],
+      "arguments": []
+    },
+    {
+      "id": 287,
+      "name": "scavenge_gas_can_destroyed",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "The player that destroyed it"
+        }
+      ]
+    },
+    {
+      "id": 288,
+      "name": "explain_sewer_gate",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": ""
+        },
+        {
+          "type": "subject",
+          "name": "long",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": 289,
+      "name": "explain_sewer_run",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": ""
+        },
+        {
+          "type": "subject",
+          "name": "long",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": 290,
+      "name": "explain_c6m3_finale",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": ""
+        },
+        {
+          "type": "subject",
+          "name": "long",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": 291,
+      "name": "finale_bridge_lowering",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": ""
+        },
+        {
+          "type": "subject",
+          "name": "long",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": 292,
+      "name": "m60_streak_ended",
+      "description": "I was holding down the m60 trigger, and now I'm not",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "none",
+          "name": "none",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": 293,
+      "name": "chair_charged",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": 294,
+      "name": "song_played",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "none",
+          "name": "none",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": 295,
+      "name": "foot_locker_opened",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": 296,
+      "name": "player_connect_full",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": 297,
+      "name": "player_say",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "userid",
+          "name": "short",
+          "description": ""
+        },
+        {
+          "type": "text",
+          "name": "string",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": 298,
+      "name": "stashwhacker_game_won",
+      "description": "",
+      "notes": [
+        "Fires after winning a game of stashwhacker in chapter 4 of Dark Carnival (c2m4)."
+      ],
+      "arguments": [
+        {
+          "type": "subject",
+          "name": "long",
+          "description": "info_game_event_proxy entity for wam_achievement_event"
+        }
+      ]
+    },
+    {
+      "id": 299,
+      "name": "entity_killed",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "entindex_inflictor",
+          "name": "long",
+          "description": "entity index of the inflictor"
+        },
+        {
+          "type": "entindex_killed",
+          "name": "long",
+          "description": "entity index of the killed entity"
+        },
+        {
+          "type": "damagebits",
+          "name": "long",
+          "description": "damage type"
+        },
+        {
+          "type": "entindex_attacker",
+          "name": "long",
+          "description": "entity index of the attacker"
+        }
+      ]
+    },
+    {
+      "id": 300,
+      "name": "player_connect",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "xuid",
+          "name": "string",
+          "description": "Steam64 ID of the client"
+        },
+        {
+          "type": "address",
+          "name": "string",
+          "description": "The IP address and source port of the client for the connection"
+        },
+        {
+          "type": "networkid",
+          "name": "string",
+          "description": "Steam ID of the client"
+        },
+        {
+          "type": "index",
+          "name": "short",
+          "description": "Entity index of the client"
+        },
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "User ID of the client"
+        },
+        {
+          "type": "name",
+          "name": "string",
+          "description": "Name of the client"
+        },
+        {
+          "type": "bot",
+          "name": "short",
+          "description": "Flag indicating whether the client is a bot or player"
+        }
+      ]
+    },
+    {
+      "id": 301,
+      "name": "player_disconnect",
+      "description": "",
+      "notes": [],
+      "arguments": [
+        {
+          "type": "xuid",
+          "name": "string",
+          "description": "Steam64 ID of the client"
+        },
+        {
+          "type": "reason",
+          "name": "string",
+          "description": "Reason for disconnecting"
+        },
+        {
+          "type": "name",
+          "name": "string",
+          "description": "Name of the client"
+        },
+        {
+          "type": "networkid",
+          "name": "string",
+          "description": "Steam ID of the client"
+        },
+        {
+          "type": "userid",
+          "name": "short",
+          "description": "User ID of the client"
+        }
+      ]
+    }
+  ]
+}

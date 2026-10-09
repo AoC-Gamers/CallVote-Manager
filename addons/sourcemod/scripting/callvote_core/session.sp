@@ -1,6 +1,10 @@
 void ResetVoteSession(CVVoteSession session)
 {
 	session.sessionId = 0;
+	session.startForwarded = false;
+	session.endForwarded = false;
+	session.controllerRef = INVALID_ENT_REFERENCE;
+	session.controllerIssue = -1;
 	session.status = CallVoteSession_None;
 	session.createdAt = 0;
 	session.dispatchedAt = 0.0;
@@ -11,8 +15,6 @@ void ResetVoteSession(CVVoteSession session)
 	session.targetClient = 0;
 	session.targetUserId = 0;
 	session.targetAccountId = 0;
-	session.callerSteamID64[0] = '\0';
-	session.targetSteamID64[0] = '\0';
 	session.argumentRaw[0] = '\0';
 	session.engineIssue[0] = '\0';
 	session.engineParam1[0] = '\0';
@@ -21,6 +23,7 @@ void ResetVoteSession(CVVoteSession session)
 	session.engineFailTime = 0;
 	session.engineTeam = -1;
 	session.engineInitiatorClient = 0;
+	session.engineInitiatorAccountId = 0;
 	session.restriction = VoteRestriction_None;
 	session.endReason = CallVoteEnd_Aborted;
 	session.yesVotes = 0;
@@ -60,10 +63,18 @@ void FinalizeStaleCurrentVoteSession()
 
 	if (g_CurrentVoteSession.status == CallVoteSession_Ended || g_CurrentVoteSession.status == CallVoteSession_Blocked)
 	{
-		ArchiveCurrentVoteSession();
+		if (g_CurrentVoteSession.status == CallVoteSession_Ended)
+			CompleteObservedVoteEnd(g_CurrentVoteSession.sessionId);
+		else
+			ArchiveCurrentVoteSession();
 		return;
 	}
 
+	if (g_CurrentVoteSession.status == CallVoteSession_Started)
+	{
+		ReadCurrentVoteControllerTally();
+		ForwardCallVoteStart(g_CurrentVoteSession.sessionId);
+	}
 	g_CurrentVoteSession.status = CallVoteSession_Ended;
 	g_CurrentVoteSession.endReason = CallVoteEnd_Aborted;
 
@@ -89,28 +100,12 @@ void FinalizeStaleCurrentVoteSession()
 	ArchiveCurrentVoteSession();
 }
 
-void ResolveClientIdentity(int client, CVClientIdentity identity, bool requireHumanForAccount = false)
+// Capture a human AccountID locally; this is not a public identity service.
+int GetVoteClientAccountId(int client)
 {
-	identity.Client = client;
-	identity.UserId = IsValidClientIndex(client) ? GetClientUserId(client) : 0;
-	identity.AccountId = 0;
-	identity.SteamID64[0] = '\0';
-
-	if (requireHumanForAccount)
-	{
-		if (IsHuman(client))
-		{
-			identity.AccountId = GetClientAccountID(client);
-			GetClientAuthId(client, AuthId_SteamID64, identity.SteamID64, sizeof(identity.SteamID64));
-		}
-		return;
-	}
-
-	if (IsValidClient(client))
-	{
-		identity.AccountId = GetClientAccountID(client);
-		GetClientAuthId(client, AuthId_SteamID64, identity.SteamID64, sizeof(identity.SteamID64));
-	}
+	if (client < 1 || client > MaxClients || !IsClientConnected(client) || IsFakeClient(client))
+		return 0;
+	return GetSteamAccountID(client);
 }
 
 void BeginVoteSession(int client, TypeVotes voteType, int target = 0, const char[] argument = "")
@@ -121,24 +116,17 @@ void BeginVoteSession(int client, TypeVotes voteType, int target = 0, const char
 		FinalizeStaleCurrentVoteSession();
 	}
 
-	CVClientIdentity callerIdentity;
-	CVClientIdentity targetIdentity;
-	ResolveClientIdentity(client, callerIdentity);
-	ResolveClientIdentity(target, targetIdentity, true);
-
 	ResetVoteSession(g_CurrentVoteSession);
 	g_CurrentVoteSession.sessionId = g_iNextVoteSessionId++;
 	g_CurrentVoteSession.status = CallVoteSession_Pending;
 	g_CurrentVoteSession.createdAt = GetTime();
-	g_CurrentVoteSession.callerClient = callerIdentity.Client;
-	g_CurrentVoteSession.callerUserId = callerIdentity.UserId;
-	g_CurrentVoteSession.callerAccountId = callerIdentity.AccountId;
+	g_CurrentVoteSession.callerClient = client;
+	g_CurrentVoteSession.callerUserId = IsValidClientIndex(client) && IsClientConnected(client) ? GetClientUserId(client) : 0;
+	g_CurrentVoteSession.callerAccountId = GetVoteClientAccountId(client);
 	g_CurrentVoteSession.voteType = voteType;
-	g_CurrentVoteSession.targetClient = targetIdentity.Client;
-	g_CurrentVoteSession.targetUserId = targetIdentity.UserId;
-	g_CurrentVoteSession.targetAccountId = targetIdentity.AccountId;
-	strcopy(g_CurrentVoteSession.callerSteamID64, sizeof(g_CurrentVoteSession.callerSteamID64), callerIdentity.SteamID64);
-	strcopy(g_CurrentVoteSession.targetSteamID64, sizeof(g_CurrentVoteSession.targetSteamID64), targetIdentity.SteamID64);
+	g_CurrentVoteSession.targetClient = target;
+	g_CurrentVoteSession.targetUserId = IsValidClientIndex(target) && IsClientConnected(target) ? GetClientUserId(target) : 0;
+	g_CurrentVoteSession.targetAccountId = GetVoteClientAccountId(target);
 	strcopy(g_CurrentVoteSession.argumentRaw, sizeof(g_CurrentVoteSession.argumentRaw), argument);
 	g_bCurrentVoteSessionValid = true;
 
@@ -192,25 +180,6 @@ bool TryGetNativeVoteSession(int sessionId, CVVoteSession session)
 	return true;
 }
 
-bool TryGetSessionSteamID64Info(int sessionId, char[] callerSteamID64, int callerMaxLen, char[] targetSteamID64, int targetMaxLen)
-{
-	CVVoteSession session;
-	CallVoteSessionLookupResult lookupResult;
-
-	callerSteamID64[0] = '\0';
-	targetSteamID64[0] = '\0';
-
-	if (sessionId <= 0)
-		return false;
-
-	if (!TryGetVoteSessionById(sessionId, session, lookupResult))
-		return false;
-
-	strcopy(callerSteamID64, callerMaxLen, session.callerSteamID64);
-	strcopy(targetSteamID64, targetMaxLen, session.targetSteamID64);
-	return true;
-}
-
 bool IsClientInRecipients(int client, const int[] recipients, int recipientsNum)
 {
 	if (!IsValidClientIndex(client))
@@ -234,7 +203,7 @@ bool IsCurrentSessionCompatibleWithVoteStarted(Event event)
 	if (initiator > 0 && g_CurrentVoteSession.callerClient > 0 && initiator != g_CurrentVoteSession.callerClient)
 		return false;
 
-	int eventTeam = event.GetInt("team");
+	int eventTeam = NormalizeVoteTeam(event.GetInt("team", -1));
 	if (eventTeam > 0 && g_CurrentVoteSession.callerClient > 0)
 	{
 		L4DTeam callerTeam = L4D_GetClientTeam(g_CurrentVoteSession.callerClient);
@@ -250,13 +219,16 @@ bool IsCurrentSessionCompatibleWithVoteFailed(const int[] recipients, int recipi
 	if (!g_bCurrentVoteSessionValid || g_CurrentVoteSession.status != CallVoteSession_Executing)
 		return false;
 
+	if (GetClientOfUserId(g_CurrentVoteSession.callerUserId) != g_CurrentVoteSession.callerClient)
+		return false;
+
 	if (!IsClientInRecipients(g_CurrentVoteSession.callerClient, recipients, recipientsNum))
 		return false;
 
 	if (g_CurrentVoteSession.dispatchedAt <= 0.0)
 		return false;
 
-	return (GetEngineTime() - g_CurrentVoteSession.dispatchedAt) <= 3.0;
+	return (GetEngineTime() - g_CurrentVoteSession.dispatchedAt) <= CVC_START_CONFIRM_TIMEOUT;
 }
 
 bool IsCurrentSessionCompatibleWithVoteStartMessage(const int[] recipients, int recipientsNum)
@@ -264,13 +236,16 @@ bool IsCurrentSessionCompatibleWithVoteStartMessage(const int[] recipients, int 
 	if (!g_bCurrentVoteSessionValid || g_CurrentVoteSession.status != CallVoteSession_Executing)
 		return false;
 
+	if (GetClientOfUserId(g_CurrentVoteSession.callerUserId) != g_CurrentVoteSession.callerClient)
+		return false;
+
 	if (!IsClientInRecipients(g_CurrentVoteSession.callerClient, recipients, recipientsNum))
 		return false;
 
 	if (g_CurrentVoteSession.dispatchedAt <= 0.0)
 		return false;
 
-	return (GetEngineTime() - g_CurrentVoteSession.dispatchedAt) <= 3.0;
+	return (GetEngineTime() - g_CurrentVoteSession.dispatchedAt) <= CVC_START_CONFIRM_TIMEOUT;
 }
 
 bool IsCurrentSessionCompatibleWithVoteEnded(Event event)
@@ -278,7 +253,7 @@ bool IsCurrentSessionCompatibleWithVoteEnded(Event event)
 	if (!g_bCurrentVoteSessionValid || g_CurrentVoteSession.status != CallVoteSession_Started)
 		return false;
 
-	int eventTeam = event.GetInt("team");
+	int eventTeam = NormalizeVoteTeam(event.GetInt("team", -1));
 	if (eventTeam >= 0 && g_CurrentVoteSession.engineTeam >= 0 && eventTeam != g_CurrentVoteSession.engineTeam)
 		return false;
 

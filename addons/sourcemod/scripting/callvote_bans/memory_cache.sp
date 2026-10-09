@@ -51,6 +51,19 @@ bool CVB_GetMemoryCache(PlayerRestrictionInfo restrictionInfo)
 	PlayerRestrictionInfo cachedInfo;
 	if (g_smClientCache.GetArray(sAccountId, cachedInfo, sizeof(PlayerRestrictionInfo)))
 	{
+		SourceDB activeDatabase = CVB_GetActiveDatabase();
+		if (activeDatabase == SourceDB_Unknown || cachedInfo.DbSource != activeDatabase)
+		{
+			g_smClientCache.Remove(sAccountId);
+			CVBLog.Cache(
+				"GetMemoryCache: removed entry for AccountID=%d from inactive database source=%d active=%d",
+				restrictionInfo.AccountId,
+				view_as<int>(cachedInfo.DbSource),
+				view_as<int>(activeDatabase)
+			);
+			return false;
+		}
+
 		restrictionInfo.RestrictionMask = cachedInfo.RestrictionMask;
 		restrictionInfo.CreatedTimestamp = cachedInfo.CreatedTimestamp;
 		restrictionInfo.DurationMinutes = cachedInfo.DurationMinutes;
@@ -143,6 +156,7 @@ CVBLookupStatus CVB_LoadRestrictionInfo(PlayerRestrictionInfo restrictionInfo, b
 		return CVBLookup_Error;
 
 	restrictionInfo.Clear();
+	restrictionInfo.DbSource = CVB_GetActiveDatabase();
 	CVB_UpdateMemoryCache(restrictionInfo);
 	return CVBLookup_NotFound;
 }
@@ -155,7 +169,7 @@ static void CVB_PrimeClientBanState(int client, int accountId, bool forceDatabas
 	PlayerRestrictionInfo restrictionInfo;
 	restrictionInfo.Reset(accountId);
 	CVBLookupStatus status = CVB_LoadRestrictionInfo(restrictionInfo, forceDatabase);
-	SetClientLoadState(client, accountId, ClientBanLoad_Ready);
+	SetClientLoadState(client, accountId, status == CVBLookup_Error ? ClientBanLoad_Uninitialized : ClientBanLoad_Ready);
 
 	CVBLog.Cache(
 		"Primed client state for %N (AccountID: %d, forceDatabase=%d, status=%d)",
@@ -168,24 +182,13 @@ static void CVB_PrimeClientBanState(int client, int accountId, bool forceDatabas
 }
 
 /**
- * Checks if a player has active vote restrictions based on their restriction information.
- *
- * This function verifies the restriction status of a player by checking multiple sources:
- *  - First, it checks the in-memory cache for restriction info.
- *  - If not found, it checks the SQLite database for an active restriction.
- *  - If still not found, it checks the MySQL database for an active restriction.
- * If a restriction is confirmed from any source, the player's state is updated and relevant caches are refreshed.
- * If backend validation fails, this function fails closed and denies the vote.
- * If no restriction is found, the function logs the result and allows the vote.
- *
- * @param client    The client index of the player to check.
- * @param restrictionInfo The PlayerRestrictionInfo structure containing restriction details for the player.
- * @return          True if the player has active restrictions or backend validation failed, false otherwise.
+ * Loads restriction state for the supplied AccountID using cache or the active backend.
+ * A backend error denies validation without marking the client state as ready.
  */
 bool HasActiveRestriction(int client, PlayerRestrictionInfo restrictionInfo)
 {
 	CVBLookupStatus status = CVB_LoadRestrictionInfo(restrictionInfo, false);
-	SetClientLoadState(client, restrictionInfo.AccountId, ClientBanLoad_Ready);
+	SetClientLoadState(client, restrictionInfo.AccountId, status == CVBLookup_Error ? ClientBanLoad_Uninitialized : ClientBanLoad_Ready);
 
 	if (status == CVBLookup_Found)
 		return true;
@@ -283,62 +286,6 @@ bool IsClientBannedWithInfo(int client)
 }
 
 /**
- * Get restriction mask for a connected client.
- * @param client    Client index
- * @return          Restriction mask (0 = no active restriction)
- */
-int GetClientRestrictionMask(int client)
-{
-	PlayerRestrictionInfo restrictionInfo;
-	restrictionInfo.Reset(GetClientAccountID(client));
-	if (CVB_GetMemoryCache(restrictionInfo))
-	{
-		return restrictionInfo.RestrictionMask;
-	}
-	return 0;
-}
-
-/**
- * Get ban expiration timestamp for a connected client
- * @param client    Client index
- * @return          Expiration timestamp (0 = permanent)
- */
-int GetClientBanExpiration(int client)
-{
-	if (!IsValidClientIndex(client))
-		return 0;
-
-	PlayerRestrictionInfo restrictionInfo;
-	restrictionInfo.Reset(GetClientAccountID(client));
-
-	if (CVB_GetMemoryCache(restrictionInfo))
-	{
-		return restrictionInfo.ExpiresTimestamp;
-	}
-	return 0;
-}
-
-/**
- * Get ban creation timestamp for a connected client
- * @param client    Client index
- * @return          Creation timestamp
- */
-int GetClientBanCreationTime(int client)
-{
-	if (!IsValidClientIndex(client))
-		return 0;
-
-	PlayerRestrictionInfo restrictionInfo;
-	restrictionInfo.Reset(GetClientAccountID(client));
-	
-	if (CVB_GetMemoryCache(restrictionInfo))
-	{
-		return restrictionInfo.CreatedTimestamp;
-	}
-	return 0;
-}
-
-/**
  * Set restriction information for a connected client.
  * @param client           Client index
  * @param restrictionMask  Restriction mask
@@ -347,12 +294,10 @@ int GetClientBanCreationTime(int client)
  */
 void SetClientRestrictionInfo(int client, int restrictionMask, int durationMinutes, int expiresTimestamp, int createdTimestamp = 0, int adminAccountId = 0, const char[] reason = "")
 {
-	if (!IsValidClientIndex(client))
+	if (!IsValidClient(client))
 		return;
-		
-	int accountId = g_ClientStates[client].accountId;
-	if (accountId <= 0)
-		accountId = GetClientAccountID(client);
+
+	int accountId = GetClientAccountID(client);
 
 	if (accountId <= 0)
 		return;

@@ -1,90 +1,112 @@
 # CallVote Manager
 
-Satelite de UX por defecto sobre `callvote_core`.
-
-## Rol
-
-`callvote_manager` ya no es el proveedor del lifecycle ni de la API publica. Ese rol ahora pertenece a `callvote_core`.
-
-Su responsabilidad actual es:
-
-- aplicar la politica por defecto en `CallVote_PreStart`
-- anunciar votaciones aceptadas
-- mostrar progreso `vote_cast_yes/no`
-- ofrecer la experiencia base visible para jugadores
-
-## Modelo actual
-
-El satelite trabaja sobre tres ideas centrales del core:
-
-- identidad canonica por `AccountID`
-- presentacion derivada por `SteamID2`
-- sesion de voto como unidad de contexto
-
-Y sobre un modelo de hooks:
-
-- `CallVote_PreStart`: pre-hook de politica
-- `CallVote_Blocked`: post-hook de rechazo
-- `CallVote_End`: post-hook final del lifecycle
-
-La sesion concentra, como minimo:
-
-- `sessionId`
-- caller y target
-- `callerAccountId` y `targetAccountId`
-- `voteType`
-- argumento bruto
-- estado y resultado
-- conteo observado de votos
+Satélite opcional de política y mensajes sobre `callvote_core` 3.0.0.
+Manager 2.2.1 no mantiene historial, no escribe SQL y no produce el lifecycle.
+El contrato compartido pertenece a [`callvote_core.inc`](../addons/sourcemod/scripting/include/callvote_core.inc).
 
 ## Flujo
 
-De forma resumida, el flujo es:
+| Callback del core | Responsabilidad de Manager |
+|---|---|
+| `CallVote_PreStart` | Evaluar reglas, proponer un motivo y vetar con `Plugin_Handled` si corresponde. |
+| `CallVote_Blocked` | Dar feedback cuando el motivo final coincide con la regla que Manager vetó en esa sesión. |
+| `CallVote_Start` | Registrar el inicio confirmado, preparar el progreso y anunciar la votación. |
+| `CallVote_BallotCast` | Presentar respuestas observadas del motor dentro de la sesión confirmada. |
+| `CallVote_End` | Liberar el contexto de esa sesión, incluso si terminó bloqueada o sin inicio. |
 
-1. `callvote_core` intercepta `callvote`
-2. el core crea una sesion normalizada
-3. `callvote_manager` consume `CallVote_PreStart` y aplica la politica por defecto
-4. si nadie bloquea, el core entrega el comando al motor
-5. si el motor confirma el inicio, dispara `CallVote_Start`
-6. `callvote_manager` anuncia la votacion
-7. durante el voto, consume `vote_cast_yes/no` para mostrar progreso
+Manager no escucha `vote_cast_yes/no` directamente ni utiliza `PreExecute` para
+anticipar un inicio. Un intento rechazado por el motor no genera anuncios ni
+inicia el cooldown propio. El core evalúa todos los consumidores y conserva el
+motivo del primer veto real; Manager no envía feedback antes de esa decisión.
+El contrato publica el motivo, no el autor del veto: si otro consumidor propone
+el mismo motivo, Manager sólo sabe que coincide con su propia regla.
 
-```mermaid
-flowchart TD
-    A[Jugador ejecuta callvote] --> B[callvote_core crea VoteSession]
-    B --> C[CallVote_PreStart]
-    C --> D{callvote_manager permite?}
-    D -- No --> E[CallVote_Blocked]
-    D -- Si --> F[Motor confirma inicio]
-    F --> G[CallVote_Start]
-    G --> H[callvote_manager anuncia la votacion]
-    H --> I[vote_cast_yes/no]
-    I --> J[Mensaje de progreso]
-```
+El primer Yes del iniciador se omite del progreso porque el motor lo emite
+inicialmente y el anuncio ya presenta al iniciador. La omisión se consume aunque
+el progreso esté desactivado; no altera los conteos del core. El No inicial del
+objetivo de un kick se presenta como cualquier otro voto observado. El `team`
+del forward identifica el alcance de la votación; la etiqueta del mensaje se
+obtiene del equipo actual del votante, validando antes el AccountID recibido en el
+forward contra el cliente conectado. Los mensajes siguen llegando a todos los
+jugadores humanos, como en la experiencia anterior.
 
-## Relacion con el core
+## Política
 
-El contrato publico vive en `callvote_core.inc`, no en este plugin.
+- No iniciar votaciones como espectador.
+- Respetar ConVars del motor para dificultad, reinicio, kick y campaña; Manager
+  controla lobby, capítulo y AllTalk mediante sus propias ConVars.
+- Aplicar la [matriz por modo base](VOTACIONES_POR_MODO.md), también a mutaciones,
+  consultando `L4D_GetGameModeType()` al evaluar cada solicitud. Una base
+  desconocida se entrega a las comprobaciones del motor.
+- Rechazar cambios a la dificultad que ya está activa.
+- Validar el objetivo del kick, equipo e inmunidades configuradas.
+- Consultar los permisos administrativos actuales en cada evaluación. No hay
+  una caché que sobreviva a cambios de permisos.
+- Esperar al menos 5,5 segundos desde el último inicio confirmado que Manager
+  observó estando habilitado, o más si `sv_vote_creation_timer` lo exige.
+  El primer voto del mapa no recibe un cooldown artificial. El plazo anunciado
+  se redondea hacia arriba.
+- Si BuiltinVotes está disponible y su soporte está activado, respetar una
+  votación activa y el plazo de `CheckBuiltinVoteDelay()`.
 
-El manager implementa la politica por defecto usando ese contrato. Si quieres una
-suite sin esa politica, puedes deshabilitar `callvote_manager` y montar otro
-consumidor sobre `callvote_core`.
+Las comprobaciones propias complementan las del motor; aprobar en Manager no
+asegura que el motor admita la solicitud. La matriz documenta las cuatro bases
+acordadas, sin inspección adicional de propiedades de cada mutación.
+Las ConVars del motor de L4D2 se consideran presentes: Manager obtiene sus
+handles al iniciar y consulta sus valores sin comprobar de nuevo su existencia.
 
-## Convencion publica
+## Configuración
 
-La superficie publica del manager sigue una convencion unica:
+Configuración generada: `cfg/sourcemod/callvote/callvote_manager.cfg`.
 
-- convars con prefijo `sm_cvm_*`
+| ConVar | Por defecto | Uso |
+|---|---|---|
+| `sm_cvm_enable` | `1` | Política y mensajes. Cambiarla limpia el contexto de UX; habilitar a mitad de un voto no reconstruye su inicio. |
+| `sm_cvm_announcer` | `1` | Anunciar inicios confirmados. |
+| `sm_cvm_progress` | `1` | Mostrar respuestas. |
+| `sm_cvm_progress_anonymous` | `0` | Mostrar equipo y respuesta sin nombre. |
+| `sm_cvm_builtin_vote` | `1` | Respetar el bloqueo y cooldown de BuiltinVotes. |
+| `sm_cvm_lobby`, `sm_cvm_chapter`, `sm_cvm_all_talk` | `1` | Permitir esos tipos cuando corresponden al modo base. |
+| `sm_cvm_admin_immunity` | vacío | Cualquier flag administrativo otorga inmunidad; con flags explícitos basta coincidir con uno. Root siempre coincide. Un iniciador con permiso de kick puede votar contra ese objetivo. |
+| `sm_cvm_stv_immunity`, `sm_cvm_self_immunity`, `sm_cvm_bot_immunity` | `1` | Inmunidad SourceTV, kick propio y bots. |
+| `sm_cvm_debug_mask` | `0` | Core=`1`, Localization=`128`, ambos=`129`. |
 
-El manager ya no define el contrato base de sesion ni la API compartida.
+`sm_cv_log_mode` es la configuración de logging compartida. El log debug de
+Manager reside en `addons/sourcemod/logs/callvote/callvote_manager.log`, según
+la raíz SourceMod activa. Las frases SQL y sus comandos pertenecen a
+[`callvote_sql`](README_SQL.md).
 
-## Alcance
+## Dependencias y seguridad de contexto
 
-- anuncios visibles del voto
-- progreso visible del voto
-- politica por defecto de inmunidades y validaciones visibles
-- experiencia base de jugadores
+Manager necesita el core y Left4DHooks. Confogl no es una dependencia de Manager.
+BuiltinVotes es opcional: el inventario se hace en `OnAllPluginsLoaded`, las
+altas/bajas sólo actualizan `hasBuiltinVotes`. El registro de la biblioteca
+garantiza la disponibilidad de sus natives; Manager consulta ese único flag
+junto con `sm_cvm_builtin_vote`, sin sondeos adicionales por native.
+La carga tardía no reconstruye una votación previa.
 
-## Estado del diseno
+Los mensajes diferidos validan el AccountID del snapshot y los rechazos conservan
+seriales de cliente, evitando atribuir mensajes a otra persona que reutilice el
+slot. Desconexión, cambio de mapa, final de sesión y cambios de enable limpian el
+contexto aplicable. Esto es contexto transitorio de UX; no es historial de votos.
 
-El manager ahora es un consumidor mas del core, igual que `kicklimit` o `bans`.
+Cada destinatario recibe traducción de Valve cuando existe, o una frase del
+plugin en español/inglés. Si falta el nombre traducido de campaña, capítulo o
+dificultad, se conserva el código recibido. Un destinatario sin traducción no
+queda sin anuncio aunque otro sí tenga una traducción.
+
+## Validación y despliegue
+
+La suite de seis plugins compila sin warnings con SourceMod Linux 1.12.0.7255.
+Una prueba aislada de los callbacks de Manager verificó 36 comprobaciones:
+disponibilidad de BuiltinVotes, cooldown, rechazo canónico, activación,
+reutilización de slots, limpieza y la matriz de 28 combinaciones modo/tipo.
+La prueba empleó adaptadores de clientes, motor y core; no ejecutó votaciones
+reales ni instaló el nuevo Manager en DEV. El helper se retiró y se verificó la
+lista de plugins original.
+
+Para la comprobación de juego pendiente, instalar el core y Manager coordinados
+con las frases correspondientes, iniciar un voto permitido y uno rechazado,
+responder F1/F2 y verificar que fuera de una votación no aparece progreso.
+Comprobar también `sm_cvm_enable 0` y anuncios/progreso por separado. SQL continúa
+como satélite opcional independiente.

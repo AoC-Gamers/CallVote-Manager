@@ -41,6 +41,7 @@ Los binarios compilados quedan en:
 Actualmente el repo compila:
 
 - `callvote_core.sp`
+- `callvote_sql.sp`
 - `callvote_manager.sp`
 - `callvote_kicklimit.sp`
 - `callvote_bans.sp`

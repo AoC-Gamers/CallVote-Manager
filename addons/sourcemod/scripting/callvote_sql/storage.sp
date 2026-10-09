@@ -1,7 +1,7 @@
-#if defined _callvote_core_sql_included
+#if defined _callvote_sql_storage_included
 	#endinput
 #endif
-#define _callvote_core_sql_included
+#define _callvote_sql_storage_included
 
 /*****************************************************************
 			G L O B A L   V A R S
@@ -28,16 +28,21 @@ enum SQLDriver
 Database
 	g_db;
 
+int g_iSQLGeneration;
+bool g_bSQLConfigured;
+
 SQLDriver
 	g_SQLDriver;
 
 enum struct SQLClientContext
 {
+	int Generation;
 	int UserId;
 }
 
 enum struct SQLClientDaysContext
 {
+	int Generation;
 	int UserId;
 	int Days;
 }
@@ -45,6 +50,7 @@ enum struct SQLClientDaysContext
 static DataPack CreateSQLClientContextPack(int client)
 {
 	DataPack pack = new DataPack();
+	pack.WriteCell(g_iSQLGeneration);
 	pack.WriteCell(client == SERVER_INDEX ? SERVER_INDEX : GetClientUserId(client));
 	return pack;
 }
@@ -52,12 +58,14 @@ static DataPack CreateSQLClientContextPack(int client)
 static void ReadSQLClientContext(DataPack pack, SQLClientContext context)
 {
 	pack.Reset();
+	context.Generation = pack.ReadCell();
 	context.UserId = pack.ReadCell();
 }
 
 static DataPack CreateSQLClientDaysContextPack(int client, int days)
 {
 	DataPack pack = new DataPack();
+	pack.WriteCell(g_iSQLGeneration);
 	pack.WriteCell(client == SERVER_INDEX ? SERVER_INDEX : GetClientUserId(client));
 	pack.WriteCell(days);
 	return pack;
@@ -66,6 +74,7 @@ static DataPack CreateSQLClientDaysContextPack(int client, int days)
 static void ReadSQLClientDaysContext(DataPack pack, SQLClientDaysContext context)
 {
 	pack.Reset();
+	context.Generation = pack.ReadCell();
 	context.UserId = pack.ReadCell();
 	context.Days = pack.ReadCell();
 }
@@ -76,43 +85,52 @@ static void ReadSQLClientDaysContext(DataPack pack, SQLClientDaysContext context
 
 public void OnPluginStart_SQL()
 {
-	g_cvarRegLogSQL = CreateConVar("sm_cvc_sql_log_flags", "0", "SQL logging flags <difficulty:1, restartgame:2, kick:4, changemission:8, lobby:16, chapter:32, alltalk:64, ALL:127, NONE:0>", FCVAR_NOTIFY, true, 0.0, true, 127.0);
-	g_cvarSQLConfig = CreateConVar("sm_cvc_sql_config", "callvote", "Database config name from databases.cfg for callvote_core", FCVAR_NONE);
-	
-	RegAdminCmd("sm_cvc_sql_cleanup", Command_CleanupDB, ADMFLAG_ROOT, "Clean up database records");
-	RegAdminCmd("sm_cvc_sql_truncate", Command_TruncateDB, ADMFLAG_ROOT, "Completely clear database table");
-	RegAdminCmd("sm_cvc_sql_stats", Command_DBStats, ADMFLAG_GENERIC, "Show database statistics");
+	g_cvarRegLogSQL = CreateConVar("sm_cvs_log_flags", "0", "SQL logging flags <difficulty:1, restartgame:2, kick:4, changemission:8, lobby:16, chapter:32, alltalk:64, ALL:127, NONE:0>", FCVAR_NOTIFY, true, 0.0, true, 127.0);
+	g_cvarSQLConfig = CreateConVar("sm_cvs_config", "callvote", "Database config name from databases.cfg for callvote_sql", FCVAR_NONE);
+
+	g_cvarRegLogSQL.AddChangeHook(SQLSettingChanged);
+	g_cvarSQLConfig.AddChangeHook(SQLSettingChanged);
+	RegAdminCmd("sm_cvs_cleanup", Command_CleanupDB, ADMFLAG_ROOT, "Clean up database records");
+	RegAdminCmd("sm_cvs_truncate", Command_TruncateDB, ADMFLAG_ROOT, "Completely clear database table");
+	RegAdminCmd("sm_cvs_stats", Command_DBStats, ADMFLAG_GENERIC, "Show database statistics");
+}
+
+bool IsCurrentSQLCallback(Database db, int generation)
+{
+	return generation == g_iSQLGeneration && g_db != null && db != null && db.IsSameConnection(g_db);
+}
+
+void CloseSQLConnection()
+{
+	g_iSQLGeneration++;
+	g_bSQLConnecting = false;
+	g_bSQLConnected = false;
+	g_bSQLTableExists = false;
+	delete g_db;
 }
 
 public void OnPluginEnd_SQL()
 {
-	g_bSQLConnecting = false;
-	if (g_db == null)
-	{
-		g_bSQLConnected = false;
-		g_bSQLTableExists = false;
-		return;
-	}
+	CloseSQLConnection();
+}
 
-	delete g_db;
-	g_db = null;
-	g_bSQLConnected = false;
-	g_bSQLTableExists = false;
-	CVLog.Debug("[OnPluginEnd] Database connection closed.");
+void SQLSettingChanged(ConVar setting, const char[] previous, const char[] current)
+{
+	if (!g_bSQLConfigured)
+		return;
+	if (setting == g_cvarSQLConfig || !g_cvarRegLogSQL.IntValue)
+		CloseSQLConnection();
+	OnConfigsExecuted_SQL();
 }
 
 void OnConfigsExecuted_SQL()
 {
-	if (!g_cvarRegLogSQL.IntValue)
+	g_bSQLConfigured = true;
+	if (!g_cvarRegLogSQL.IntValue || g_db != null)
 		return;
-
-	if (g_db != null)
-		return;
-
-	char sConfigName[64];
-	g_cvarSQLConfig.GetString(sConfigName, sizeof(sConfigName));
-	CVLog.Debug("[OnConfigsExecuted_SQL] Connecting to the database with config '%s'...", sConfigName);
-	ConnectDB(sConfigName);
+	char configName[64];
+	g_cvarSQLConfig.GetString(configName, sizeof(configName));
+	ConnectDB(configName);
 }
 
 void EnsureSQLiteSchema()
@@ -131,159 +149,104 @@ void EnsureSQLiteSchema()
 	iLen += Format(sQueryTable[iLen], sizeof(sQueryTable) - iLen, "`target_account_id` INTEGER NOT NULL DEFAULT 0 ");
 	iLen += Format(sQueryTable[iLen], sizeof(sQueryTable) - iLen, ");");
 
-	if (!SQL_FastQuery(g_db, sQueryTable))
-	{
-		char sError[256];
-		SQL_GetError(g_db, sError, sizeof(sError));
-		CVLog.Query("[EnsureSQLiteSchema] Failed to create SQLite table `%s`: %s", g_sTable, sError);
+	Transaction schema = new Transaction();
+	schema.AddQuery(sQueryTable);
+	char indexQuery[256];
+	FormatEx(indexQuery, sizeof(indexQuery), "CREATE INDEX IF NOT EXISTS `idx_callvote_log_caller_created` ON `%s` (`caller_account_id`, `created`)", g_sTable);
+	schema.AddQuery(indexQuery);
+	FormatEx(indexQuery, sizeof(indexQuery), "CREATE INDEX IF NOT EXISTS `idx_callvote_log_target_account_created` ON `%s` (`target_account_id`, `created`)", g_sTable);
+	schema.AddQuery(indexQuery);
+	g_db.Execute(schema, SQLiteSchemaReady, SQLiteSchemaFailed, g_iSQLGeneration);
+}
+
+void SQLiteSchemaReady(Database db, any generation, int count, DBResultSet[] results, any[] queryData)
+{
+	if (IsCurrentSQLCallback(db, generation))
+		CheckTableExists();
+}
+
+void SQLiteSchemaFailed(Database db, any generation, int count, const char[] error, int failed, any[] queryData)
+{
+	if (!IsCurrentSQLCallback(db, generation))
 		return;
-	}
-
-	char sIndexQuery[256];
-	FormatEx(sIndexQuery, sizeof(sIndexQuery), "CREATE INDEX IF NOT EXISTS `idx_callvote_log_caller_created` ON `%s` (`caller_account_id`, `created`)", g_sTable);
-	if (!SQL_FastQuery(g_db, sIndexQuery))
-	{
-		char sError[256];
-		SQL_GetError(g_db, sError, sizeof(sError));
-		CVLog.Query("[EnsureSQLiteSchema] Failed to create SQLite index for `%s`: %s", g_sTable, sError);
-	}
-
-	FormatEx(sIndexQuery, sizeof(sIndexQuery), "CREATE INDEX IF NOT EXISTS `idx_callvote_log_target_account_created` ON `%s` (`target_account_id`, `created`)", g_sTable);
-	if (!SQL_FastQuery(g_db, sIndexQuery))
-	{
-		char sError[256];
-		SQL_GetError(g_db, sError, sizeof(sError));
-		CVLog.Query("[EnsureSQLiteSchema] Failed to create SQLite target account index for `%s`: %s", g_sTable, sError);
-	}
-
+	LogError("[CallVote SQL] event=schema_failed query=%d error=%s", failed, error);
 }
 
 /*****************************************************************
 			P L U G I N   F U N C T I O N S
 *****************************************************************/
 
-/**
- * Logs a vote action to the SQL database.
- * 
- * This function validates SQL logging settings, checks database connectivity,
- * retrieves client AccountIDs, and constructs appropriate SQL queries
- * based on the database driver type (MySQL/SQLite).
- *
- * @param type      The type of vote action (ChangeDifficulty, RestartGame, Kick, etc.).
- * @param iClient   The client index of the player initiating the vote.
- * @param iTarget   The client index of the target player (only used for Kick votes, default SERVER_INDEX).
- * @noreturn        Function returns early if logging is disabled or conditions are not met.
- * @error           Function logs errors and returns if AccountID retrieval fails or database is unavailable.
- */
-void RegSQLVote(TypeVotes type, int iClient, int iTarget = SERVER_INDEX)
+/** Record only an engine-confirmed session, using the public core snapshot. */
+void RecordSQLVote(int sessionId)
 {
 	if (!g_cvarRegLogSQL.IntValue)
 		return;
-	
-	VoteType iVoteFlag = VOTE_NONE;
-	iVoteFlag = GetVoteFlag(type);
-	if (iVoteFlag == VOTE_NONE)
+
+	int caller, callerAccountId, target, targetAccountId;
+	TypeVotes type;
+	char argument[64];
+	if (!CallVoteCore_GetSessionInfo(sessionId, caller, callerAccountId, type, target, targetAccountId, argument, sizeof(argument)))
 		return;
-	
-	if (!(g_cvarRegLogSQL.IntValue & view_as<int>(iVoteFlag)))
+	if (!(g_cvarRegLogSQL.IntValue & view_as<int>(GetVoteFlag(type))))
 		return;
-	
-    if (!g_bSQLConnected || !g_bSQLTableExists)
-        return;
+	if (!g_bSQLConnected || !g_bSQLTableExists)
+	{
+		LogError("[CallVote SQL] event=vote_not_recorded session=%d reason=database_not_ready", sessionId);
+		return;
+	}
+	if (callerAccountId <= 0)
+	{
+		LogError("[CallVote SQL] event=identity_unavailable session=%d", sessionId);
+		return;
+	}
 
-    int iCallerAccountId = 0;
-    if (g_bCurrentVoteSessionValid && g_CurrentVoteSession.callerClient == iClient)
-        iCallerAccountId = g_CurrentVoteSession.callerAccountId;
+	char callerSteamID64[STEAMID64_EXACT_LENGTH + 1], targetSteamID64[STEAMID64_EXACT_LENGTH + 1];
+	if (g_SQLDriver == SQL_MySQL)
+	{
+		if (!SteamIDTools_AccountIDToSteamID64(callerAccountId, callerSteamID64, sizeof(callerSteamID64))
+			|| (targetAccountId > 0 && !SteamIDTools_AccountIDToSteamID64(targetAccountId, targetSteamID64, sizeof(targetSteamID64))))
+		{
+			LogError("[CallVote SQL] event=identity_conversion_failed session=%d", sessionId);
+			return;
+		}
+	}
 
-    if (iCallerAccountId <= 0)
-        iCallerAccountId = GetClientAccountID(iClient);
-
-    if (iCallerAccountId <= 0)
-    {
-        CVLog.SQL("[RegSQLVote] Failed to resolve caller AccountID for client %d", iClient);
-        return;
-    }
-
-    int iTargetAccountId = 0;
-    char sTargetSteamID64[STEAMID64_EXACT_LENGTH + 1];
-    sTargetSteamID64[0] = '\0';
-    char sCallerSteamID64[STEAMID64_EXACT_LENGTH + 1];
-    sCallerSteamID64[0] = '\0';
-
-    if (g_SQLDriver == SQL_MySQL && (!g_bCurrentVoteSessionValid || !TryGetSessionSteamID64Info(g_CurrentVoteSession.sessionId, sCallerSteamID64, sizeof(sCallerSteamID64), sTargetSteamID64, sizeof(sTargetSteamID64))))
-    {
-        CVLog.SQL("[RegSQLVote] Failed to resolve frozen SteamID64 values for session %d", g_CurrentVoteSession.sessionId);
-        return;
-    }
-
-    if (type == Kick && IsHuman(iTarget))
-    {
-        if (g_bCurrentVoteSessionValid && g_CurrentVoteSession.targetClient == iTarget)
-            iTargetAccountId = g_CurrentVoteSession.targetAccountId;
-
-        if (iTargetAccountId <= 0)
-            iTargetAccountId = GetClientAccountID(iTarget);
-
-        if (iTargetAccountId <= 0)
-        {
-            CVLog.SQL("[RegSQLVote] Failed to resolve target AccountID for client %d", iTarget);
-            return;
-        }
-    }
-
-    int iTime = GetTime();
-    char sQuery[700];
-
-    switch (g_SQLDriver)
-    {
-        case SQL_MySQL:
-        {
-            g_db.Format(sQuery, sizeof(sQuery),
-                "INSERT INTO `%s` (caller_account_id, caller_steamid64, created, type, target_account_id, target_steamid64) VALUES (%d, '%s', %d, %d, %d, '%s')",
-                g_sTable, iCallerAccountId, sCallerSteamID64, iTime, view_as<int>(type), iTargetAccountId, sTargetSteamID64);
-        }
-        case SQL_SQLite:
-        {
-            g_db.Format(sQuery, sizeof(sQuery),
-                "INSERT INTO `%s` (caller_account_id, created, type, target_account_id) VALUES (%d, %d, %d, %d)",
-                g_sTable, iCallerAccountId, iTime, view_as<int>(type), iTargetAccountId);
-        }
-        default:
-        {
-            CVLog.SQL("Unknown SQL driver in RegSQLVote.");
-            return;
-        }
-    }
-
-	CVLog.Query("[RegSQLVote] Executing %s INSERT query: %s", g_SQLDriver == SQL_MySQL ? "MySQL" : "SQLite", sQuery);
-	
-	g_db.Query(SQLVoteLogCallback, sQuery);
+	char query[700];
+	switch (g_SQLDriver)
+	{
+		case SQL_MySQL:
+		{
+			g_db.Format(query, sizeof(query),
+				"INSERT INTO `%s` (caller_account_id, caller_steamid64, created, type, target_account_id, target_steamid64) VALUES (%d, '%s', %d, %d, %d, '%s')",
+				g_sTable, callerAccountId, callerSteamID64, GetTime(), view_as<int>(type), targetAccountId, targetSteamID64);
+		}
+		case SQL_SQLite:
+		{
+			g_db.Format(query, sizeof(query),
+				"INSERT INTO `%s` (caller_account_id, created, type, target_account_id) VALUES (%d, %d, %d, %d)",
+				g_sTable, callerAccountId, GetTime(), view_as<int>(type), targetAccountId);
+		}
+	}
+	g_db.Query(SQLVoteLogCallback, query, g_iSQLGeneration);
 }
 
 /**
  * Callback for SQL vote logging queries
  * Handles success/error reporting for vote logging operations
  */
-public void SQLVoteLogCallback(Database db, DBResultSet results, const char[] error, any data)
+public void SQLVoteLogCallback(Database db, DBResultSet results, const char[] error, any generation)
 {
-	if (db == null)
-	{
-		CVLog.Query("[SQLVoteLogCallback] Database handle is null");
+	if (!IsCurrentSQLCallback(db, generation))
 		return;
-	}
-
-	if (error[0] != '\0')
-	{
-		CVLog.Query("[SQLVoteLogCallback] SQL Error: %s", error);
-		return;
-	}
-
-	CVLog.Query("[SQLVoteLogCallback] Vote record inserted successfully");
+	if (results == null)
+		LogError("[CallVote SQL] event=insert_failed error=%s", error);
+	else
+		CVSQLLog.Event("SQL", "event=vote_recorded");
 }
 
 /**
  * Command to clean up old database records
- * Usage: sm_cvc_sql_cleanup [days] - Clean records older than X days (default: 30)
+ * Usage: sm_cvs_cleanup [days] - Clean records older than X days (default: 30)
  */
 Action Command_CleanupDB(int iClient, int iArgs)
 {
@@ -305,7 +268,7 @@ Action Command_CleanupDB(int iClient, int iArgs)
 		char sArg[16];
 		GetCmdArg(1, sArg, sizeof(sArg));
 		days = StringToInt(sArg);
-		
+
 		if (days <= 0 || days > 365)
 		{
 			CReplyToCommand(iClient, "%t %t", "Tag", "InvalidDaysValue");
@@ -339,7 +302,7 @@ Action Command_CleanupDB(int iClient, int iArgs)
 
 	DataPack pack = CreateSQLClientDaysContextPack(iClient, days);
 
-	CVLog.Query("[Command_CleanupDB] Executing cleanup DELETE query: %s", sQuery);
+	CVSQLLog.Query("[Command_CleanupDB] Executing cleanup DELETE query: %s", sQuery);
 	g_db.Query(CleanupDB_Callback, sQuery, pack);
 	CReplyToCommand(iClient, "%t %t", "Tag", "CleaningUpRecords", days);
 
@@ -348,7 +311,7 @@ Action Command_CleanupDB(int iClient, int iArgs)
 
 /**
  * Command to completely truncate (empty) the database table
- * Usage: sm_cvc_sql_truncate - Requires confirmation
+ * Usage: sm_cvs_truncate - Requires confirmation
  */
 Action Command_TruncateDB(int iClient, int iArgs)
 {
@@ -373,7 +336,7 @@ Action Command_TruncateDB(int iClient, int iArgs)
 
 	char sConfirm[16];
 	GetCmdArg(1, sConfirm, sizeof(sConfirm));
-	
+
 	if (!StrEqual(sConfirm, "CONFIRM", false))
 	{
 		CReplyToCommand(iClient, "%t %t", "Tag", "MustTypeConfirm");
@@ -400,7 +363,7 @@ Action Command_TruncateDB(int iClient, int iArgs)
 
 	DataPack pack = CreateSQLClientContextPack(iClient);
 
-	CVLog.Query("[Command_TruncateDB] Executing table truncate query: %s", sQuery);
+	CVSQLLog.Query("[Command_TruncateDB] Executing table truncate query: %s", sQuery);
 	g_db.Query(TruncateDB_Callback, sQuery, pack);
 	CReplyToCommand(iClient, "%t %t", "Tag", "TruncatingTable");
 
@@ -409,7 +372,7 @@ Action Command_TruncateDB(int iClient, int iArgs)
 
 /**
  * Command to show database statistics
- * Usage: sm_cvc_sql_stats - Show total records and breakdown by vote type
+ * Usage: sm_cvs_stats - Show total records and breakdown by vote type
  */
 Action Command_DBStats(int iClient, int iArgs)
 {
@@ -450,7 +413,7 @@ Action Command_DBStats(int iClient, int iArgs)
 
 	DataPack pack = CreateSQLClientContextPack(iClient);
 
-	CVLog.Query("[Command_DBStats] Executing statistics SELECT query: %s", sQuery);
+	CVSQLLog.Query("[Command_DBStats] Executing statistics SELECT query: %s", sQuery);
 	g_db.Query(DBStats_Callback, sQuery, pack);
 
 	return Plugin_Handled;
@@ -464,6 +427,8 @@ public void CleanupDB_Callback(Database db, DBResultSet results, const char[] er
 	SQLClientDaysContext context;
 	ReadSQLClientDaysContext(pack, context);
 	delete pack;
+	if (!IsCurrentSQLCallback(db, context.Generation))
+		return;
 
 	int client = 0;
 	if (context.UserId != 0)
@@ -483,7 +448,7 @@ public void CleanupDB_Callback(Database db, DBResultSet results, const char[] er
 		}
 		else
 			CReplyToCommand(client, "%t %t", "Tag", "DatabaseCleanupFailed", error);
-		CVLog.Debug("[CleanupDB_Callback] Error: %s", error);
+		CVSQLLog.Debug("[CleanupDB_Callback] Error: %s", error);
 		return;
 	}
 
@@ -496,7 +461,7 @@ public void CleanupDB_Callback(Database db, DBResultSet results, const char[] er
 	}
 	else
 		CReplyToCommand(client, "%t %t", "Tag", "DatabaseCleanupCompleted", affectedRows, context.Days);
-	CVLog.Debug("[CleanupDB_Callback] Cleanup completed: %d rows affected", affectedRows);
+	CVSQLLog.Debug("[CleanupDB_Callback] Cleanup completed: %d rows affected", affectedRows);
 }
 
 /**
@@ -507,6 +472,8 @@ public void TruncateDB_Callback(Database db, DBResultSet results, const char[] e
 	SQLClientContext context;
 	ReadSQLClientContext(pack, context);
 	delete pack;
+	if (!IsCurrentSQLCallback(db, context.Generation))
+		return;
 
 	int client = 0;
 	if (context.UserId != 0)
@@ -526,7 +493,7 @@ public void TruncateDB_Callback(Database db, DBResultSet results, const char[] e
 		}
 		else
 			CReplyToCommand(client, "%t %t", "Tag", "DatabaseTruncateFailed", error);
-		CVLog.Debug("[TruncateDB_Callback] Error: %s", error);
+		CVSQLLog.Debug("[TruncateDB_Callback] Error: %s", error);
 		return;
 	}
 
@@ -538,7 +505,7 @@ public void TruncateDB_Callback(Database db, DBResultSet results, const char[] e
 	}
 	else
 		CReplyToCommand(client, "%t %t", "Tag", "DatabaseTruncateCompleted");
-	CVLog.Debug("[TruncateDB_Callback] Table truncated successfully");
+	CVSQLLog.Debug("[TruncateDB_Callback] Table truncated successfully");
 }
 
 /**
@@ -549,6 +516,8 @@ public void DBStats_Callback(Database db, DBResultSet results, const char[] erro
 	SQLClientContext context;
 	ReadSQLClientContext(pack, context);
 	delete pack;
+	if (!IsCurrentSQLCallback(db, context.Generation))
+		return;
 
 	int client = 0;
 	if (context.UserId != 0)
@@ -568,7 +537,7 @@ public void DBStats_Callback(Database db, DBResultSet results, const char[] erro
 		}
 		else
 			CReplyToCommand(client, "%t %t", "Tag", "DatabaseStatsFailed", error);
-		CVLog.Debug("[DBStats_Callback] Error: %s", error);
+		CVSQLLog.Debug("[DBStats_Callback] Error: %s", error);
 		return;
 	}
 
@@ -632,7 +601,7 @@ public void DBStats_Callback(Database db, DBResultSet results, const char[] erro
 
 /**
  * Initiates an asynchronous database connection.
- * 
+ *
  * Validates the configuration exists, initializes connection status variables,
  * and attempts to establish a database connection using the specified configuration.
  *
@@ -643,33 +612,33 @@ void ConnectDB(char[] sConfigName)
 {
 	if (g_db != null)
 	{
-		CVLog.Debug("[ConnectDB] Database already connected; skipping reconnect for config: %s", sConfigName);
+		CVSQLLog.Debug("[ConnectDB] Database already connected; skipping reconnect for config: %s", sConfigName);
 		return;
 	}
 
 	if (g_bSQLConnecting)
 	{
-		CVLog.Debug("[ConnectDB] Database connection already in progress; skipping duplicate connect for config: %s", sConfigName);
+		CVSQLLog.Debug("[ConnectDB] Database connection already in progress; skipping duplicate connect for config: %s", sConfigName);
 		return;
 	}
 
 	g_bSQLConnected = false;
 	g_bSQLTableExists = false;
-	
+
 	if (!SQL_CheckConfig(sConfigName))
 	{
-		CVLog.Debug("[ConnectDB] Database failure: could not find database config: %s", sConfigName);
+		LogError("[CallVote SQL] event=config_missing name=%s", sConfigName);
 		return;
 	}
 
 	g_bSQLConnecting = true;
-	CVLog.Debug("[ConnectDB] Attempting to connect to database config: %s", sConfigName);
-	Database.Connect(ConnectCallback, sConfigName);
+	CVSQLLog.Debug("[ConnectDB] Attempting to connect to database config: %s", sConfigName);
+	Database.Connect(ConnectCallback, sConfigName, g_iSQLGeneration);
 }
 
 /**
  * Callback function for database connection attempts.
- * 
+ *
  * Handles the result of database connection attempts, validates the connection,
  * identifies the database driver type, configures database settings (charset for MySQL),
  * and initiates table existence verification.
@@ -679,47 +648,53 @@ void ConnectDB(char[] sConfigName)
  * @param data      Additional data passed from the connection request (unused).
  * @noreturn       Sets global connection status variables and triggers table check.
  */
-void ConnectCallback(Database database, const char[] error, any data)
+void ConnectCallback(Database database, const char[] error, any generation)
 {
+	if (generation != g_iSQLGeneration || !g_cvarRegLogSQL.IntValue)
+	{
+		delete database;
+		return;
+	}
 	g_bSQLConnecting = false;
 	g_bSQLConnected = false;
 	g_bSQLTableExists = false;
 
 	if (database == null)
 	{
-		CVLog.Debug("[ConnectCallback] Could not connect to database: %s", error);
+		LogError("[CallVote SQL] event=connect_failed error=%s", error);
 		return;
 	}
-	
+
 	if (error[0] != '\0')
 	{
-		CVLog.Debug("[ConnectCallback] Error to connect to database: %s", error);
+		LogError("[CallVote SQL] event=connect_failed error=%s", error);
+		delete database;
 		return;
 	}
 
 	g_db = database;
 	g_bSQLConnected = true;
-	CVLog.Debug("[ConnectCallback] Successfully connected to database.");
+	CVSQLLog.Debug("[ConnectCallback] Successfully connected to database.");
 
 	DBDriver driver = database.Driver;
 	if (driver == null)
 	{
-		CVLog.Debug("[ConnectCallback] Failed to get database driver.");
-		g_bSQLConnected = false;
+		LogError("[CallVote SQL] event=driver_unavailable");
+		CloseSQLConnection();
 		return;
 	}
 
 	char sSQLDriverName[64];
 	driver.GetIdentifier(sSQLDriverName, sizeof(sSQLDriverName));
-	CVLog.Debug("[ConnectCallback] Driver: %s", sSQLDriverName);
+	CVSQLLog.Debug("[ConnectCallback] Driver: %s", sSQLDriverName);
 
 	if (StrEqual(sSQLDriverName, "mysql", false))
 	{
 		g_SQLDriver = SQL_MySQL;
 		if (database.SetCharset("utf8"))
-			CVLog.Debug("[ConnectCallback] Database charset set to UTF-8.");
+			CVSQLLog.Debug("[ConnectCallback] Database charset set to UTF-8.");
 		else
-			CVLog.Debug("[ConnectCallback] Failed to set database charset.");
+			CVSQLLog.Debug("[ConnectCallback] Failed to set database charset.");
 	}
 	else if (StrEqual(sSQLDriverName, "sqlite", false))
 	{
@@ -727,20 +702,20 @@ void ConnectCallback(Database database, const char[] error, any data)
 	}
 	else
 	{
-		CVLog.Debug("[ConnectCallback] Unknown database driver: %s", sSQLDriverName);
-		g_bSQLConnected = false;
+		LogError("[CallVote SQL] event=driver_unsupported name=%s", sSQLDriverName);
+		CloseSQLConnection();
 		return;
 	}
 
 	if (g_SQLDriver == SQL_SQLite)
 		EnsureSQLiteSchema();
-
-	CheckTableExists();
+	else
+		CheckTableExists();
 }
 
 /**
  * Verifies if the required database table exists.
- * 
+ *
  * Constructs and executes a database-specific query to check for table existence.
  * Uses information_schema for MySQL and sqlite_master for SQLite databases.
  *
@@ -751,7 +726,7 @@ void CheckTableExists()
 {
 	if (!g_bSQLConnected || g_db == null)
 	{
-		CVLog.Debug("[CheckTableExists] Not connected to database.");
+		CVSQLLog.Debug("[CheckTableExists] Not connected to database.");
 		g_bSQLTableExists = false;
 		return;
 	}
@@ -773,19 +748,19 @@ void CheckTableExists()
 		}
 		default:
 		{
-			CVLog.Debug("[CheckTableExists] Unknown SQL driver.");
+			CVSQLLog.Debug("[CheckTableExists] Unknown SQL driver.");
 			g_bSQLTableExists = false;
 			return;
 		}
 	}
 
-	CVLog.Query("[CheckTableExists] Executing table existence verification query: %s", sQuery);
-	g_db.Query(CheckTableCallback, sQuery);
+	CVSQLLog.Query("[CheckTableExists] Executing table existence verification query: %s", sQuery);
+	g_db.Query(CheckTableCallback, sQuery, g_iSQLGeneration);
 }
 
 /**
  * Callback function for table existence verification query.
- * 
+ *
  * Processes the result of table existence check and updates the global table status.
  * Sets g_bSQLTableExists based on whether the query returned any rows.
  *
@@ -795,18 +770,22 @@ void CheckTableExists()
  * @param data      Additional data passed to the callback (unused).
  * @noreturn       Updates g_bSQLTableExists global variable.
  */
-void CheckTableCallback(Database database, DBResultSet results, const char[] error, any data)
+void CheckTableCallback(Database database, DBResultSet results, const char[] error, any generation)
 {
+	if (!IsCurrentSQLCallback(database, generation))
+		return;
 	if (results == null)
 	{
-		CVLog.Debug("[CheckTableCallback] Error checking table existence: %s", error);
+		LogError("[CallVote SQL] event=table_check_failed error=%s", error);
 		g_bSQLTableExists = false;
 		return;
 	}
 
 	g_bSQLTableExists = results.FetchRow();
-	CVLog.Debug("[CheckTableCallback] Table '%s' exists: %s", g_sTable, g_bSQLTableExists ? "true" : "false");
+	CVSQLLog.Debug("[CheckTableCallback] Table '%s' exists: %s", g_sTable, g_bSQLTableExists ? "true" : "false");
 
 	if (!g_bSQLTableExists && g_SQLDriver == SQL_MySQL)
-		CVLog.Debug("[CheckTableCallback] MySQL table `%s` is missing; apply schema migrations", g_sTable);
+		LogError("[CallVote SQL] event=table_missing name=%s; apply configs/sql-init-callvote/mysql", g_sTable);
+	else if (g_bSQLTableExists)
+		CVSQLLog.Event("Storage", "event=ready driver=%d", g_SQLDriver);
 }

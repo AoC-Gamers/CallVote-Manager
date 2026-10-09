@@ -69,6 +69,16 @@
 		"en" 		"Your kick limit data is still loading. Try again in a moment."
 		"es" 		"Los datos de tu límite de expulsión aún se están cargando. Intenta nuevamente en un momento."
 	}
+	"KickRecordsPending"
+	{
+		"en" 		"Some kick counters are still loading; the list is incomplete."
+		"es" 		"Algunos contadores de expulsión aún se están cargando; la lista está incompleta."
+	}
+	"KickRecordsUnavailable"
+	{
+		"en" 		"Some kick counters could not be validated; the list is incomplete."
+		"es" 		"No se pudieron validar algunos contadores de expulsión; la lista está incompleta."
+	}
 	"KickDataUnavailable"
 	{
 		"en" 		"Your kick limit data could not be validated right now. Try again in a moment."

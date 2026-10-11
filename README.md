@@ -89,6 +89,10 @@ Superficie publica principal:
 
 ## Artefactos
 
+Las copias de `steamidtools.inc`, `steamidtools_stock.inc` y
+`steamidtools_helpers.inc` corresponden a SteamIDTools 2.5.0. El stock realiza
+conversiones locales de identidad sin requerir el plugin proveedor.
+
 La suite se distribuye mediante artefactos zip publicados por CI y releases de GitHub.
 
 Nombre esperado del paquete:

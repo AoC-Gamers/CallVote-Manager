@@ -10,6 +10,8 @@ on:
     paths:
       - .github/workflows/sourcemod-build.yml
       - scripts/ci-build-sourcemod.sh
+      - scripts/ci-publish-channel-release.sh
+      - tests/test_channel_release.py
       - scripts/ci-validate-artifact.sh
       - scripts/fetch-sourcemod.py
       - scripts/build-local.py
@@ -25,6 +27,8 @@ on:
     paths:
       - .github/workflows/sourcemod-build.yml
       - scripts/ci-build-sourcemod.sh
+      - scripts/ci-publish-channel-release.sh
+      - tests/test_channel_release.py
       - scripts/ci-validate-artifact.sh
       - scripts/fetch-sourcemod.py
       - scripts/build-local.py
@@ -203,10 +207,12 @@ jobs:
 
       - name: Publish channel release
         if: github.event_name != 'pull_request' && (github.ref_name == 'main' || github.ref_name == 'develop')
-        uses: softprops/action-gh-release@v3
-        with:
-          tag_name: ${{ steps.artifact.outputs.tag }}
-          name: ${{ steps.artifact.outputs.release_name }}
-          files: dist/release/${{ steps.artifact.outputs.basename }}.zip
-          draft: false
-          prerelease: ${{ steps.artifact.outputs.prerelease == 'true' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 -m unittest discover -s tests -p test_channel_release.py -v
+          bash scripts/ci-publish-channel-release.sh \
+            "${{ steps.artifact.outputs.tag }}" \
+            "${{ steps.artifact.outputs.release_name }}" \
+            "dist/release/${{ steps.artifact.outputs.basename }}.zip" \
+            "${{ steps.artifact.outputs.prerelease }}"

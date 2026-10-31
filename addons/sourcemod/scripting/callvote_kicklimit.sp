@@ -4,7 +4,7 @@
 #include <sourcemod>
 #include <colors>
 #include <dbi>
-#include <steamidtools_helpers>
+#include <steamidtools/commands>
 
 #undef REQUIRE_PLUGIN
 #include <callvote_core>

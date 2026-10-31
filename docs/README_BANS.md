@@ -1,6 +1,6 @@
 # CallVote Bans
 
-Bans 2.1.0 y Admin Menu 1.1.0 consumen el contrato de `callvote_core` 3.0.0.
+Bans 2.1.1 y Admin Menu 1.1.0 consumen el contrato de `callvote_core` 3.0.0.
 Bans aplica restricciones por tipo de votación; Admin Menu es su UI opcional.
 
 ## Alcance
@@ -39,10 +39,11 @@ mismo punto. Las altas y bajas posteriores actualizan la disponibilidad. Admin M
 el enlace del menú y la limpieza de paneles al siguiente frame; no consulta
 natives al recibir el alta de una biblioteca.
 
-Las solicitudes de identidad usan el estado de `steamidtools` y recorren sus
-proveedores una sola vez, intentando el siguiente si el anterior no acepta la
-solicitud. Se distinguen biblioteca ausente, proveedores no disponibles y fallo
-al encolar. Los paneles consumen la entrada del comentario aunque sea inválida,
+Las conversiones de identidad se ejecutan localmente con SteamIDTools 4.0.0,
+sin provider, biblioteca dinamica, requests de conversion ni health checks.
+SteamID64 usa el parser local validado y continua por las mismas comprobaciones
+de autorizacion e identidad de las acciones administrativas. La politica de
+restricciones y su persistencia no cambian. Los paneles consumen la entrada del comentario aunque sea inválida,
 para que no aparezca en el chat público.
 
 ## Contrato con el Core
@@ -94,7 +95,7 @@ y las mismas reglas que el resto de la suite:
 - `SteamID64` persistido en MySQL para lectura externa y analitica
 - SQLite local creado automaticamente por el plugin
 
-Las conversiones offline usan `steamidtools.inc` y `steamidtools_helpers.inc`. Solo se usa el backend de `steamidtools.smx` cuando una operacion administrativa necesita resolver un `SteamID64` offline y el provider reporta estado saludable.
+Las conversiones offline usan `steamidtools.inc` y `steamidtools/commands.inc`. Solo se usa el backend de `steamidtools.smx` cuando una operacion administrativa necesita resolver un `SteamID64` offline y el provider reporta estado saludable.
 
 ## Flujo
 

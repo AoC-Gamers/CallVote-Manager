@@ -13,15 +13,9 @@ enum SteamID64_ContinuationType
 enum SteamIDValidationResult
 {
 	STEAMID_VALIDATION_SUCCESS = 0,
-	STEAMID_VALIDATION_ASYNC,
 	STEAMID_VALIDATION_ERROR
 };
 
-static const SteamIDToolsProvider g_eCVBIdentityProviders[] =
-{
-	SteamIDToolsProvider_SteamWorks,
-	SteamIDToolsProvider_System2
-};
 
 enum struct AsyncContext
 {
@@ -383,62 +377,10 @@ bool CVB_QueueIdentityLookup(int client, const char[] steamIdInput, SteamID64_Co
 
 	context.CommandReplySource = replySource;
 
-	SteamIDValidationResult validationResult = ValidateAndConvertSteamIDAsync(client, steamIdInput, context);
+	SteamIDValidationResult validationResult = ValidateAndConvertSteamIDLocal(client, steamIdInput, context);
 	if (validationResult == STEAMID_VALIDATION_SUCCESS)
 	{
 		ContinueResolvedIdentityRequest(context);
-		return true;
-	}
-
-	return (validationResult == STEAMID_VALIDATION_ASYNC);
-}
-
-void InitPendingIdentityRequests()
-{
-	if (g_aPendingIdentityRequestIds == null)
-		g_aPendingIdentityRequestIds = new ArrayList();
-
-	if (g_aPendingIdentityRequestContexts == null)
-		g_aPendingIdentityRequestContexts = new ArrayList(sizeof(AsyncContext));
-}
-
-void ClosePendingIdentityRequests()
-{
-	if (g_aPendingIdentityRequestContexts != null)
-	{
-		delete g_aPendingIdentityRequestContexts;
-		g_aPendingIdentityRequestContexts = null;
-	}
-
-	if (g_aPendingIdentityRequestIds != null)
-	{
-		delete g_aPendingIdentityRequestIds;
-		g_aPendingIdentityRequestIds = null;
-	}
-}
-
-void TrackPendingIdentityRequest(int requestId, AsyncContext context)
-{
-	InitPendingIdentityRequests();
-	g_aPendingIdentityRequestIds.Push(requestId);
-	g_aPendingIdentityRequestContexts.PushArray(context, sizeof(AsyncContext));
-}
-
-bool TakePendingIdentityRequest(int requestId, AsyncContext context)
-{
-	context.Reset();
-
-	if (g_aPendingIdentityRequestIds == null || g_aPendingIdentityRequestContexts == null)
-		return false;
-
-	for (int i = 0; i < g_aPendingIdentityRequestIds.Length; i++)
-	{
-		if (g_aPendingIdentityRequestIds.Get(i) != requestId)
-			continue;
-
-		g_aPendingIdentityRequestContexts.GetArray(i, context, sizeof(AsyncContext));
-		g_aPendingIdentityRequestIds.Erase(i);
-		g_aPendingIdentityRequestContexts.Erase(i);
 		return true;
 	}
 
@@ -461,52 +403,7 @@ bool GetAdminInfo(int client, int &adminAccountId, char[] adminSteamId2, int max
 	return GetClientAuthId(client, AuthId_Steam2, adminSteamId2, maxlen);
 }
 
-bool QueueSteamID64ToAccountIDRequest(int client, const char[] steamid64, AsyncContext context)
-{
-	if (!g_bSteamIDToolsLibrary)
-	{
-		CReplyToCommand(client, "%t %t", "Tag", "SteamIDToolsRequired");
-		CReplyToCommand(client, "%t %t", "Tag", "PleaseUseOtherFormats");
-		return false;
-	}
-
-	int requestId = 0;
-	bool providerAvailable = false;
-	for (int i = 0; i < sizeof(g_eCVBIdentityProviders); i++)
-	{
-		SteamIDToolsProvider provider = g_eCVBIdentityProviders[i];
-		if (!SteamIDTools_IsProviderAvailable(provider))
-			continue;
-
-		providerAvailable = true;
-		requestId = SteamIDTools_RequestConversion(provider, API_SID64toAID, steamid64, "cvb");
-		if (requestId > 0)
-			break;
-	}
-
-	if (requestId <= 0)
-	{
-		if (providerAvailable)
-			CReplyToCommand(client, "%t %t", "Tag", "SteamIDToolsRequestFailed", "request queue failed");
-		else
-			CReplyToCommand(client, "%t %t", "Tag", "SteamIDToolsProviderUnavailable");
-		CReplyToCommand(client, "%t %t", "Tag", "PleaseUseOtherFormats");
-		return false;
-	}
-
-	TrackPendingIdentityRequest(requestId, context);
-	return true;
-}
-
-bool SetResolvedTargetIdentity(AsyncContext context, int accountId)
-{
-	if (!context.IsInitialized() || accountId <= SERVER_INDEX)
-		return false;
-
-	return CVB_SetContextTargetFromAccountId(context, accountId, 0);
-}
-
-SteamIDValidationResult ValidateAndConvertSteamIDAsync(int client, const char[] steamId, AsyncContext context)
+SteamIDValidationResult ValidateAndConvertSteamIDLocal(int client, const char[] steamId, AsyncContext context)
 {
 	context.SetOriginalSteamId(steamId);
 	context.AdminUserId = CVB_GetCommandIssuerUserId(client);
@@ -545,15 +442,19 @@ SteamIDValidationResult ValidateAndConvertSteamIDAsync(int client, const char[] 
 
 		case STEAMID_FORMAT_STEAMID64:
 		{
-			if (!QueueSteamID64ToAccountIDRequest(client, steamId, context))
-				return STEAMID_VALIDATION_ERROR;
-
-			return STEAMID_VALIDATION_ASYNC;
+			int accountId;
+			if (SteamIDTools_SteamID64ToAccountID(steamId, accountId)
+			    && CVB_SetContextTargetFromAccountId(context, accountId, client, steamId))
+			    return STEAMID_VALIDATION_SUCCESS;
+			CReplyToCommand(client, "%t %t", "Tag", "InvalidSteamIDFormat", steamId);
+			return STEAMID_VALIDATION_ERROR;
 		}
 
 		case STEAMID_FORMAT_ACCOUNTID:
 		{
-			int accountId = StringToInt(steamId);
+			int accountId;
+			if (!SteamIDTools_TryParseAccountID(steamId, accountId))
+			    return STEAMID_VALIDATION_ERROR;
 			if (CVB_SetContextTargetFromAccountId(context, accountId, client, steamId))
 				return STEAMID_VALIDATION_SUCCESS;
 			return STEAMID_VALIDATION_ERROR;
@@ -589,55 +490,4 @@ void ContinueResolvedIdentityRequest(AsyncContext context)
 			LogError("Unknown continuation type: %d", context.ContinuationType);
 		}
 	}
-}
-
-public void SteamIDTools_OnRequestFinished(int iRequestId, SteamIDToolsProvider provider, bool bSuccess, bool bBatch, const char[] szEndpoint, const char[] szInput, const char[] szResult, const char[] szTag)
-{
-	AsyncContext context;
-	context.Reset();
-	if (!TakePendingIdentityRequest(iRequestId, context))
-		return;
-
-	if (!context.IsInitialized())
-	{
-		LogError("Invalid context received in SteamIDTools callback for request %d", iRequestId);
-		return;
-	}
-
-	int admin;
-	bool canReply = CVB_TryResolveCommandIssuer(context.AdminUserId, admin);
-	if (!bSuccess)
-	{
-		if (canReply)
-			CReplyToCommand(admin, "%t %t", "Tag", "SteamIDToolsRequestFailed", szResult);
-
-		return;
-	}
-
-	if (bBatch || !StrEqual(szEndpoint, API_SID64toAID, false))
-		return;
-
-	char response[64];
-	strcopy(response, sizeof(response), szResult);
-	TrimString(response);
-
-	int accountId = StringToInt(response);
-	if (!SetResolvedTargetIdentity(context, accountId))
-	{
-		if (canReply)
-		{
-			char originalSteamId[64];
-			strcopy(originalSteamId, sizeof(originalSteamId), context.OriginalSteamId);
-			CReplyToCommand(admin, "%t %t", "Tag", "InvalidSteamIDFormat", originalSteamId);
-		}
-
-		return;
-	}
-
-	ContinueResolvedIdentityRequest(context);
-}
-
-public void SteamIDTools_OnBackendStatusChanged(SteamIDToolsProvider provider, SteamIDToolsBackendStatus status, const char[] szMessage)
-{
-	// SteamIDTools owns provider health; CVB keeps this forward as a no-op to avoid noisy startup logs.
 }

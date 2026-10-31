@@ -6,13 +6,13 @@
 #include <callvote_stock>
 #include <callvote_localizer>
 #include <language_manager>
-#include <steamidtools_helpers>
+#include <steamidtools/commands>
 
 #undef REQUIRE_PLUGIN
 #include <callvote_core>
 #define REQUIRE_PLUGIN
 
-#define PLUGIN_VERSION	 "2.1.0"
+#define PLUGIN_VERSION	 "2.1.1"
 #define CVB_LOG_TAG		 "CVB"
 #define CVB_LOG_FILE	 "callvote_bans.log"
 
@@ -28,8 +28,6 @@ ConVar
 
 // Unified in-memory cache using AccountID as key
 StringMap g_smClientCache;	  // Unified in-memory cache for restriction information
-ArrayList g_aPendingIdentityRequestIds;
-ArrayList g_aPendingIdentityRequestContexts;
 
 Database
 	g_hSQLiteDB,	// Local SQLite bans backend
@@ -38,8 +36,7 @@ Database
 bool
 	g_bLateLoad,
 	g_bCallVoteCoreLibrary,
-	g_bMySQLConnecting,
-	g_bSteamIDToolsLibrary;
+	g_bMySQLConnecting;
 
 CallVoteLogger g_Log = null;
 Localizer g_loc = null;
@@ -204,7 +201,6 @@ public Plugin myinfo =
 
 static void CVB_RefreshLibraryState()
 {
-	g_bSteamIDToolsLibrary = LibraryExists(STEAMIDTOOLS_LIBRARY);
 	g_bCallVoteCoreLibrary = LibraryExists(CALLVOTECORE_LIBRARY);
 }
 
@@ -240,8 +236,6 @@ public void OnAllPluginsLoaded()
 
 public void OnLibraryRemoved(const char[] sName)
 {
-	if (StrEqual(sName, STEAMIDTOOLS_LIBRARY))
-		g_bSteamIDToolsLibrary = false;
 	if (StrEqual(sName, CALLVOTECORE_LIBRARY))
 	{
 		g_bCallVoteCoreLibrary = false;
@@ -251,8 +245,6 @@ public void OnLibraryRemoved(const char[] sName)
 
 public void OnLibraryAdded(const char[] sName)
 {
-	if (StrEqual(sName, STEAMIDTOOLS_LIBRARY))
-		g_bSteamIDToolsLibrary = true;
 	if (StrEqual(sName, CALLVOTECORE_LIBRARY))
 		g_bCallVoteCoreLibrary = true;
 }
@@ -300,7 +292,6 @@ public void OnPluginEnd()
 	}
 
 	CloseDatabase();
-	ClosePendingIdentityRequests();
 	CloseMemoryCache();
 	CloseForwards();
 

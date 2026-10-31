@@ -87,3 +87,10 @@ El workflow principal separa el camino `smx` en jobs explicitos:
 - `release`
 
 Y el workflow de tags reutiliza el mismo camino antes de crear la release versionada `sourcemod/vX.Y.Z`.
+
+## Regresion de identidad offline
+
+`make test-offline` ejecuta el resolver y el contexto productivos de CallVote en
+JIT e interprete SourcePawn, con formatos validos y entradas invalidas. Requiere
+la VM preparada en el checkout hermano SteamIDTools (override
+`STEAMIDTOOLS_ROOT`). No opera SRCDS ni modifica restricciones persistidas.

@@ -39,7 +39,7 @@ mismo punto. Las altas y bajas posteriores actualizan la disponibilidad. Admin M
 el enlace del menú y la limpieza de paneles al siguiente frame; no consulta
 natives al recibir el alta de una biblioteca.
 
-Las conversiones de identidad se ejecutan localmente con SteamIDTools 3.0.0,
+Las conversiones de identidad se ejecutan localmente con SteamIDTools 4.0.0,
 sin provider, biblioteca dinamica, requests de conversion ni health checks.
 SteamID64 usa el parser local validado y continua por las mismas comprobaciones
 de autorizacion e identidad de las acciones administrativas. La politica de
@@ -95,7 +95,7 @@ y las mismas reglas que el resto de la suite:
 - `SteamID64` persistido en MySQL para lectura externa y analitica
 - SQLite local creado automaticamente por el plugin
 
-Las conversiones offline usan `steamidtools.inc` y `steamidtools_helpers.inc`. Solo se usa el backend de `steamidtools.smx` cuando una operacion administrativa necesita resolver un `SteamID64` offline y el provider reporta estado saludable.
+Las conversiones offline usan `steamidtools.inc` y `steamidtools/commands.inc`. Solo se usa el backend de `steamidtools.smx` cuando una operacion administrativa necesita resolver un `SteamID64` offline y el provider reporta estado saludable.
 
 ## Flujo
 

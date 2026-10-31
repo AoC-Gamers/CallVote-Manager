@@ -26,6 +26,7 @@
 	#define _callvote_restore_require_plugin
 #endif
 #include <steamidtools>
+#include <steamidtools/clients>
 #if defined _callvote_restore_require_plugin
 	#define REQUIRE_PLUGIN
 	#undef _callvote_restore_require_plugin

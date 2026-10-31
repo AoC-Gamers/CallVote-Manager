@@ -6,7 +6,7 @@
 #include <callvote_stock>
 #include <callvote_localizer>
 #include <language_manager>
-#include <steamidtools_helpers>
+#include <steamidtools/commands>
 
 #undef REQUIRE_PLUGIN
 #include <callvote_core>

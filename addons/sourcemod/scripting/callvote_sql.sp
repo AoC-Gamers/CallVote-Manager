@@ -4,7 +4,7 @@
 #include <sourcemod>
 #include <colors>
 #include <callvote_core>
-#include <steamidtools_stock>
+#include <steamidtools>
 
 #define PLUGIN_VERSION "1.0.1"
 

@@ -22,7 +22,7 @@ if sys.argv[2]==os.environ['FAIL']: sys.exit(7)
             gh.chmod(0o755)
             asset = root/'release.zip'; asset.write_bytes(b'fixture')
             calls = root/'calls'
-            result = subprocess.run(['bash',str(ROOT/'scripts/ci-publish-channel-release.sh'),
+            result = subprocess.run(['bash',str(ROOT/'scripts/ci/ci-publish-channel-release.sh'),
                 'channel/develop','Develop',str(asset),'true'],
                 env=dict(os.environ,PATH=str(root)+os.pathsep+os.environ['PATH'],
                     CALLS=str(calls),EXISTS='1' if exists else '0',FAIL=fail),capture_output=True,text=True)

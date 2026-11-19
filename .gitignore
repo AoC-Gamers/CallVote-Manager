@@ -1,15 +1,25 @@
+# Editors and Python caches
+/.vscode/
+/.idea/
+__pycache__/
+*.pyc
 
-/.vscode
-/tmp/
-/dist/
+# Repository-local settings and credentials
+/.env
+/.env.*
+!/.env.example
+!/.env.secret.example
+
+# Dependencies, build outputs and temporary directories
+/.deps/
 /.build/
+/.build-*.log
+/dist/
+/.tmp/
+/tmp/
+
+# Legacy local build directories
+/deps/
 /build/
 /build-linux/
 /build-windows/
-/deps/
-__pycache__/
-*.pyc
-*.log
-*.zip
-*.tar
-*.tar.gz

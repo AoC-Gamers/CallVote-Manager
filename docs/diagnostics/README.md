@@ -88,13 +88,13 @@ Desde la raiz del repositorio, con el toolchain Linux disponible:
 ```sh
 make deps-smx
 make build-smx
-mkdir -p .build/focal
-deps/sourcemod-linux/addons/sourcemod/scripting/spcomp \
+mkdir -p .build/diagnostics
+.deps/smx/sourcemod-linux/addons/sourcemod/scripting/spcomp \
   addons/sourcemod/scripting/callvote_testing.sp \
   -iaddons/sourcemod/scripting/include \
   -iaddons/sourcemod/scripting \
-  -ideps/sourcemod-linux/addons/sourcemod/scripting/include \
-  -o.build/focal/callvote_testing.smx
+  -i.deps/smx/sourcemod-linux/addons/sourcemod/scripting/include \
+  -o.build/diagnostics/callvote_testing.smx
 ```
 
 El build del bundle omite el tester deliberadamente. Compilar no instala ni

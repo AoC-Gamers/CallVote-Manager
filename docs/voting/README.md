@@ -22,9 +22,9 @@ consumidores obtienen ese contexto sin reconstruir el ciclo desde señales suelt
 El core conserva la sesion actual y la ultima finalizada como instantaneas
 temporales. El historial, la analitica y las conversiones Steam corresponden a
 los consumidores. Las reglas de modo, equipo e inmunidad pertenecen a
-[Manager](README_MANAGER.md); las cuotas a [Kick Limit](README_KICKLIMIT.md);
-las restricciones persistentes y su administracion a [Bans](README_BANS.md);
-el registro SQL de inicios a [SQL](README_SQL.md). Bans consume el contrato
+[Manager](../manager/README.md); las cuotas a [Kick Limit](../restrictions/kick-limit.md);
+las restricciones persistentes y su administracion a [Bans](../restrictions/README.md);
+el registro SQL de inicios a [SQL](../database/README.md). Bans consume el contrato
 comun, igual que cualquier otra extension; sus sanciones no definen el modelo
 del core.
 
@@ -182,10 +182,15 @@ analitico. Los consumidores deben tolerar conteos -1 y no conservar un client
 para resolver su identidad despues de una desconexion o reutilizacion de slot.
 
 La captura local y la matriz de pruebas reales se describen en
-[Diagnostico de votaciones](README_TESTING.md). Compilar y probar callbacks
+[Diagnostico de votaciones](../diagnostics/README.md). Compilar y probar callbacks
 controlados no sustituye verificar votaciones reales en Coop y competitivo.
 
 La persistencia SQL y su administracion pertenecen a
-[callvote_sql](README_SQL.md). El core no abre conexiones SQL, crea tablas ni
+[callvote_sql](../database/README.md). El core no abre conexiones SQL, crea tablas ni
 registra comandos de historial. Mantiene su diagnostico operativo y las dos
 instantaneas temporales del ciclo.
+
+## Referencias
+
+- [Votaciones por modo de juego](by-mode.md)
+- [Comportamiento del motor y HL2SDK](engine.md)

@@ -18,7 +18,7 @@ política de cuota:
 El core entrega el índice de cliente y el `AccountID` capturados para la
 sesión. La identidad usada para la cuota es el `AccountID`, no el slot actual
 del jugador. La regla comun se describe en el
-[contrato de identidad del core](README_CORE.md#contrato-de-identidad).
+[contrato de identidad del core](../voting/README.md#contrato-de-identidad).
 
 ```mermaid
 flowchart TD

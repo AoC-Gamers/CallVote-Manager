@@ -1,12 +1,12 @@
 # Votaciones de L4D2 por modo de juego
 
 Referencia de la politica implementada por
-[`callvote_manager/policy.sp`](../addons/sourcemod/scripting/callvote_manager/policy.sp).
+[`callvote_manager/policy.sp`](../../addons/sourcemod/scripting/callvote_manager/policy.sp).
 
 ## Clasificacion por modo base
 
 Manager consulta `L4D_GetGameModeType()` de
-[`Left4DHooks`](../addons/sourcemod/scripting/include/left4dhooks.inc) en cada
+[`Left4DHooks`](../../addons/sourcemod/scripting/include/left4dhooks.inc) en cada
 solicitud. Las mutaciones reciben las reglas de su modo base; no se clasifican
 por nombre ni por el texto de `mp_gamemode`.
 
@@ -47,6 +47,6 @@ tambien depende de ConVars, argumento, objetivo, equipo, cooldown y reglas del m
 
 ## Referencias
 
-- [Contrato del Core](README_CORE.md) y [procedimiento de diagnostico](README_TESTING.md).
-- [Eventos de L4D2](l4d2_game_events.json).
+- [Contrato del Core](README.md) y [procedimiento de diagnostico](../diagnostics/README.md).
+- [Eventos de L4D2](../l4d2_game_events.json).
 - [Left 4 Voting 2](https://wiki.alliedmods.net/Left_4_Voting_2): protocolo de votacion.

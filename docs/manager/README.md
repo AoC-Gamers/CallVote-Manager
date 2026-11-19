@@ -2,7 +2,7 @@
 
 Satélite opcional de política y mensajes sobre `callvote_core` 3.0.0.
 Manager 2.2.1 no mantiene historial, no escribe SQL y no produce el lifecycle.
-El contrato compartido pertenece a [`callvote_core.inc`](../addons/sourcemod/scripting/include/callvote_core.inc).
+El contrato compartido pertenece a [`callvote_core.inc`](../../addons/sourcemod/scripting/include/callvote_core.inc).
 
 ## Flujo
 
@@ -35,7 +35,7 @@ jugadores humanos, como en la experiencia anterior.
 - No iniciar votaciones como espectador.
 - Respetar ConVars del motor para dificultad, reinicio, kick y campaña; Manager
   controla lobby, capítulo y AllTalk mediante sus propias ConVars.
-- Aplicar la [matriz por modo base](VOTING_BY_GAME_MODE.md), también a mutaciones,
+- Aplicar la [matriz por modo base](../voting/by-mode.md), también a mutaciones,
   consultando `L4D_GetGameModeType()` al evaluar cada solicitud. Una base
   desconocida se entrega a las comprobaciones del motor.
 - Rechazar cambios a la dificultad que ya está activa.
@@ -74,7 +74,7 @@ Configuración generada: `cfg/sourcemod/callvote/callvote_manager.cfg`.
 `sm_cv_log_mode` es la configuración de logging compartida. El log debug de
 Manager reside en `addons/sourcemod/logs/callvote/callvote_manager.log`, según
 la raíz SourceMod activa. Las frases SQL y sus comandos pertenecen a
-[`callvote_sql`](README_SQL.md).
+[`callvote_sql`](../database/README.md).
 
 ## Dependencias y seguridad de contexto
 

@@ -32,7 +32,7 @@ satelite. Un fallo SQL no decide si una votacion puede comenzar.
 ## Identidad persistida
 
 El registro usa los AccountID capturados por el
-[contrato de identidad del core](README_CORE.md#contrato-de-identidad).
+[contrato de identidad del core](../voting/README.md#contrato-de-identidad).
 Las representaciones Steam se derivan en el satelite:
 
 | Columna de `callvote_log` | SQLite | MySQL |
@@ -45,8 +45,8 @@ Las representaciones Steam se derivan en el satelite:
 `SteamID2` se utiliza para presentacion; no es una clave persistente del registro.
 `client` y `userid` sirven al runtime y a las respuestas diferidas, mientras que
 las filas se asocian a jugadores mediante AccountID. La persistencia de cuotas
-y restricciones pertenece a [Kick Limit](README_KICKLIMIT.md) y
-[Bans](README_BANS.md), respectivamente.
+y restricciones pertenece a [Kick Limit](../restrictions/kick-limit.md) y
+[Bans](../restrictions/README.md), respectivamente.
 
 ## Configuracion
 

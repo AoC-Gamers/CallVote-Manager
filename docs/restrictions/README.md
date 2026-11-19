@@ -87,7 +87,7 @@ no cambia esa autoría a consola en el cache ni en los detalles.
 
 ## Modelo
 
-El plugin sigue el [contrato de identidad del core](README_CORE.md#contrato-de-identidad)
+El plugin sigue el [contrato de identidad del core](../voting/README.md#contrato-de-identidad)
 y las mismas reglas que el resto de la suite:
 
 - `AccountID` como identidad interna
@@ -153,3 +153,5 @@ flowchart TD
 ## Direccion
 
 `callvote_bans` debe mantenerse pequeno y estable. La logica de sanciones mas compleja, paneles avanzados y flujos mas ricos deberian crecer fuera de esta suite, consumiendo el core publico de `callvote_core`.
+
+Consulta también el [límite de votekick](kick-limit.md).

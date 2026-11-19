@@ -131,7 +131,7 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
-  release:
+  package:
     runs-on: ubuntu-latest
     needs: build-smx
     outputs:
@@ -199,7 +199,7 @@ jobs:
 
   publish-channel:
     if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
-    needs: release
+    needs: package
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -211,7 +211,7 @@ jobs:
       - name: Download validated ZIP
         uses: actions/download-artifact@v8
         with:
-          name: ${{ needs.release.outputs.basename }}
+          name: ${{ needs.package.outputs.basename }}
           path: dist/release
 
       - name: Move channel tag
@@ -220,8 +220,8 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git tag -f "${{ needs.release.outputs.tag }}" "$GITHUB_SHA"
-          git push origin "refs/tags/${{ needs.release.outputs.tag }}" --force
+          git tag -f "${{ needs.package.outputs.tag }}" "$GITHUB_SHA"
+          git push origin "refs/tags/${{ needs.package.outputs.tag }}" --force
 
       - name: Publish channel release
         if: github.event_name != 'pull_request' && (github.ref_name == 'main' || github.ref_name == 'develop')
@@ -229,7 +229,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           bash scripts/ci/ci-publish-channel-release.sh \
-            "${{ needs.release.outputs.tag }}" \
-            "${{ needs.release.outputs.release_name }}" \
-            "dist/release/${{ needs.release.outputs.basename }}.zip" \
-            "${{ needs.release.outputs.prerelease }}"
+            "${{ needs.package.outputs.tag }}" \
+            "${{ needs.package.outputs.release_name }}" \
+            "dist/release/${{ needs.package.outputs.basename }}.zip" \
+            "${{ needs.package.outputs.prerelease }}"
